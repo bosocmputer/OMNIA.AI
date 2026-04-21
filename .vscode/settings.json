@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /Users/nontawatwongnuk/dev/BossBoard && node -e \"\nconst fs = require\\('fs'\\);\nconst buf = fs\\.readFileSync\\('VAT08\\.pdf'\\);\nimport\\('pdf-parse'\\)\\.then\\(mod => \\{\n  const parser = new mod\\.PDFParse\\(\\{verbosity: 0\\}\\);\n  return parser\\.loadPDF\\(buf\\);\n\\}\\)\\.then\\(r => \\{\n  console\\.log\\('Keys:', Object\\.keys\\(r\\)\\);\n  console\\.log\\('numpages:', r\\.numpages\\);\n  console\\.log\\('text preview:', String\\(r\\.text\\)\\.slice\\(0, 300\\)\\);\n\\}\\)\\.catch\\(e => \\{\n  console\\.error\\('Error:', e\\.message\\);\n  console\\.error\\('Stack:', e\\.stack\\?\\.split\\('\\\\n'\\)\\.slice\\(0,5\\)\\.join\\('\\\\n'\\)\\);\n\\}\\);\n\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

@@ -1,0 +1,211 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id              String   @id
+  name            String   @db.VarChar(100)
+  emoji           String   @db.VarChar(10)
+  provider        String   @db.VarChar(20)
+  apiKeyEncrypted String   @default("")
+  baseUrl         String?
+  model           String   @db.VarChar(200)
+  soul            String   @db.Text
+  role            String   @db.VarChar(200)
+  active          Boolean  @default(true)
+  useWebSearch    Boolean  @default(false)
+  seniority       Int?
+  mcpEndpoint     String?
+  mcpAccessMode   String?
+  trustedUrls     String[]
+  isSystem        Boolean  @default(false)
+  systemAgentType String?
+  userId          String?
+  createdAt       DateTime
+  updatedAt       DateTime
+
+  knowledge   AgentKnowledge[]
+  stat        AgentStat?
+  memberships TeamAgent[]
+  user        User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("agents")
+}
+
+model AgentKnowledge {
+  id         String   @id
+  agentId    String
+  filename   String   @db.VarChar(500)
+  meta       String   @db.Text
+  tokens     Int
+  uploadedAt DateTime
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_knowledge")
+}
+
+model Team {
+  id          String   @id
+  name        String   @db.VarChar(100)
+  emoji       String   @db.VarChar(10)
+  description String   @default("") @db.Text
+  userId      String?
+  createdAt   DateTime
+  updatedAt   DateTime
+
+  members TeamAgent[]
+  user    User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("teams")
+}
+
+model TeamAgent {
+  teamId   String
+  agentId  String
+  position Int    @default(0)
+
+  team  Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, agentId])
+  @@map("team_agents")
+}
+
+model Settings {
+  id                 Int      @id @default(1)
+  serperApiKey       String   @default("")
+  serpApiKey         String   @default("")
+  companyName        String?
+  businessType       String?
+  registrationNumber String?
+  accountingStandard String?
+  fiscalYear         String?
+  employeeCount      String?
+  notes              String?  @db.Text
+  updatedAt          DateTime
+
+  @@map("settings")
+}
+
+model ResearchSession {
+  id          String    @id
+  userId      String    @map("user_id")
+  question    String    @db.Text
+  agentIds    String[]
+  dataSource  String?
+  status      String    @db.VarChar(20)
+  startedAt   DateTime
+  completedAt DateTime?
+  finalAnswer String?   @db.Text
+  totalTokens Int       @default(0)
+
+  user     User              @relation(fields: [userId], references: [id])
+  messages ResearchMessage[]
+
+  @@map("research_sessions")
+}
+
+model ResearchMessage {
+  id         String   @id
+  sessionId  String
+  agentId    String
+  agentName  String   @db.VarChar(100)
+  agentEmoji String   @db.VarChar(10)
+  role       String   @db.VarChar(20)
+  content    String   @db.Text
+  tokensUsed Int      @default(0)
+  timestamp  DateTime
+
+  session ResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("research_messages")
+}
+
+model AgentStat {
+  agentId           String @id
+  totalSessions     Int    @default(0)
+  totalInputTokens  Int    @default(0)
+  totalOutputTokens Int    @default(0)
+  lastUsed          String @db.VarChar(10)
+
+  agent Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  daily AgentDailyStat[]
+
+  @@map("agent_stats")
+}
+
+model AgentDailyStat {
+  id           Int    @id @default(autoincrement())
+  agentId      String
+  date         String @db.VarChar(10)
+  sessions     Int    @default(0)
+  inputTokens  Int    @default(0)
+  outputTokens Int    @default(0)
+
+  stat AgentStat @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  @@unique([agentId, date])
+  @@map("agent_daily_stats")
+}
+
+model ClientMemory {
+  id        String   @id
+  userId    String   @map("user_id")
+  key       String   @db.VarChar(100)
+  value     String   @db.VarChar(500)
+  source    String   @db.VarChar(200)
+  createdAt DateTime
+  updatedAt DateTime
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, key])
+  @@map("client_memory")
+}
+
+model User {
+  id                     String    @id @default(cuid())
+  username               String    @unique @db.VarChar(50)
+  passwordHash           String    @db.VarChar(100)
+  role                   String    @default("user") @db.VarChar(20)
+  email                  String?   @unique @db.VarChar(200)
+  googleId               String?   @unique
+  plan                   String    @default("FREE") @db.VarChar(20)
+  monthlySessionsUsed    Int       @default(0)
+  quotaResetAt           DateTime?
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+  consentPdpa            Boolean   @default(false)
+  consentAt              DateTime?
+  createdAt              DateTime  @default(now())
+
+  sessions     ResearchSession[]
+  memories     ClientMemory[]
+  agents       Agent[]
+  teams        Team[]
+  birthProfile BirthProfile?
+
+  @@map("users")
+}
+
+model BirthProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  name        String    @db.VarChar(100)
+  birthDate   String    @db.VarChar(20)
+  birthTime   String?   @db.VarChar(10)
+  birthPlace  String?   @db.VarChar(200)
+  timezone    String?   @db.VarChar(50)
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("birth_profiles")
+}

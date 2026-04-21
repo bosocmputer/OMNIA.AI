@@ -1,0 +1,40 @@
+{
+  "name": "omnia-ai",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "migrate:json": "tsx scripts/migrate-json-to-db.ts",
+    "seed:admin": "tsx scripts/seed-admin.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "bcryptjs": "^3.0.3",
+    "ioredis": "^5.10.1",
+    "jose": "^6.2.2",
+    "lucide-react": "^1.8.0",
+    "mammoth": "^1.12.0",
+    "next": "^16.0.0",
+    "pdf-parse": "^1.1.1",
+    "postcss": "^8.0.0",
+    "prisma": "^5.22.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6"
+  }
+}
