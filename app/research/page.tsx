@@ -284,6 +284,80 @@ function MessageContent({ content }: { content: string }) {
   );
 }
 
+function extractMarkdownSection(content: string, heading: string) {
+  const stripped = content.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim();
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(?:^|\\n)\\*\\*${escaped}\\*\\*\\s*\\n([\\s\\S]*?)(?=\\n\\*\\*[^\\n]+\\*\\*|$)`, "i");
+  return stripped.match(pattern)?.[1]?.trim() ?? "";
+}
+
+function sectionBullets(section: string, limit = 3) {
+  return section
+    .split("\n")
+    .map((line) => line.replace(/^[-*]\s*/, "").replace(/^\d+[.)]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function firstMeaningfulLine(content: string) {
+  return content
+    .replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "")
+    .split("\n")
+    .map((line) => line.replace(/^#+\s*/, "").replace(/^\*\*|\*\*$/g, "").replace(/^[-*]\s*/, "").trim())
+    .find((line) => line.length > 0) ?? "";
+}
+
+function confidenceLabel(content: string) {
+  const pctMatch = content.match(/(\d{1,2})\s*[-–]\s*(\d{1,2})\s*%|(\d{1,2})\s*%/);
+  if (pctMatch) {
+    if (pctMatch[1] && pctMatch[2]) return `${pctMatch[1]}-${pctMatch[2]}%`;
+    if (pctMatch[3]) return `${pctMatch[3]}%`;
+  }
+  if (/โอกาสสูง|แนวโน้มสูง|เอนเอียงไปทางดี|มีแนวโน้มที่ดี/.test(content)) return "โอกาสค่อนข้างดี";
+  if (/โอกาสต่ำ|แนวโน้มต่ำ|ยังไม่เห็นชัด|ยังไม่เด่น/.test(content)) return "ยังไม่เด่นชัด";
+  return "น้ำหนักกลาง";
+}
+
+function AnswerSnapshot({ content }: { content: string }) {
+  const direct = extractMarkdownSection(content, "คำตอบตรง ๆ") || firstMeaningfulLine(content);
+  const signals = sectionBullets(extractMarkdownSection(content, "สัญญาณที่ทำให้เชื่อแบบนี้"), 2);
+  const watch = sectionBullets(extractMarkdownSection(content, "สิ่งที่ควรสังเกตต่อ"), 2);
+  const actions = sectionBullets(extractMarkdownSection(content, "คำแนะนำที่ควรทำ"), 3);
+  if (!direct) return null;
+
+  return (
+    <div className="mb-4 rounded-xl border p-3 sm:p-4" style={{ borderColor: "var(--accent-30)", background: "var(--surface)" }}>
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+        <div className="sm:w-44 flex-shrink-0">
+          <div className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>อ่านเร็ว</div>
+          <div className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+            {confidenceLabel(content)}
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-bold leading-relaxed" style={{ color: "var(--text)" }}>{direct}</div>
+          <div className="grid sm:grid-cols-3 gap-2 mt-3">
+            {[
+              { title: "เหตุผลหลัก", items: signals },
+              { title: "สังเกตต่อ", items: watch },
+              { title: "ทำต่อ", items: actions },
+            ].filter((group) => group.items.length > 0).map((group) => (
+              <div key={group.title} className="rounded-lg border p-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                <div className="text-[11px] font-bold mb-1" style={{ color: "var(--accent)" }}>{group.title}</div>
+                <ul className="space-y-1">
+                  {group.items.map((item) => (
+                    <li key={item} className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReadingFeedback({ scope }: { scope: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const options = [
@@ -1547,6 +1621,7 @@ export default function ResearchPage() {
                           : <span className="text-blue-500 font-bold">🔵 กำลังดูดวง</span>
                       )}{" "}
                       {new Date(s.startedAt).toLocaleDateString("th")}
+                      {s.messages?.some((m) => m.role === "user_question") && ` · ${groupSessionHistory(s).length} คำถาม`}
                       {s.totalTokens > 0 && ` · ${s.totalTokens.toLocaleString()} tokens`}
                       {s.ownerUsername && (
                         <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: "var(--accent-8)", color: "var(--accent)" }}>
@@ -1599,45 +1674,6 @@ export default function ResearchPage() {
           {useFileContext && attachedFiles.length > 0 && <span className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "var(--accent-10)", color: "var(--accent)" }}><Paperclip size={10} /> {attachedFiles.length} ไฟล์</span>}
           {(!useFileContext || attachedFiles.length === 0) && selectedIds.size > 0 && <span className="opacity-60">พร้อมถามคำถามแรก</span>}
           {selectedIds.size === 0 && <span className="opacity-60">กำลังเตรียมสภาโหราจารย์</span>}
-        </div>
-
-        <div className="rounded-2xl border px-4 py-3 sm:px-5 sm:py-4 flex-shrink-0" style={{ borderColor: "var(--border)", background: "linear-gradient(135deg, var(--card), var(--surface))" }}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[11px] font-semibold mb-1" style={{ color: "var(--accent)" }}>ORACLE ROOM</div>
-              <div className="text-sm font-bold" style={{ color: "var(--text)" }}>ห้องหมอดูพร้อมเปิดคำทำนาย</div>
-              <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                แต่ละศาสตร์จะดูอดีต ปัจจุบัน อนาคต แล้ว OMNIA.AI จะสรุปรวมให้อ่านง่าย
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-              {birthProfile && (
-                <div
-                  className="h-9 min-w-[150px] rounded-lg border px-2 text-xs flex items-center gap-1.5"
-                  style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--text)" }}
-                  title="เจ้าชะตาปัจจุบัน"
-                >
-                  <UserCircle size={13} style={{ color: "var(--accent)" }} />
-                  <span className="truncate">{birthProfile.name || "เจ้าชะตา"}</span>
-                </div>
-              )}
-              {agents.filter((agent) => selectedIds.has(agent.id)).slice(0, 6).map((agent) => (
-                <div
-                  key={agent.id}
-                  className="w-9 h-9 rounded-full border flex items-center justify-center text-lg flex-shrink-0"
-                  title={agent.name}
-                  style={{ borderColor: "var(--accent-30)", background: "var(--accent-8)" }}
-                >
-                  {agent.emoji}
-                </div>
-              ))}
-              {selectedIds.size > 6 && (
-                <div className="w-9 h-9 rounded-full border flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-                  +{selectedIds.size - 6}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
@@ -2047,6 +2083,7 @@ export default function ResearchPage() {
                   {viewingSession.finalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{(viewingSession.agentIds?.length ?? 0) <= 1 ? <MessageSquare size={16} /> : <Building2 size={16} />} {(viewingSession.agentIds?.length ?? 0) <= 1 ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
+                      <AnswerSnapshot content={viewingSession.finalAnswer} />
                       <MessageContent content={viewingSession.finalAnswer} />
                       <ReadingFeedback scope={`history:${viewingSession.id}`} />
                       <button
@@ -2179,6 +2216,7 @@ export default function ResearchPage() {
                   {round.finalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{round.isQA ? <MessageSquare size={16} /> : <Building2 size={16} />} {round.isQA ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
+                      <AnswerSnapshot content={round.finalAnswer} />
                       <MessageContent content={round.finalAnswer} />
                       {round.chartData && <SimpleBarChart data={round.chartData} />}
 
@@ -2342,6 +2380,7 @@ export default function ResearchPage() {
                   {currentFinalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{isCurrentQA ? <MessageSquare size={16} /> : <Building2 size={16} />} {isCurrentQA ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
+                      <AnswerSnapshot content={currentFinalAnswer} />
                       <MessageContent content={currentFinalAnswer} />
                       {currentChartData && <SimpleBarChart data={currentChartData} />}
 
