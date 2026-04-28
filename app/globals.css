@@ -2,23 +2,23 @@
 
 /* ── OMNIA.AI Obsidian Ivory (default) ── */
 :root {
-  --bg: #101412;
-  --card: #171C19;
-  --surface: #202721;
-  --border: #3A4038;
+  --bg: #111713;
+  --card: #1B211D;
+  --surface: #263029;
+  --border: #465044;
   --text: #F4EFE6;
-  --text-muted: #B8AEA2;
-  --accent: #D8B45F;
-  --accent2: #F0D58B;
+  --text-muted: #C2B7AA;
+  --accent: #DDBB67;
+  --accent2: #F2D991;
   --accent-contrast: #15110A;
-  --green: #7FA99B;
+  --green: #83B3A3;
   --orange: #C9824A;
   --danger: #A85D52;
   --warning: #C9824A;
-  --success: #7FA99B;
-  --info: #78A7A0;
-  --teal: #1F5C56;
-  --teal-soft: #7FA99B;
+  --success: #83B3A3;
+  --info: #85B9B1;
+  --teal: #2F756B;
+  --teal-soft: #8AB8AA;
   /* Accent shades */
   --accent-3: color-mix(in srgb, var(--accent) 3%, transparent);
   --accent-4: color-mix(in srgb, var(--accent) 4%, transparent);
@@ -55,21 +55,21 @@
 [data-theme="light"] {
   --bg: #F6F1E8;
   --card: #FFFDF8;
-  --surface: #EDE4D6;
-  --border: #D2C2A9;
+  --surface: #EEE3D1;
+  --border: #CDBB9F;
   --text: #1D211E;
-  --text-muted: #6F665C;
-  --accent: #B88B35;
+  --text-muted: #665D53;
+  --accent: #B9892E;
   --accent2: #7A5A1C;
   --accent-contrast: #15110A;
-  --green: #2D7B70;
+  --green: #286F64;
   --orange: #B86E35;
   --danger: #9F4D45;
   --warning: #B86E35;
-  --success: #2D7B70;
-  --info: #2C716A;
-  --teal: #1F5C56;
-  --teal-soft: #5F8F83;
+  --success: #286F64;
+  --info: #2B766E;
+  --teal: #286F64;
+  --teal-soft: #5E9185;
   /* Accent shades */
   --accent-3: color-mix(in srgb, var(--accent) 3%, transparent);
   --accent-4: color-mix(in srgb, var(--accent) 4%, transparent);
@@ -131,14 +131,14 @@ body::before {
   pointer-events: none;
   z-index: -2;
   background-image:
-    linear-gradient(color-mix(in srgb, var(--border) 58%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--border) 58%, transparent) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--border) 46%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border) 46%, transparent) 1px, transparent 1px);
   background-size: 48px 48px;
-  opacity: 0.12;
+  opacity: 0.065;
 }
 
 [data-theme="light"] body::before {
-  opacity: 0.15;
+  opacity: 0.1;
 }
 
 /* Editorial ambient layer */
@@ -149,15 +149,16 @@ body::after {
   pointer-events: none;
   z-index: -1;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--teal) 18%, transparent), transparent 44%),
-    linear-gradient(315deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 50%),
-    radial-gradient(ellipse at center, transparent 0%, color-mix(in srgb, #000 26%, transparent) 100%);
+    linear-gradient(120deg, color-mix(in srgb, var(--teal) 15%, transparent), transparent 46%),
+    linear-gradient(315deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 52%),
+    radial-gradient(ellipse at 50% 18%, color-mix(in srgb, #F4EFE6 4%, transparent), transparent 42%),
+    radial-gradient(ellipse at center, transparent 0%, color-mix(in srgb, #000 22%, transparent) 100%);
 }
 
 [data-theme="light"] body::after {
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--teal) 8%, transparent), transparent 48%),
-    linear-gradient(315deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 52%);
+    linear-gradient(120deg, color-mix(in srgb, var(--teal) 6%, transparent), transparent 48%),
+    linear-gradient(315deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 54%);
 }
 
 /* ── Layout ── */
@@ -168,7 +169,7 @@ body::after {
   bottom: 0;
   flex-direction: column;
   border-right: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 94%, #000 6%);
+  background: color-mix(in srgb, var(--card) 91%, #000 9%);
   z-index: 40;
   transition: width 0.2s ease;
 }

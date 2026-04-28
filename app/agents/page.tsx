@@ -518,7 +518,15 @@ export default function AgentsPage() {
                 className="border rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-3 sm:gap-4 transition-all"
                 style={{ borderColor: "var(--border)", background: "var(--surface)", opacity: agent.active ? 1 : 0.5 }}
               >
-                <div className="text-3xl">{agent.emoji}</div>
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                  style={{
+                    background: "linear-gradient(135deg, var(--accent-10), color-mix(in srgb, var(--teal) 16%, transparent))",
+                    border: "1px solid var(--accent-30)",
+                  }}
+                >
+                  {agent.emoji}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold" style={{ color: "var(--text)" }}>{agent.name}</span>
