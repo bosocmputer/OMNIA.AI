@@ -30,7 +30,7 @@ const FEEDBACK_LABELS: Record<string, string> = {
 
 function StatCard({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string | number; hint?: string }) {
   return (
-    <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+    <div className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
       <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
         {icon} {label}
       </div>
@@ -71,15 +71,24 @@ export default function AdminAnalyticsPage() {
   const maxDailyCount = useMemo(() => Math.max(1, ...(data?.dailySessions ?? []).map((day) => day.count)), [data]);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--text)" }}>
-            <BarChart3 size={20} /> Analytics
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-            ภาพรวมการใช้งาน OMNIA.AI เพื่อดูว่า user ถามอะไร เลือกหมอดูไหน และ feedback ไปทางไหน
-          </p>
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+      <div
+        className="rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        style={{ borderColor: "var(--border)", background: "linear-gradient(135deg, var(--card), var(--surface))" }}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--accent-10)", color: "var(--accent)" }}
+          >
+            <BarChart3 size={20} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>Analytics</h1>
+            <p className="text-sm mt-1 max-w-2xl" style={{ color: "var(--text-muted)" }}>
+              ภาพรวมการใช้งาน OMNIA.AI เพื่อดูว่า user ถามอะไร เลือกหมอดูไหน และ feedback ไปทางไหน
+            </p>
+          </div>
         </div>
         <button
           type="button"
@@ -92,9 +101,9 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-xl border p-10 text-center text-sm" style={{ borderColor: "var(--border)", color: "var(--text-muted)", background: "var(--card)" }}>กำลังโหลด...</div>
+        <div className="rounded-2xl border p-10 text-center text-sm" style={{ borderColor: "var(--border)", color: "var(--text-muted)", background: "var(--card)" }}>กำลังโหลด...</div>
       ) : error ? (
-        <div className="rounded-xl border p-10 text-center text-sm" style={{ borderColor: "var(--danger)", color: "var(--danger)", background: "var(--danger-8)" }}>{error}</div>
+        <div className="rounded-2xl border p-10 text-center text-sm" style={{ borderColor: "var(--danger)", color: "var(--danger)", background: "var(--danger-8)" }}>{error}</div>
       ) : data && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -105,7 +114,7 @@ export default function AdminAnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <section className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+            <section className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
               <h2 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: "var(--text)" }}>
                 <Bot size={16} /> หมอดูที่ถูกเลือกบ่อย
               </h2>
@@ -127,7 +136,7 @@ export default function AdminAnalyticsPage() {
               </div>
             </section>
 
-            <section className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+            <section className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
               <h2 className="text-sm font-bold mb-4" style={{ color: "var(--text)" }}>หัวข้อที่ user ถามเยอะ</h2>
               <div className="space-y-3">
                 {data.topics.map((topic) => (
@@ -145,7 +154,7 @@ export default function AdminAnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <section className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+            <section className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
               <h2 className="text-sm font-bold mb-4" style={{ color: "var(--text)" }}>Feedback รวม</h2>
               <div className="grid grid-cols-2 gap-3">
                 {Object.entries(FEEDBACK_LABELS).map(([key, label]) => (
@@ -157,7 +166,7 @@ export default function AdminAnalyticsPage() {
               </div>
             </section>
 
-            <section className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+            <section className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
               <h2 className="text-sm font-bold mb-4" style={{ color: "var(--text)" }}>คำทำนายรายวัน 14 วันล่าสุด</h2>
               <div className="flex items-end gap-2 h-32">
                 {data.dailySessions.length === 0 ? (
@@ -172,7 +181,7 @@ export default function AdminAnalyticsPage() {
             </section>
           </div>
 
-          <section className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <section className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
             <div className="px-4 py-3 border-b text-sm font-bold" style={{ borderColor: "var(--border)", color: "var(--text)" }}>
               คำถามล่าสุด
             </div>

@@ -562,29 +562,9 @@ export default function AgentsPage() {
                   </div>
                   <div className="text-xs mt-1" style={{ color: "var(--accent)" }}>{agent.role}</div>
                   {isAdmin ? (
-                  <div className="text-xs mt-1 flex items-center gap-2 flex-wrap" style={{ color: "var(--text-muted)" }}>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px]" style={{ borderColor: "var(--border)" }}>
-                      {agent.model.split("/").pop()}
-                    </span>
-                    {agent.seniority && (
-                      <span className="text-[11px]">#{agent.seniority}</span>
-                    )}
-                    {agent.useWebSearch && (
-                      <Tooltip content="ที่ปรึกษาสามารถค้นข้อมูลจากอินเทอร์เน็ตก่อนตอบได้">
-                        <span className="text-[11px] cursor-help">🔍 ค้นเว็บ</span>
-                      </Tooltip>
-                    )}
-                    {agent.trustedUrls && agent.trustedUrls.length > 0 && (
-                      <Tooltip content="เว็บไซต์อ้างอิงที่ AI จะใช้ค้นหาข้อมูลเป็นหลัก">
-                        <span className="text-[11px] cursor-help">🌐 {agent.trustedUrls.length} เว็บอ้างอิง</span>
-                      </Tooltip>
-                    )}
-                    {agent.mcpEndpoint && (
-                      <Tooltip content={GLOSSARY.mcp?.long || ""}>
-                        <span className="text-[11px] cursor-help">🔌 MCP</span>
-                      </Tooltip>
-                    )}
-                  </div>
+                    <div className="mt-2 text-xs leading-relaxed line-clamp-2" style={{ color: "var(--text-muted)" }}>
+                      {agent.soul}
+                    </div>
                   ) : (
                     <div className="mt-1 space-y-2">
                       <div className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
@@ -592,20 +572,9 @@ export default function AgentsPage() {
                       </div>
                     </div>
                   )}
-                  {/* Health indicators */}
-                  {isAdmin && agent.active && (!agent.useWebSearch || !agent.trustedUrls?.length) && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {!agent.useWebSearch && (
-                        <span className="text-[11px] px-1.5 py-0.5 rounded border border-orange-500/30 bg-orange-500/10 text-orange-400">ค้นเว็บปิดอยู่</span>
-                      )}
-                      {!agent.trustedUrls?.length && (
-                        <span className="text-[11px] px-1.5 py-0.5 rounded border border-orange-500/30 bg-orange-500/10 text-orange-400">ไม่มี Trusted URLs</span>
-                      )}
-                    </div>
-                  )}
                   {isAdmin && agent.skills && agent.skills.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {agent.skills.map((s) => {
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      {agent.skills.slice(0, 4).map((s) => {
                         const skill = ALL_SKILLS.find((sk) => sk.id === s);
                         return skill ? (
                           <span key={s} className="text-[11px] px-1.5 py-0.5 rounded border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
@@ -613,11 +582,21 @@ export default function AgentsPage() {
                           </span>
                         ) : null;
                       })}
+                      {agent.skills.length > 4 && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>+{agent.skills.length - 4}</span>}
                     </div>
                   )}
-                  {isAdmin && <div className="text-xs mt-2 line-clamp-2" style={{ color: "var(--text-muted)" }}>
-                    {agent.soul}
-                  </div>}
+                  {isAdmin && (
+                    <details className="mt-3 rounded-xl border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                      <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "var(--text-muted)" }}>รายละเอียดระบบ</summary>
+                      <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        <span className="px-2 py-0.5 rounded border" style={{ borderColor: "var(--border)" }}>{agent.model.split("/").pop()}</span>
+                        {agent.seniority && <span className="px-2 py-0.5 rounded border" style={{ borderColor: "var(--border)" }}>priority #{agent.seniority}</span>}
+                        <span className="px-2 py-0.5 rounded border" style={{ borderColor: agent.useWebSearch ? "var(--success-30)" : "var(--danger-30)", color: agent.useWebSearch ? "var(--success)" : "var(--danger)" }}>{agent.useWebSearch ? "ค้นเว็บเปิด" : "ค้นเว็บปิด"}</span>
+                        <span className="px-2 py-0.5 rounded border" style={{ borderColor: agent.trustedUrls?.length ? "var(--success-30)" : "var(--danger-30)", color: agent.trustedUrls?.length ? "var(--success)" : "var(--danger)" }}>{agent.trustedUrls?.length ? `${agent.trustedUrls.length} trusted URLs` : "ไม่มี trusted URLs"}</span>
+                        {agent.mcpEndpoint && <Tooltip content={GLOSSARY.mcp?.long || ""}><span className="px-2 py-0.5 rounded border cursor-help" style={{ borderColor: "var(--border)" }}>MCP</span></Tooltip>}
+                      </div>
+                    </details>
+                  )}
                   </div>
                 </div>
                 {!isAdmin && (

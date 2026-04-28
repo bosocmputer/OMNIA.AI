@@ -79,9 +79,17 @@ export default function GuidePage() {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-2 mb-8">
+      <section className="rounded-2xl border p-4 md:p-5 mb-8" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <div className="mb-4">
+          <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>Workflow</div>
+          <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>จากข้อมูลเกิดถึงคำตอบที่ใช้ตัดสินใจ</h2>
+        </div>
+        <div className="grid gap-3 md:grid-cols-4">
         {STEPS.map((step, index) => (
-          <Link key={step.title} href={step.href} className="rounded-2xl border p-4 transition-all hover:border-[var(--accent)]" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <Link key={step.title} href={step.href} className="relative rounded-2xl border p-4 transition-all hover:border-[var(--accent)]" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+            {index < STEPS.length - 1 && (
+              <span className="hidden md:block absolute top-9 -right-3 w-6 h-px" style={{ background: "var(--accent-30)" }} />
+            )}
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>
                 <step.icon size={18} />
@@ -102,6 +110,7 @@ export default function GuidePage() {
             </ul>
           </Link>
         ))}
+        </div>
       </section>
 
       <section className="rounded-2xl border p-5 mb-8" style={{ borderColor: "var(--border)", background: "var(--card)" }}>

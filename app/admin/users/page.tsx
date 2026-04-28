@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Trash2, KeyRound, UserPlus, Shield, User } from "lucide-react";
+import { Trash2, KeyRound, UserPlus, Shield, User, Users } from "lucide-react";
 
 interface UserRow {
   id: string;
@@ -88,17 +88,38 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-8">
-      <div>
-        <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>จัดการผู้ใช้</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>เพิ่ม ลบ หรือเปลี่ยนรหัสผ่านผู้ใช้ในระบบ</p>
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
+      <div
+        className="rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        style={{ borderColor: "var(--border)", background: "linear-gradient(135deg, var(--card), var(--surface))" }}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--accent-10)", color: "var(--accent)" }}
+          >
+            <Users size={20} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>จัดการผู้ใช้</h1>
+            <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>เพิ่ม ลบ หรือเปลี่ยนรหัสผ่านผู้ใช้ในระบบ</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+          <span className="px-2.5 py-1 rounded-full border" style={{ borderColor: "var(--border)", color: "var(--text-muted)", background: "var(--card)" }}>
+            {users.length} users
+          </span>
+          <span className="px-2.5 py-1 rounded-full border" style={{ borderColor: "var(--accent-30)", color: "var(--accent)", background: "var(--accent-8)" }}>
+            {users.filter((u) => u.role === "admin").length} admins
+          </span>
+        </div>
       </div>
 
       {/* Add user form */}
-      <div className="rounded-xl border p-5 space-y-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+      <div className="rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
         <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>เพิ่มผู้ใช้ใหม่</h2>
         <form onSubmit={handleCreate} className="space-y-3">
-          <div className="flex gap-2">
+          <div className="grid gap-2 md:grid-cols-[1fr_1fr_180px]">
             <input
               type="text"
               placeholder="ชื่อผู้ใช้"
@@ -140,7 +161,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* User list */}
-      <div className="rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
         <div className="px-5 py-3 border-b text-sm font-semibold" style={{ borderColor: "var(--border)", color: "var(--text)" }}>
           ผู้ใช้ทั้งหมด ({users.length})
         </div>
