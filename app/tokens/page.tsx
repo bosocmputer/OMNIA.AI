@@ -207,7 +207,7 @@ export default function TokensPage() {
             { label: "รวมทั้งหมด", value: fmt(data.totalTokens), sub: "พิมพ์ + ตอบ", icon: TrendingUp, color: "var(--success)", tip: GLOSSARY.tokens?.long },
             { label: "คำถามที่พิมพ์ (Input)", value: fmt(data.totalInput), sub: "จำนวน Token ที่ส่งให้ AI", icon: ArrowUpRight, color: "var(--accent)", tip: GLOSSARY.inputTokens?.long },
             { label: "คำตอบจาก AI (Output)", value: fmt(data.totalOutput), sub: "จำนวน Token ที่ AI ตอบ", icon: ArrowDownLeft, color: "var(--info)", tip: GLOSSARY.outputTokens?.long },
-            { label: "การประชุม", value: data.totalSessions.toLocaleString(), sub: "จำนวนการประชุมทั้งหมด", icon: MessageSquare, color: "var(--purple)", tip: GLOSSARY.session?.long },
+            { label: "การประชุม", value: data.totalSessions.toLocaleString(), sub: "จำนวนการประชุมทั้งหมด", icon: MessageSquare, color: "var(--teal)", tip: GLOSSARY.session?.long },
           ].map((stat) => (
             <Card key={stat.label} padding="md">
               <div className="flex items-start justify-between">

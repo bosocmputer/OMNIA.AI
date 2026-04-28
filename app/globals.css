@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
-/* ── OMNIA.AI Mystic Royal (default) ── */
+/* ── OMNIA.AI Obsidian Ivory (default) ── */
 :root {
-  --bg: #09070F;
-  --card: #14101D;
-  --surface: #1D1728;
-  --border: #352A45;
-  --text: #F7F1E3;
-  --text-muted: #A79AAF;
-  --accent: #D6B25E;
-  --accent2: #F0D486;
-  --accent-contrast: #09070F;
-  --green: #53C68A;
-  --orange: #E5A84A;
-  --danger: #F87171;
-  --warning: #E5A84A;
-  --success: #53C68A;
-  --info: #8FB8FF;
-  --purple: #8B5CF6;
-  --purple-deep: #4C1D95;
+  --bg: #101412;
+  --card: #171C19;
+  --surface: #202721;
+  --border: #3A4038;
+  --text: #F4EFE6;
+  --text-muted: #B8AEA2;
+  --accent: #D8B45F;
+  --accent2: #F0D58B;
+  --accent-contrast: #15110A;
+  --green: #7FA99B;
+  --orange: #C9824A;
+  --danger: #A85D52;
+  --warning: #C9824A;
+  --success: #7FA99B;
+  --info: #78A7A0;
+  --teal: #1F5C56;
+  --teal-soft: #7FA99B;
   /* Accent shades */
   --accent-3: color-mix(in srgb, var(--accent) 3%, transparent);
   --accent-4: color-mix(in srgb, var(--accent) 4%, transparent);
@@ -51,25 +51,25 @@
   --orange-8: color-mix(in srgb, orange 8%, transparent);
 }
 
-/* ── OMNIA.AI Moonlit Light ── */
+/* ── OMNIA.AI Warm Ivory Light ── */
 [data-theme="light"] {
-  --bg: #F8F4EA;
+  --bg: #F6F1E8;
   --card: #FFFDF8;
-  --surface: #EFE7DA;
-  --border: #D8C9AD;
-  --text: #211629;
-  --text-muted: #75697E;
-  --accent: #B58B2E;
-  --accent2: #7B5B18;
-  --accent-contrast: #211629;
-  --green: #059669;
-  --orange: #C77718;
-  --danger: #DC2626;
-  --warning: #C77718;
-  --success: #059669;
-  --info: #315FBD;
-  --purple: #6D28D9;
-  --purple-deep: #3B0764;
+  --surface: #EDE4D6;
+  --border: #D2C2A9;
+  --text: #1D211E;
+  --text-muted: #6F665C;
+  --accent: #B88B35;
+  --accent2: #7A5A1C;
+  --accent-contrast: #15110A;
+  --green: #2D7B70;
+  --orange: #B86E35;
+  --danger: #9F4D45;
+  --warning: #B86E35;
+  --success: #2D7B70;
+  --info: #2C716A;
+  --teal: #1F5C56;
+  --teal-soft: #5F8F83;
   /* Accent shades */
   --accent-3: color-mix(in srgb, var(--accent) 3%, transparent);
   --accent-4: color-mix(in srgb, var(--accent) 4%, transparent);
@@ -131,17 +131,17 @@ body::before {
   pointer-events: none;
   z-index: -2;
   background-image:
-    linear-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--border) 58%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border) 58%, transparent) 1px, transparent 1px);
   background-size: 48px 48px;
-  opacity: 0.14;
+  opacity: 0.12;
 }
 
 [data-theme="light"] body::before {
   opacity: 0.15;
 }
 
-/* Ambient blobs layer */
+/* Editorial ambient layer */
 body::after {
   content: "";
   position: fixed;
@@ -149,15 +149,15 @@ body::after {
   pointer-events: none;
   z-index: -1;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--purple-deep) 26%, transparent), transparent 42%),
-    linear-gradient(315deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 46%),
-    radial-gradient(ellipse at center, transparent 0%, color-mix(in srgb, #000 34%, transparent) 100%);
+    linear-gradient(135deg, color-mix(in srgb, var(--teal) 18%, transparent), transparent 44%),
+    linear-gradient(315deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 50%),
+    radial-gradient(ellipse at center, transparent 0%, color-mix(in srgb, #000 26%, transparent) 100%);
 }
 
 [data-theme="light"] body::after {
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--purple) 9%, transparent), transparent 48%),
-    linear-gradient(315deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 50%);
+    linear-gradient(135deg, color-mix(in srgb, var(--teal) 8%, transparent), transparent 48%),
+    linear-gradient(315deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 52%);
 }
 
 /* ── Layout ── */
@@ -168,7 +168,7 @@ body::after {
   bottom: 0;
   flex-direction: column;
   border-right: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 92%, #000 8%);
+  background: color-mix(in srgb, var(--card) 94%, #000 6%);
   z-index: 40;
   transition: width 0.2s ease;
 }

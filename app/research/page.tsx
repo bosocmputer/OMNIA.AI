@@ -146,9 +146,9 @@ const ROLE_LABEL: Record<string, string> = {
 const ROLE_COLOR: Record<string, string> = {
   user_question: "border-amber-500/40 bg-amber-500/10",
   thinking: "border-yellow-500/30 bg-yellow-500/5",
-  finding: "border-blue-500/30 bg-blue-500/5",
+  finding: "border-teal-500/30 bg-teal-500/5",
   analysis: "border-green-500/30 bg-green-500/5",
-  synthesis: "border-purple-500/40 bg-purple-500/10 ring-1 ring-purple-500/20",
+  synthesis: "border-[var(--accent)]/40 bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]/20",
   chat: "border-slate-400/40 bg-slate-500/8",
 };
 
@@ -165,7 +165,7 @@ const HISTORY_MODES = [
 function SimpleBarChart({ data }: { data: ChartData }) {
   const allValues = data.datasets.flatMap((d) => d.data);
   const max = Math.max(...allValues, 1);
-  const colors = ["var(--accent)", "#60a5fa", "#34d399", "#f472b6", "#fb923c"];
+  const colors = ["var(--accent)", "var(--teal)", "var(--green)", "var(--orange)", "var(--info)"];
 
   return (
     <div className="mt-4 p-4 rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
