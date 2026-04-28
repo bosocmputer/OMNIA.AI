@@ -37,6 +37,15 @@ if [ ! -f .env.production ]; then
 fi
 
 mkdir -p /home/bosscatdog/.omnia-ai
+
+if docker ps -a --format '{{.Names}}' | grep -qx 'omnia-ai'; then
+  compose_project=\$(docker inspect -f '{{ index .Config.Labels \"com.docker.compose.project\" }}' omnia-ai 2>/dev/null || true)
+  if [ \"\$compose_project\" != \"omnia-ai\" ]; then
+    echo 'Removing stale non-compose omnia-ai container'
+    docker rm -f omnia-ai >/dev/null
+  fi
+fi
+
 OMNIA_PORT='$PORT' docker compose up -d --build omnia-ai
 echo '$PORT' > /home/bosscatdog/.omnia-ai-port
 sleep 5
