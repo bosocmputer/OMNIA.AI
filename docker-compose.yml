@@ -18,6 +18,6 @@ services:
     volumes:
       - /home/bosscatdog/.omnia-ai:/home/node/.omnia-ai
     network_mode: bridge
-    links:
+    external_links:
       - ledgioai-db:ledgioai-db
       - ledgioai-redis:ledgioai-redis
