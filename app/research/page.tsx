@@ -11,7 +11,7 @@ import {
   Building2, Settings, Users, FileText, MessageSquare, History,
   Brain, Paperclip, Lightbulb, Send, Square, SkipForward,
   ChevronDown, ChevronRight, X, Download, Search, Check,
-  AlertTriangle, Edit3, Clock, Coins,
+  AlertTriangle, Coins,
   BarChart3, File, Trash2, RefreshCw, UserCircle, Plus,
 } from "lucide-react";
 
@@ -354,6 +354,37 @@ function AnswerSnapshot({ content }: { content: string }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ResultActions({
+  onAskMore,
+  onNewTopic,
+  onChangeProfile,
+  onExport,
+  canExport,
+}: {
+  onAskMore: () => void;
+  onNewTopic: () => void;
+  onChangeProfile: () => void;
+  onExport: () => void;
+  canExport: boolean;
+}) {
+  return (
+    <div className="mt-3 pt-3 border-t flex flex-wrap gap-2" style={{ borderColor: "var(--accent-20)" }}>
+      <button type="button" onClick={onAskMore} className="px-3 py-1.5 rounded-lg text-xs font-semibold border" style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--accent-8)" }}>
+        ถามต่อเรื่องนี้
+      </button>
+      <button type="button" onClick={onNewTopic} className="px-3 py-1.5 rounded-lg text-xs font-semibold border" style={{ borderColor: "var(--border)", color: "var(--text)" }}>
+        ดูเรื่องอื่น
+      </button>
+      <button type="button" onClick={onChangeProfile} className="px-3 py-1.5 rounded-lg text-xs font-semibold border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+        เปลี่ยนเจ้าชะตา
+      </button>
+      <button type="button" onClick={onExport} disabled={!canExport} className="px-3 py-1.5 rounded-lg text-xs font-semibold border disabled:opacity-40" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+        บันทึกคำทำนาย
+      </button>
     </div>
   );
 }
@@ -909,7 +940,7 @@ export default function ResearchPage() {
     setCurrentWebSources([]);
     currentWebSourcesRef.current = [];
     lastClarificationAnswersRef.current = effectiveClarificationAnswers;
-    setStatus(closeMode ? "OMNIA.AI กำลังสรุปคำทำนายรวม..." : isQA ? "กำลังดูดวง..." : "");
+    setStatus(closeMode ? "OMNIA.AI กำลังเรียบเรียงคำตอบสุดท้าย..." : isQA ? "หมอดูกำลังอ่านคำถามนี้..." : "กำลังเปิดดวงจากหลายศาสตร์...");
     setChairmanId(null);
     setSearchingAgents(new Set());
     setPendingClarification(false);
@@ -1247,6 +1278,10 @@ export default function ResearchPage() {
   };
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const focusQuestionInput = () => {
+    setViewingSession(null);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  };
 
   const confirmClearSession = () => {
     if (rounds.length === 0) { clearSession(); return; }
@@ -1919,41 +1954,27 @@ export default function ResearchPage() {
                 </div>
               )}
 
-              {/* Empty state — guide + examples */}
+              {/* Empty state — focused first question */}
               {!viewingSession && displayRounds.length === 0 && currentMessages.length === 0 && !running && !pendingClarification && (
-                <div className="flex flex-col items-center justify-center py-10 sm:py-16 px-4">
-                  {/* Step guide */}
-                  <div className="flex items-center gap-2 sm:gap-4 mb-6">
-                    {[
-                      { step: "1", icon: "users", label: "สภาพร้อม" },
-                      { step: "2", icon: "edit", label: "พิมพ์คำถาม" },
-                      { step: "3", icon: "check", label: "อ่านคำตอบ" },
-                    ].map((s, i) => (
-                      <div key={s.step} className="flex items-center gap-2 sm:gap-4">
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: i === 0 && selectedIds.size > 0 ? "var(--accent)" : i === 0 ? "var(--danger-15)" : "var(--accent-10)", color: i === 0 && selectedIds.size > 0 ? "var(--accent-contrast)" : "var(--text)" }}>
-                            {i === 0 && selectedIds.size > 0 ? <Check size={18} /> : s.icon === "users" ? <Users size={18} /> : s.icon === "edit" ? <Edit3 size={18} /> : <Check size={18} />}
-                          </div>
-                          <span className="text-[11px] sm:text-xs" style={{ color: "var(--text-muted)" }}>{s.label}</span>
-                        </div>
-                        {i < 2 && <div className="w-6 sm:w-10 h-px mb-4" style={{ background: "var(--border)" }} />}
-                      </div>
-                    ))}
-                  </div>
-
+                <div className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
                   {selectedIds.size === 0 && agents.length === 0 && (
                     <div className="text-xs px-3 py-1.5 rounded-full border mb-4 flex items-center gap-1.5" style={{ borderColor: "var(--danger-40)", color: "var(--danger)", background: "var(--danger-8)" }}>
                       <AlertTriangle size={12} /> ยังไม่มีโหราจารย์พร้อมใช้งาน
                     </div>
                   )}
 
-                  <div className="text-sm mb-1 font-bold flex items-center gap-1.5 justify-center" style={{ color: "var(--text)" }}><Building2 size={16} style={{ color: "var(--accent)" }} /> ถามเรื่องที่อยากรู้ได้เลย</div>
-                  <div className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
-                    สภาโหราจารย์ถูกเลือกไว้ให้อัตโนมัติ ปรับหมอดูหรือแนบไฟล์เพิ่มเติมได้จากปุ่มตั้งค่า
+                  <div className="w-full max-w-xl rounded-2xl border p-4 sm:p-5 text-center" style={{ borderColor: "var(--accent-25)", background: "var(--surface)" }}>
+                    <div className="mx-auto mb-3 w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>
+                      <MessageSquare size={22} />
+                    </div>
+                    <div className="text-base font-bold" style={{ color: "var(--text)" }}>พิมพ์เรื่องที่อยากดูได้เลย</div>
+                    <div className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                      {birthProfile ? <>กำลังใช้ข้อมูลของ <strong style={{ color: "var(--text)" }}>{birthProfile.name}</strong></> : "เพิ่มเจ้าชะตาเพื่อให้คำทำนายละเอียดขึ้น"} · หมอดู {selectedIds.size} ท่านพร้อมอ่าน
+                    </div>
                   </div>
 
                   {selectedIds.size > 0 && (
-                    <div className="w-full max-w-lg">
+                    <div className="w-full max-w-xl mt-4">
                       <div className="text-[11px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1" style={{ color: "var(--text-muted)" }}><Lightbulb size={12} /> ลองถามเรื่องเหล่านี้</div>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {[
@@ -1981,13 +2002,14 @@ export default function ResearchPage() {
               {viewingSession && (
                 <div className="space-y-3">
                   {groupSessionHistory(viewingSession).map((group, groupIndex) => (
-                    <div key={`${viewingSession.id}-${groupIndex}`} className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-px flex-1" style={{ background: "var(--border)" }} />
-                        <span className="text-[11px] font-bold px-2 py-1 rounded-full border" style={{ color: "var(--text-muted)", borderColor: "var(--border)", background: "var(--surface)" }}>
-                          คำถามที่ {groupIndex + 1}
+                    <div key={`${viewingSession.id}-${groupIndex}`} className="space-y-3 border-l pl-3 sm:pl-4" style={{ borderColor: "var(--accent-30)" }}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+                          {groupIndex + 1}
                         </span>
-                        <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+                        <span className="text-[11px] font-bold px-2 py-1 rounded-full border" style={{ color: "var(--text-muted)", borderColor: "var(--border)", background: "var(--surface)" }}>
+                          คำถามจากผู้ใช้ · หมอดูตอบ {group.messages.filter((m) => m.role === "finding").length} ท่าน
+                        </span>
                       </div>
                       <div className="flex justify-end">
                         <div className="max-w-[85%] sm:max-w-xl px-3 sm:px-4 py-2 sm:py-3 rounded-2xl rounded-tr-sm text-sm" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
@@ -2086,6 +2108,13 @@ export default function ResearchPage() {
                       <AnswerSnapshot content={viewingSession.finalAnswer} />
                       <MessageContent content={viewingSession.finalAnswer} />
                       <ReadingFeedback scope={`history:${viewingSession.id}`} />
+                      <ResultActions
+                        onAskMore={focusQuestionInput}
+                        onNewTopic={handleConfirmClear}
+                        onChangeProfile={() => { window.location.href = "/profile"; }}
+                        onExport={exportMinutes}
+                        canExport={true}
+                      />
                       <button
                         onClick={() => {
                           // Restore agents from original session
@@ -2247,6 +2276,13 @@ export default function ResearchPage() {
                         <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" /> คำทำนายจาก AI เป็นแนวทางประกอบการตัดสินใจ ควรใช้วิจารณญาณและดูบริบทชีวิตจริงร่วมด้วย
                       </div>
                       <ReadingFeedback scope={`round:${roundIndex}:${round.question}`} />
+                      <ResultActions
+                        onAskMore={focusQuestionInput}
+                        onNewTopic={handleConfirmClear}
+                        onChangeProfile={() => { window.location.href = "/profile"; }}
+                        onExport={exportMinutes}
+                        canExport={rounds.length > 0}
+                      />
                     </div>
                   )}
 
@@ -2407,6 +2443,13 @@ export default function ResearchPage() {
                         </div>
                       )}
                       <ReadingFeedback scope={`current:${question || "reading"}`} />
+                      <ResultActions
+                        onAskMore={focusQuestionInput}
+                        onNewTopic={handleConfirmClear}
+                        onChangeProfile={() => { window.location.href = "/profile"; }}
+                        onExport={exportMinutes}
+                        canExport={rounds.length > 0 || !!currentFinalAnswer}
+                      />
                     </div>
                   )}
                 </div>
