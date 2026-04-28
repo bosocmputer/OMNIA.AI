@@ -48,6 +48,29 @@ function isBroadAstrologyQuestion(text: string): boolean {
   return ["ดูดวง", "ดูดวงให้ฉันหน่อย", "ดูดวงให้หน่อย", "ดวงเป็นยังไง", "ช่วยดูดวง"].some((kw) => q.includes(kw.replace(/\s+/g, "")));
 }
 
+function isOutcomeQuestion(text: string): boolean {
+  const q = text.toLowerCase().replace(/\s+/g, "");
+  return [
+    "จะผ่านไหม",
+    "จะผ่านมั้ย",
+    "จะได้ไหม",
+    "จะได้มั้ย",
+    "จะสำเร็จไหม",
+    "จะสำเร็จมั้ย",
+    "จะตกงาน",
+    "จะเลิกไหม",
+    "จะเลิกมั้ย",
+    "จะขายได้ไหม",
+    "จะขายได้มั้ย",
+    "เขาจะตอบไหม",
+    "เขาจะตอบมั้ย",
+    "ใช่ไหม",
+    "ใช่มั้ย",
+    "ไหม",
+    "มั้ย",
+  ].some((kw) => q.includes(kw));
+}
+
 function detectTimeFrame(text: string): { label: string; agentInstruction: string; summaryInstruction: string } {
   const q = text.toLowerCase().replace(/\s+/g, "");
   if (q.includes("สัปดาห์หน้า") || q.includes("อาทิตย์หน้า")) {
@@ -725,6 +748,8 @@ function getAstroPrecisionRules(target: "agent" | "summary"): string {
 - ห้ามเอียงบวกอัตโนมัติ: ถ้าสัญญาณอ่อน/ขัดกัน/เสี่ยง ให้พูดว่า "ยังไม่เด่น", "มีแรงต้าน", "โอกาสกลางค่อนต่ำ" หรือ "ควรเผื่อใจ" ได้อย่างตรงไปตรงมา
 - ทุกคำตอบต้องมีทั้งด้านหนุนและด้านฉุด หากด้านฉุดแรงกว่า ให้สรุปน้ำหนักเป็นกลางหรือต่ำ ห้ามกลบด้วยคำปลอบใจ
 - ห้ามใส่เปอร์เซ็นต์ 60-75% เป็นค่า default ถ้าหลักฐานไม่พอ ให้ใช้ "น้ำหนักกลาง" หรือ "ยังไม่เห็นสัญญาณชัด" แทน
+- ถ้าเป็นคำถามภาพรวม เช่น ภาพรวม 12 เดือน/ปีนี้/ช่วงนี้ ห้ามใส่เปอร์เซ็นต์ ให้ใช้ "น้ำหนักรวม: ดี/ผสม/หนัก/ยังไม่เด่น" และต้องบอกช่วงที่ต้องระวังที่สุด
+- ถ้าเรื่องไม่ดีหรือแรงฉุดเด่นกว่า ให้บอกตรง ๆ แบบไม่ขู่ ไม่ต้องพยายามสรุปให้ดี
 - ถ้าพื้นที่คำตอบไม่พอ ให้ลดจำนวน bullet แต่ต้องเขียนให้จบครบทุกหัวข้อ ห้ามตัดท้ายกลางประโยค
 - ถ้าพูดเรื่อง BaZi/ธาตุ/ดาว/ลัคนา/ยามจีนที่ระบบไม่ได้คำนวณให้ ต้องพูดเป็นเชิงสัญลักษณ์หรือจากข้อมูลพื้นฐาน ห้ามฟันธงเป็นข้อเท็จจริง`;
 }
@@ -945,7 +970,11 @@ export async function POST(req: NextRequest) {
         clarificationContext = `${subjectGuardContext}${birthFactsContext}\n\n---\n📋 ข้อมูลเพิ่มเติมจากผู้ถาม:\n${clarificationAnswers.map((a) => `ถาม: ${a.question}\nตอบ: ${a.answer}`).join("\n\n")}\n---\n⚠️ ใช้ข้อมูลเหล่านี้ประกอบการวิเคราะห์ ตอบให้ตรงกับสถานการณ์จริงของผู้ถาม\n`;
       }
       const timeFrame = detectTimeFrame(question);
+      const outcomeQuestion = isOutcomeQuestion(question);
       const timeFrameContext = `\n\n⏱️ กรอบเวลาที่ผู้ใช้ถาม: ${timeFrame.label}\n- รูปแบบคำตอบต้องปรับตามกรอบเวลานี้ ห้ามใช้แพทเทิร์น 3 เดือน/6-12 เดือน ถ้าผู้ใช้ถามแค่ "เดือนหน้า" หรือ "สัปดาห์หน้า"\n`;
+      const questionStyleContext = outcomeQuestion
+        ? `\n\n⚖️ ประเภทคำถาม: คำถามผลลัพธ์/ใช่หรือไม่\n- ต้องให้น้ำหนักชัดว่าเอนเอียงไปทางไหน พร้อมด้านหนุนและด้านฉุด\n- ใช้เปอร์เซ็นต์ได้เฉพาะเมื่อมีเหตุผลรองรับ และห้ามเกิน 75%\n- ถ้าแรงฉุดมากกว่าแรงหนุน ให้พูดตรง ๆ ว่าโอกาสกลางค่อนต่ำ/ยังไม่เด่น/ควรเผื่อใจ พร้อมวิธีรับมือ\n`
+        : `\n\n⚖️ ประเภทคำถาม: คำถามภาพรวมหรือคำถามขอแนวโน้ม\n- ห้ามใส่เปอร์เซ็นต์ เช่น 60-70% เพราะผู้ใช้ไม่ได้ถามผลลัพธ์แบบผ่าน/ไม่ผ่านหรือได้/ไม่ได้\n- ให้ใช้ "น้ำหนักรวม" แทน เช่น ดี, ผสม, หนัก, ยังไม่เด่น, กลางค่อนดี, กลางค่อนหนัก\n- ต้องบอก "ช่วงที่ต้องระวังที่สุด" และ "เรื่องที่ดูไม่ง่าย" อย่างน้อยอย่างละ 1 จุด\n- ถ้าภาพรวมมีทั้งดีและไม่ดี ให้สรุปว่า "ผสม" อย่างตรงไปตรงมา ห้ามปิดด้วยคำบวกจนดูขายฝัน\n`;
 
       // Detect astrology/fortune-telling session — used to inject ทายทัก section into prompts
       const _astroKw = ["ดูดวง","โหราศาสตร์","ดวงชะตา","ดวง","พยากรณ์","ทำนาย","ฤกษ์","bazi","ba zi","tarot","ไพ่ยิปซี","ชะตา","ชงกับ","ราศี","จักรราศี","เลขศาสตร์","numerology","ฮวงจุ้ย","feng shui","สี่เสา","midpoint","ascendant","ทักษา"];
@@ -967,7 +996,7 @@ export async function POST(req: NextRequest) {
       const antiHallucinationRules = `\n\n🚫 กฎเหล็กป้องกันข้อมูลเท็จ (Anti-Hallucination):\n- ห้ามสร้างเลขที่คำวินิจฉัย คำพิพากษา หรือคำสั่งที่ไม่แน่ใจ 100% (เช่น "คำวินิจฉัย กค 0811/xxxx") — ถ้าไม่แน่ใจ ให้เขียนว่า "ตามแนวคำวินิจฉัยของกรมสรรพากร" โดยไม่ระบุเลขที่\n- ห้ามสร้างชื่อ พ.ร.บ. พ.ร.ก. ประกาศ หรือกฎกระทรวง ที่ไม่มีอยู่จริง\n- ถ้าอ้างอิงมาตรากฎหมาย ต้องแน่ใจว่าเลขมาตราถูกต้อง — ถ้าไม่แน่ใจ ให้ระบุเป็นหลักการแทน\n- ถ้าข้อมูลจาก Web Search ขัดกับความรู้เดิม ให้เชื่อ Web Search มากกว่า (เพราะอาจมีการแก้ไขกฎหมาย)\n- แยกชัดเจนระหว่าง "ข้อเท็จจริงที่แน่ชัด" กับ "ความเห็น/การตีความ"\n`;
 
       // Astrology-specific anti-hallucination rules (injected only for astrology sessions)
-      const astrologyAntiHallucinationRules = isAstrologySession ? `\n\n🔮 กฎเหล็กเฉพาะโหราศาสตร์:\n- ห้ามพูดมั่นเกินฐานข้อมูล: ถ้าไม่ได้คำนวณจริง ให้ใช้คำว่า "แนวโน้ม", "โดยประมาณ", หรือ "จากข้อมูลที่มี"\n- ใช้ "ข้อมูลดวงตั้งต้นที่ระบบคำนวณได้จริง" เป็นแหล่งหลัก ห้ามคำนวณวันเกิด/ราศี/เลขชีวิตใหม่แล้วขัดกับข้อมูลระบบ\n- ห้ามระบุ Ascendant/ลัคนา โดยไม่แสดงวิธีคำนวณจากเวลา+สถานที่เกิด — ถ้าไม่มีเวลาเกิดให้ระบุชัดว่า "ไม่สามารถระบุลัคนาได้"\n- ห้ามระบุ Day Master หรือธาตุประจำตัวแบบฟันธง ถ้าไม่ได้แสดงฐานคำนวณที่พอเชื่อถือได้\n- Day Master = Heavenly Stem ของเสาวัน (Day Pillar) เท่านั้น — ไม่ใช่ธาตุรวมหรือธาตุที่มากที่สุดในตาราง\n- ห้ามระบุธาตุแข็ง/อ่อน ยามจีน ฤกษ์ หรือเรือนดาวเป็นข้อเท็จจริง ถ้าระบบไม่ได้คำนวณให้ ให้พูดเป็นมุมเชิงสัญลักษณ์หรือข้อสังเกตจากข้อมูลพื้นฐานแทน\n- ห้ามระบุตำแหน่งดาว องศาดาว midpoint หรือ aspect แบบแม่นยำ ถ้าไม่มี ephemeris/ฐานคำนวณ ให้พูดว่า "สัญญาณดาวโดยประมาณ"\n- ทายทักทุกข้อต้องระบุเรื่อง ช่วงเวลา เหตุผลจากศาสตร์ของตัวเอง ความน่าจะเป็นไม่เกิน 75% และวิธีรับมือ\n- ถ้าข้อมูลไม่เพียงพอ ให้บอกข้อจำกัดสั้น ๆ แล้ววิเคราะห์เท่าที่ทำได้ หรือถามเพิ่มถ้าจำเป็นจริง ๆ\n` : "";
+      const astrologyAntiHallucinationRules = isAstrologySession ? `\n\n🔮 กฎเหล็กเฉพาะโหราศาสตร์:\n- ห้ามพูดมั่นเกินฐานข้อมูล: ถ้าไม่ได้คำนวณจริง ให้ใช้คำว่า "แนวโน้ม", "โดยประมาณ", หรือ "จากข้อมูลที่มี"\n- ใช้ "ข้อมูลดวงตั้งต้นที่ระบบคำนวณได้จริง" เป็นแหล่งหลัก ห้ามคำนวณวันเกิด/ราศี/เลขชีวิตใหม่แล้วขัดกับข้อมูลระบบ\n- ห้ามระบุ Ascendant/ลัคนา โดยไม่แสดงวิธีคำนวณจากเวลา+สถานที่เกิด — ถ้าไม่มีเวลาเกิดให้ระบุชัดว่า "ไม่สามารถระบุลัคนาได้"\n- ห้ามระบุ Day Master หรือธาตุประจำตัวแบบฟันธง ถ้าไม่ได้แสดงฐานคำนวณที่พอเชื่อถือได้\n- Day Master = Heavenly Stem ของเสาวัน (Day Pillar) เท่านั้น — ไม่ใช่ธาตุรวมหรือธาตุที่มากที่สุดในตาราง\n- ห้ามระบุธาตุแข็ง/อ่อน ยามจีน ฤกษ์ หรือเรือนดาวเป็นข้อเท็จจริง ถ้าระบบไม่ได้คำนวณให้ ให้พูดเป็นมุมเชิงสัญลักษณ์หรือข้อสังเกตจากข้อมูลพื้นฐานแทน\n- ห้ามระบุตำแหน่งดาว องศาดาว midpoint หรือ aspect แบบแม่นยำ ถ้าไม่มี ephemeris/ฐานคำนวณ ให้พูดว่า "สัญญาณดาวโดยประมาณ"\n- ทายทักทุกข้อต้องระบุเรื่อง ช่วงเวลา เหตุผลจากศาสตร์ของตัวเอง และวิธีรับมือ\n- ใช้เปอร์เซ็นต์เฉพาะคำถามผลลัพธ์เท่านั้น และห้ามเกิน 75%; คำถามภาพรวมให้ใช้น้ำหนักรวมแทน\n- ถ้าข้อมูลไม่เพียงพอ ให้บอกข้อจำกัดสั้น ๆ แล้ววิเคราะห์เท่าที่ทำได้ หรือถามเพิ่มถ้าจำเป็นจริง ๆ\n` : "";
 
       // === QA Mode: Direct single-agent answer (no meeting ceremony) ===
       if (mode === "qa") {
@@ -1197,7 +1226,7 @@ export async function POST(req: NextRequest) {
           const result = await callLLMWithRetry(agent.provider, agent.model, apiKey, agent.baseUrl, [
             {
               role: "system",
-              content: `${companyContext}${memoryContext}${agent.soul}${agentVoice}${getAstroMethodSignature(agent.role)}${getAstroPrecisionRules("agent")}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
+              content: `${companyContext}${memoryContext}${agent.soul}${agentVoice}${getAstroMethodSignature(agent.role)}${getAstroPrecisionRules("agent")}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${questionStyleContext}${dateContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
             },
             {
               role: "user",
@@ -1530,7 +1559,7 @@ export async function POST(req: NextRequest) {
           const result = await callLLM(chairman.provider, chairman.model, chairApiKey, chairman.baseUrl, [
             {
               role: "system",
-              content: `${companyContext}${memoryContext}คุณคือ OMNIA.AI ผู้สรุปคำทำนายรวมจากหมอดูหลายศาสตร์ หน้าที่ของคุณคืออ่านคำทำนายของแต่ละศาสตร์ แล้วสรุปให้ผู้ใช้เข้าใจง่าย อบอุ่น ตรงประเด็น และนำไปใช้ได้จริง ห้ามใช้ภาษาเป็นทางการหรือศัพท์ยากเกินจำเป็น ห้ามเรียกตัวเองว่าประธาน ห้ามใช้คำว่า วาระ/มติ/ประชุม${mode === "close" && allRounds && allRounds.length > 1 ? ` (มีคำถามต่อเนื่อง ${allRounds.length} รอบ ให้สรุปรวมทั้งหมด)` : ""}${failureNote}${factCheckNote}${domainKnowledge}${clarificationContext}${timeFrameContext}${dateContext}${getAstroPrecisionRules("summary")}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
+              content: `${companyContext}${memoryContext}คุณคือ OMNIA.AI ผู้สรุปคำทำนายรวมจากหมอดูหลายศาสตร์ หน้าที่ของคุณคืออ่านคำทำนายของแต่ละศาสตร์ แล้วสรุปให้ผู้ใช้เข้าใจง่าย อบอุ่น ตรงประเด็น และนำไปใช้ได้จริง ห้ามใช้ภาษาเป็นทางการหรือศัพท์ยากเกินจำเป็น ห้ามเรียกตัวเองว่าประธาน ห้ามใช้คำว่า วาระ/มติ/ประชุม${mode === "close" && allRounds && allRounds.length > 1 ? ` (มีคำถามต่อเนื่อง ${allRounds.length} รอบ ให้สรุปรวมทั้งหมด)` : ""}${failureNote}${factCheckNote}${domainKnowledge}${clarificationContext}${timeFrameContext}${questionStyleContext}${dateContext}${getAstroPrecisionRules("summary")}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
             },
             {
               role: "user",

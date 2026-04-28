@@ -353,13 +353,15 @@ function AnswerSnapshot({ content }: { content: string }) {
           <div className="flex-1 min-w-0 text-sm font-bold leading-relaxed" style={{ color: "var(--text)" }}>{direct}</div>
         </div>
         {insightGroups.length > 0 && (
-          <div className="grid gap-1.5 sm:grid-cols-3">
+          <div className="grid gap-1.5 lg:grid-cols-3">
             {insightGroups.map((group) => (
-              <div key={group.title} className="flex gap-2 rounded-md px-2.5 py-2" style={{ background: "var(--bg)" }}>
-                <div className="text-[11px] font-bold flex-shrink-0" style={{ color: "var(--accent)" }}>{group.title}</div>
-                <div className="min-w-0 text-[11px] leading-relaxed line-clamp-3" style={{ color: "var(--text-muted)" }}>
-                  {group.items.join(" / ")}
-                </div>
+              <div key={group.title} className="rounded-md px-2.5 py-2" style={{ background: "var(--bg)" }}>
+                <div className="text-[11px] font-bold mb-1" style={{ color: "var(--accent)" }}>{group.title}</div>
+                <ul className="space-y-1">
+                  {group.items.map((item) => (
+                    <li key={item} className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{item}</li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
