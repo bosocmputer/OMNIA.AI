@@ -16,25 +16,40 @@ type FeedbackRow = {
   created_at: Date;
 };
 
+let ensureFeedbackTablePromise: Promise<void> | null = null;
+
 async function ensureFeedbackTable() {
-  await db.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS reading_feedback (
-      id TEXT PRIMARY KEY,
-      user_id TEXT,
-      username TEXT,
-      session_id TEXT,
-      question TEXT,
-      scope TEXT NOT NULL,
-      value TEXT NOT NULL,
-      profile_id TEXT,
-      agent_ids TEXT,
-      answer_excerpt TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS reading_feedback_user_idx ON reading_feedback (user_id)`);
-  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS reading_feedback_session_idx ON reading_feedback (session_id)`);
-  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS reading_feedback_created_idx ON reading_feedback (created_at DESC)`);
+  if (!ensureFeedbackTablePromise) {
+    ensureFeedbackTablePromise = (async () => {
+      try {
+        await db.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS reading_feedback (
+            id TEXT PRIMARY KEY,
+            user_id TEXT,
+            username TEXT,
+            session_id TEXT,
+            question TEXT,
+            scope TEXT NOT NULL,
+            value TEXT NOT NULL,
+            profile_id TEXT,
+            agent_ids TEXT,
+            answer_excerpt TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("already exists") && !message.includes("23505")) throw error;
+      }
+      await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS reading_feedback_user_idx ON reading_feedback (user_id)`);
+      await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS reading_feedback_session_idx ON reading_feedback (session_id)`);
+      await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS reading_feedback_created_idx ON reading_feedback (created_at DESC)`);
+    })().catch((error) => {
+      ensureFeedbackTablePromise = null;
+      throw error;
+    });
+  }
+  await ensureFeedbackTablePromise;
 }
 
 function cleanText(value: unknown, max = 2000): string | null {
