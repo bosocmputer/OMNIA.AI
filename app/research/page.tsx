@@ -294,16 +294,25 @@ function extractMarkdownSection(content: string, heading: string) {
 function sectionBullets(section: string, limit = 3) {
   return section
     .split("\n")
-    .map((line) => line.replace(/^[-*]\s*/, "").replace(/^\d+[.)]\s*/, "").trim())
+    .map((line) => cleanInlineMarkdown(line.replace(/^[-*]\s*/, "").replace(/^\d+[.)]\s*/, "").trim()))
     .filter(Boolean)
     .slice(0, limit);
+}
+
+function cleanInlineMarkdown(text: string) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function firstMeaningfulLine(content: string) {
   return content
     .replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "")
     .split("\n")
-    .map((line) => line.replace(/^#+\s*/, "").replace(/^\*\*|\*\*$/g, "").replace(/^[-*]\s*/, "").trim())
+    .map((line) => cleanInlineMarkdown(line.replace(/^#+\s*/, "").replace(/^[-*]\s*/, "").trim()))
     .find((line) => line.length > 0) ?? "";
 }
 
@@ -319,40 +328,42 @@ function confidenceLabel(content: string) {
 }
 
 function AnswerSnapshot({ content }: { content: string }) {
-  const direct = extractMarkdownSection(content, "คำตอบตรง ๆ") || firstMeaningfulLine(content);
-  const signals = sectionBullets(extractMarkdownSection(content, "สัญญาณที่ทำให้เชื่อแบบนี้"), 2);
-  const watch = sectionBullets(extractMarkdownSection(content, "สิ่งที่ควรสังเกตต่อ"), 2);
-  const actions = sectionBullets(extractMarkdownSection(content, "คำแนะนำที่ควรทำ"), 3);
+  const directSection = extractMarkdownSection(content, "คำตอบตรง ๆ");
+  const direct = sectionBullets(directSection, 1)[0] || cleanInlineMarkdown(directSection) || firstMeaningfulLine(content);
+  const signals = sectionBullets(extractMarkdownSection(content, "สัญญาณที่ทำให้เชื่อแบบนี้"), 1);
+  const watch = sectionBullets(extractMarkdownSection(content, "สิ่งที่ควรสังเกตต่อ"), 1);
+  const actions = sectionBullets(extractMarkdownSection(content, "คำแนะนำที่ควรทำ"), 2);
+  const insightGroups = [
+    { title: "เหตุผล", items: signals },
+    { title: "สังเกต", items: watch },
+    { title: "ทำต่อ", items: actions },
+  ].filter((group) => group.items.length > 0);
   if (!direct) return null;
 
   return (
-    <div className="mb-4 rounded-xl border p-3 sm:p-4" style={{ borderColor: "var(--accent-30)", background: "var(--surface)" }}>
-      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-        <div className="sm:w-44 flex-shrink-0">
-          <div className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>อ่านเร็ว</div>
-          <div className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+    <div className="mb-3 rounded-lg border px-3 py-2.5 sm:px-4" style={{ borderColor: "var(--accent-30)", background: "var(--surface)" }}>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:w-36 flex-shrink-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>อ่านเร็ว</span>
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
             {confidenceLabel(content)}
+            </span>
           </div>
+          <div className="flex-1 min-w-0 text-sm font-bold leading-relaxed" style={{ color: "var(--text)" }}>{direct}</div>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold leading-relaxed" style={{ color: "var(--text)" }}>{direct}</div>
-          <div className="grid sm:grid-cols-3 gap-2 mt-3">
-            {[
-              { title: "เหตุผลหลัก", items: signals },
-              { title: "สังเกตต่อ", items: watch },
-              { title: "ทำต่อ", items: actions },
-            ].filter((group) => group.items.length > 0).map((group) => (
-              <div key={group.title} className="rounded-lg border p-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
-                <div className="text-[11px] font-bold mb-1" style={{ color: "var(--accent)" }}>{group.title}</div>
-                <ul className="space-y-1">
-                  {group.items.map((item) => (
-                    <li key={item} className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{item}</li>
-                  ))}
-                </ul>
+        {insightGroups.length > 0 && (
+          <div className="grid gap-1.5 sm:grid-cols-3">
+            {insightGroups.map((group) => (
+              <div key={group.title} className="flex gap-2 rounded-md px-2.5 py-2" style={{ background: "var(--bg)" }}>
+                <div className="text-[11px] font-bold flex-shrink-0" style={{ color: "var(--accent)" }}>{group.title}</div>
+                <div className="min-w-0 text-[11px] leading-relaxed line-clamp-3" style={{ color: "var(--text-muted)" }}>
+                  {group.items.join(" / ")}
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
