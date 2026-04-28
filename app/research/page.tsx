@@ -327,6 +327,70 @@ function confidenceLabel(content: string) {
   return "น้ำหนักกลาง";
 }
 
+function buildReadingTimeline(content: string) {
+  const trend = extractMarkdownSection(content, "แนวโน้ม 12 เดือนข้างหน้า");
+  const caution = cleanInlineMarkdown(extractMarkdownSection(content, "ช่วงที่ต้องระวังที่สุด"));
+  const hard = cleanInlineMarkdown(extractMarkdownSection(content, "เรื่องที่ดูไม่ง่ายที่สุด"));
+  const fallbackSections = sectionBullets(trend, 9);
+  const labels = [
+    "3 เดือนแรก",
+    "4-6 เดือน",
+    "7-12 เดือน",
+  ];
+
+  const phases = labels.map((label, index) => {
+    const pattern = new RegExp(`\\*\\*${label.replace("-", "[-–]")}[^*]*\\*\\*([\\s\\S]*?)(?=\\n\\s*\\*\\s+\\*\\*|$)`);
+    const matched = trend.match(pattern)?.[1] || "";
+    const bullets = sectionBullets(matched, 3);
+    const fallback = fallbackSections.slice(index * 3, index * 3 + 3);
+    const items = bullets.length > 0 ? bullets : fallback;
+    return {
+      label,
+      title: items[0] || (index === 0 ? "เริ่มตั้งหลัก" : index === 1 ? "จุดเปลี่ยนกลางทาง" : "เก็บผลและปรับแผน"),
+      doText: items.find((item) => /ควรทำ|ทำ:/.test(item)) || items[1] || "",
+      avoidText: items.find((item) => /ห้ามรีบ|เลี่ยง|ระวัง/.test(item)) || items[2] || "",
+    };
+  });
+
+  if (!trend && !caution && !hard) return null;
+  return { phases, caution, hard };
+}
+
+function ReadingTimeline({ content }: { content: string }) {
+  const timeline = buildReadingTimeline(content);
+  if (!timeline) return null;
+  return (
+    <div className="mb-3 rounded-lg border p-3 sm:p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>Timeline</div>
+          <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>จังหวะ 12 เดือนที่ควรจับตา</h3>
+        </div>
+        {(timeline.caution || timeline.hard) && (
+          <div className="text-[11px] leading-relaxed max-w-md" style={{ color: "var(--text-muted)" }}>
+            {timeline.caution || timeline.hard}
+          </div>
+        )}
+      </div>
+      <div className="grid gap-2 lg:grid-cols-3">
+        {timeline.phases.map((phase, index) => (
+          <div key={phase.label} className="rounded-lg border p-3" style={{ borderColor: index === 1 ? "var(--accent-30)" : "var(--border)", background: index === 1 ? "var(--accent-5)" : "var(--surface)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold" style={{ background: index === 1 ? "var(--accent)" : "var(--teal)", color: index === 1 ? "var(--accent-contrast)" : "var(--text)" }}>
+                {index + 1}
+              </span>
+              <div className="text-xs font-bold" style={{ color: "var(--text)" }}>{phase.label}</div>
+            </div>
+            <div className="text-xs font-semibold leading-relaxed" style={{ color: "var(--text)" }}>{phase.title}</div>
+            {phase.doText && <div className="mt-2 text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>ทำ: {cleanInlineMarkdown(phase.doText.replace(/^สิ่งที่ควรทำ[:：]?\s*/, ""))}</div>}
+            {phase.avoidText && <div className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--orange)" }}>เลี่ยง: {cleanInlineMarkdown(phase.avoidText.replace(/^สิ่งที่ห้ามรีบ[:：]?\s*/, ""))}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AnswerSnapshot({ content }: { content: string }) {
   const directSection = extractMarkdownSection(content, "คำตอบตรง ๆ");
   const direct = sectionBullets(directSection, 1)[0] || cleanInlineMarkdown(directSection) || firstMeaningfulLine(content);
@@ -2147,6 +2211,7 @@ export default function ResearchPage() {
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{(viewingSession.agentIds?.length ?? 0) <= 1 ? <MessageSquare size={16} /> : <Building2 size={16} />} {(viewingSession.agentIds?.length ?? 0) <= 1 ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
                       <AnswerSnapshot content={viewingSession.finalAnswer} />
+                      <ReadingTimeline content={viewingSession.finalAnswer} />
                       <MessageContent content={viewingSession.finalAnswer} />
                       <ReadingFeedback
                         scope={`history:${viewingSession.id}`}
@@ -2294,6 +2359,7 @@ export default function ResearchPage() {
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{round.isQA ? <MessageSquare size={16} /> : <Building2 size={16} />} {round.isQA ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
                       <AnswerSnapshot content={round.finalAnswer} />
+                      <ReadingTimeline content={round.finalAnswer} />
                       <MessageContent content={round.finalAnswer} />
                       {round.chartData && <SimpleBarChart data={round.chartData} />}
 
@@ -2472,6 +2538,7 @@ export default function ResearchPage() {
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{isCurrentQA ? <MessageSquare size={16} /> : <Building2 size={16} />} {isCurrentQA ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
                       <AnswerSnapshot content={currentFinalAnswer} />
+                      <ReadingTimeline content={currentFinalAnswer} />
                       <MessageContent content={currentFinalAnswer} />
                       {currentChartData && <SimpleBarChart data={currentChartData} />}
 

@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock,
   MessageSquare,
+  Sparkles,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -125,6 +126,52 @@ export default function DashboardPage() {
   };
 
   const primaryHref = data?.hasBirthProfile ? "/research" : "/profile";
+  const dailyInsight = useMemo(() => {
+    if (!data?.hasBirthProfile) {
+      return {
+        tone: "เตรียมดวง",
+        title: "กรอกข้อมูลเกิดก่อน แล้ว OMNIA จะเริ่มจำบริบทของคุณ",
+        body: "ข้อมูลเกิดคือฐานของทุกคำทำนาย ยิ่งครบเท่าไร คำตอบยิ่งเจาะจงขึ้น",
+        action: "ตั้งค่าเจ้าชะตา",
+        href: "/profile",
+      };
+    }
+    const latest = data.recentSessions[0]?.question || "";
+    if (/งาน|อาชีพ|เลื่อน|ตำแหน่ง|ธุรกิจ/.test(latest)) {
+      return {
+        tone: "วันนี้ควรจับตา",
+        title: "เรื่องงานยังเป็นแกนหลักของช่วงนี้",
+        body: "ถ้ามีงานใหม่ ข้อเสนอ หรือแรงกดดันจากผู้ใหญ่ ให้จดรายละเอียดก่อนตอบรับ อย่ารีบตกลงเพราะเกรงใจ",
+        action: "ถามต่อเรื่องงาน",
+        href: `/research?q=${encodeURIComponent("ช่วงนี้เรื่องงานควรระวังอะไร และควรตัดสินใจอย่างไร")}`,
+      };
+    }
+    if (/เงิน|หนี้|บ้าน|รถ|ลงทุน|รายได้/.test(latest)) {
+      return {
+        tone: "วันนี้ควรระวัง",
+        title: "เงินก้อนและภาระระยะยาวต้องชัดก่อนตัดสินใจ",
+        body: "ก่อนรับข้อเสนอหรือใช้เงินก้อน ให้แยกสิ่งที่จำเป็นจริงออกจากสิ่งที่แค่ทำให้อุ่นใจชั่วคราว",
+        action: "ถามต่อเรื่องเงิน",
+        href: `/research?q=${encodeURIComponent("การเงินช่วงนี้ควรวางแผนและระวังอะไร")}`,
+      };
+    }
+    if (/รัก|สัมพันธ์|แฟน|ครอบครัว|คนใกล้ชิด/.test(latest)) {
+      return {
+        tone: "วันนี้ควรสังเกต",
+        title: "ความสัมพันธ์ต้องการคำพูดที่ชัดกว่าการเดาใจ",
+        body: "ถ้ามีเรื่องค้างใจ ให้เลือกคุยตอนอารมณ์นิ่ง และถามให้ชัดว่าอีกฝ่ายต้องการอะไรจริง ๆ",
+        action: "ถามต่อเรื่องความสัมพันธ์",
+        href: `/research?q=${encodeURIComponent("ความสัมพันธ์ช่วงนี้ควรระวังอะไร")}`,
+      };
+    }
+    return {
+      tone: "Daily Insight",
+      title: "วันนี้เหมาะกับการทบทวนเป้าหมายหนึ่งเรื่องให้ชัด",
+      body: "เลือกหนึ่งเรื่องที่ค้างในใจ แล้วถามแบบเจาะจงพร้อมช่วงเวลา OMNIA จะอ่านได้แม่นกว่าคำถามกว้าง ๆ",
+      action: "เปิดห้องดูดวง",
+      href: "/research",
+    };
+  }, [data]);
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-6xl mx-auto">
@@ -186,6 +233,29 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
+
+      <section className="mb-6 rounded-2xl border p-4 md:p-5" style={{ borderColor: "var(--accent-30)", background: "linear-gradient(135deg, var(--accent-5), color-mix(in srgb, var(--teal) 10%, transparent))" }}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-10)", border: "1px solid var(--accent-30)" }}>
+              <Sparkles size={18} style={{ color: "var(--accent)" }} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--accent)" }}>{dailyInsight.tone}</div>
+              <h2 className="text-base md:text-lg font-bold leading-tight" style={{ color: "var(--text)" }}>{dailyInsight.title}</h2>
+              <p className="text-sm mt-1 leading-relaxed max-w-3xl" style={{ color: "var(--text-muted)" }}>{dailyInsight.body}</p>
+            </div>
+          </div>
+          <Link
+            href={dailyInsight.href}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors hover:border-[var(--accent)] md:flex-shrink-0"
+            style={{ borderColor: "var(--accent-30)", color: "var(--accent)", background: "var(--card)" }}
+          >
+            {dailyInsight.action}
+            <ArrowRight size={15} />
+          </Link>
+        </div>
+      </section>
 
       <div className="mb-6">
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
