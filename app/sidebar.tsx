@@ -116,11 +116,19 @@ export function Sidebar() {
         onClick={onNavigate}
         title={collapsed ? label : undefined}
         aria-current={active ? "page" : undefined}
-        className={`flex items-center rounded-xl text-sm transition-all duration-200 ${
-          active ? "bg-[var(--accent)]/12 text-[var(--accent)] font-medium" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]"
+        className={`relative flex items-center rounded-xl text-sm transition-all duration-200 ${
+          active ? "text-[var(--accent)] font-semibold" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]"
         }`}
-        style={{ padding: collapsed ? "10px 0" : "10px 12px", justifyContent: collapsed ? "center" : "flex-start", gap: collapsed ? 0 : 10, minHeight: 44 }}
+        style={{
+          padding: collapsed ? "10px 0" : "10px 12px",
+          justifyContent: collapsed ? "center" : "flex-start",
+          gap: collapsed ? 0 : 10,
+          minHeight: 44,
+          background: active ? "linear-gradient(90deg, var(--accent-15), transparent)" : undefined,
+          border: active ? "1px solid var(--accent-20)" : "1px solid transparent",
+        }}
       >
+        {active && !collapsed && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full" style={{ background: "var(--accent)" }} />}
         {icon}
         {!collapsed && label}
       </Link>
@@ -146,9 +154,9 @@ export function Sidebar() {
                   onClick={onNavigate}
                   title={collapsed ? t(item.labelKey) : undefined}
                   aria-current={active ? "page" : undefined}
-                  className={`flex items-center rounded-xl text-sm transition-all duration-200 ${
+                  className={`relative flex items-center rounded-xl text-sm transition-all duration-200 ${
                     active
-                      ? "bg-[var(--accent)]/12 text-[var(--accent)] font-medium"
+                      ? "text-[var(--accent)] font-semibold"
                       : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]"
                   }`}
                   style={{
@@ -156,8 +164,11 @@ export function Sidebar() {
                     justifyContent: collapsed ? "center" : "flex-start",
                     gap: collapsed ? 0 : 10,
                     minHeight: 44,
+                    background: active ? "linear-gradient(90deg, var(--accent-15), transparent)" : undefined,
+                    border: active ? "1px solid var(--accent-20)" : "1px solid transparent",
                   }}
                 >
+                  {active && !collapsed && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full" style={{ background: "var(--accent)" }} />}
                   <NavIcon icon={item.icon} active={active} />
                   {!collapsed && t(item.labelKey)}
                 </Link>
@@ -251,9 +262,9 @@ export function Sidebar() {
       </div>
 
       {/* ── Desktop sidebar ── */}
-      <aside className="sidebar hidden md:flex" style={{ width: collapsed ? 64 : 224 }}>
+      <aside className="sidebar hidden md:flex" style={{ width: collapsed ? 68 : 240 }}>
         {/* Header */}
-        <div className="border-b border-[var(--border)]" style={{ padding: collapsed ? "16px 0" : "16px 20px" }}>
+        <div className="border-b border-[var(--border)]" style={{ padding: collapsed ? "16px 0" : "18px 18px" }}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-3">
               <Link href="/">
@@ -274,9 +285,9 @@ export function Sidebar() {
               <div className="flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-12 h-12 object-contain flex-shrink-0 drop-shadow" />
+                  <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="object-contain flex-shrink-0 drop-shadow" style={{ width: 52, height: 52 }} />
                   <div>
-                    <div className="text-base font-bold tracking-wide" style={{ color: "var(--text)" }}>OMNIA.AI</div>
+                    <div className="text-lg font-extrabold tracking-wide" style={{ color: "var(--text)" }}>OMNIA.AI</div>
                     <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>ที่ปรึกษาพยากรณ์ AI</div>
                   </div>
                 </Link>
@@ -318,7 +329,7 @@ export function Sidebar() {
       </aside>
 
       {/* Spacer for layout */}
-      <div className="hidden md:block" style={{ width: collapsed ? 64 : 224, flexShrink: 0, transition: "width 0.2s" }} />
+      <div className="hidden md:block" style={{ width: collapsed ? 68 : 240, flexShrink: 0, transition: "width 0.2s" }} />
     </>
   );
 }

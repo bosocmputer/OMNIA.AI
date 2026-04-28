@@ -489,7 +489,7 @@ export default function AgentsPage() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6" style={{ background: "var(--bg)" }}>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
           <div className="min-w-0">
@@ -521,25 +521,31 @@ export default function AgentsPage() {
             <p>ยังไม่มีโหราจารย์ — กดเพิ่มโหราจารย์เพื่อเริ่มต้น</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-4 lg:grid-cols-2">
             {agents.map((agent) => (
               <div
                 key={agent.id}
-                className="border rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-3 sm:gap-4 transition-all"
-                style={{ borderColor: "var(--border)", background: "var(--surface)", opacity: agent.active ? 1 : 0.5 }}
+                className="group border rounded-2xl p-4 sm:p-5 flex flex-col gap-4 transition-all hover:-translate-y-0.5"
+                style={{
+                  borderColor: agent.active ? "var(--border)" : "var(--border-50)",
+                  background: "linear-gradient(135deg, var(--surface), var(--card))",
+                  opacity: agent.active ? 1 : 0.55,
+                  boxShadow: "0 16px 50px rgba(0,0,0,.12)",
+                }}
               >
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                  style={{
-                    background: "linear-gradient(135deg, var(--accent-10), color-mix(in srgb, var(--teal) 16%, transparent))",
-                    border: "1px solid var(--accent-30)",
-                  }}
-                >
-                  {agent.emoji}
-                </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+                    style={{
+                      background: "linear-gradient(135deg, var(--accent-15), color-mix(in srgb, var(--teal) 18%, transparent))",
+                      border: "1px solid var(--accent-30)",
+                    }}
+                  >
+                    {agent.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold" style={{ color: "var(--text)" }}>{agent.name}</span>
+                    <span className="font-extrabold text-base" style={{ color: "var(--text)" }}>{agent.name}</span>
                     {agent.isSystem && (
                       <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>ระบบ</span>
                     )}
@@ -554,6 +560,7 @@ export default function AgentsPage() {
                       </span>
                     )}
                   </div>
+                  <div className="text-xs mt-1" style={{ color: "var(--accent)" }}>{agent.role}</div>
                   {isAdmin ? (
                   <div className="text-xs mt-1 flex items-center gap-2 flex-wrap" style={{ color: "var(--text-muted)" }}>
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px]" style={{ borderColor: "var(--border)" }}>
@@ -583,18 +590,6 @@ export default function AgentsPage() {
                       <div className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
                         {publicDesc(agent)}
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>เหมาะกับ</span>
-                        {publicUseCases(agent).map((item) => (
-                          <span
-                            key={item}
-                            className="text-[11px] px-2 py-0.5 rounded-full border"
-                            style={{ borderColor: "var(--border)", color: "var(--text-muted)", background: "var(--card)" }}
-                          >
-                            {item}
-                          </span>
-                        ))}
-                      </div>
                     </div>
                   )}
                   {/* Health indicators */}
@@ -623,20 +618,37 @@ export default function AgentsPage() {
                   {isAdmin && <div className="text-xs mt-2 line-clamp-2" style={{ color: "var(--text-muted)" }}>
                     {agent.soul}
                   </div>}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                {!isAdmin && (
+                  <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                    <div className="text-[11px] font-bold mb-2" style={{ color: "var(--text-muted)" }}>เหมาะกับคำถาม</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {publicUseCases(agent).map((item) => (
+                        <span key={item} className="text-[11px] px-2 py-1 rounded-full border" style={{ borderColor: "var(--accent-20)", color: "var(--text-muted)" }}>
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2 flex-shrink-0 flex-wrap pt-1 border-t" style={{ borderColor: "var(--border)" }}>
+                  <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                    {agent.active ? "พร้อมใช้งาน" : "ปิดใช้งาน"}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
                   {!isAdmin && (
                   <Link
                     href={`/research?agentId=${agent.id}`}
-                    className="px-3 py-2 sm:py-1 rounded text-xs border transition-all"
-                    style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+                    className="px-3 py-2 rounded-lg text-xs font-bold border transition-all"
+                    style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--accent-8)" }}
                   >
                     เลือกไปดูดวง
                   </Link>
                   )}
                   <a
                     href={`/chat/${agent.id}`}
-                    className="px-3 py-2 sm:py-1 rounded text-xs border transition-all"
+                    className="px-3 py-2 rounded-lg text-xs border transition-all"
                     style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
                     title="ถามด่วน"
                   >
@@ -680,6 +692,7 @@ export default function AgentsPage() {
                       <button onClick={() => setDeleteConfirm(agent.id)} className="px-3 py-2 sm:py-1 rounded text-xs border border-red-500/30 text-red-400">Delete</button>
                     )
                   )}
+                  </div>
                 </div>
               </div>
             ))}

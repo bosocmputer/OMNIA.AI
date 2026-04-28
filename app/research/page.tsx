@@ -394,42 +394,42 @@ function ReadingTimeline({ content }: { content: string }) {
 function AnswerSnapshot({ content }: { content: string }) {
   const directSection = extractMarkdownSection(content, "คำตอบตรง ๆ");
   const direct = sectionBullets(directSection, 1)[0] || cleanInlineMarkdown(directSection) || firstMeaningfulLine(content);
-  const signals = sectionBullets(extractMarkdownSection(content, "สัญญาณที่ทำให้เชื่อแบบนี้"), 1);
-  const watch = sectionBullets(extractMarkdownSection(content, "สิ่งที่ควรสังเกตต่อ"), 1);
-  const actions = sectionBullets(extractMarkdownSection(content, "คำแนะนำที่ควรทำ"), 2);
-  const insightGroups = [
-    { title: "เหตุผล", items: signals },
-    { title: "สังเกต", items: watch },
-    { title: "ทำต่อ", items: actions },
-  ].filter((group) => group.items.length > 0);
+  const keyPoint = sectionBullets(extractMarkdownSection(content, "จุดที่ทักได้ชัดที่สุด"), 1)[0]
+    || sectionBullets(extractMarkdownSection(content, "สัญญาณที่ทำให้เชื่อแบบนี้"), 1)[0]
+    || "มีสัญญาณที่ควรจับตาในเรื่องหลักของคำถามนี้";
+  const risk = sectionBullets(extractMarkdownSection(content, "เรื่องที่ควรระวัง"), 1)[0]
+    || cleanInlineMarkdown(extractMarkdownSection(content, "เรื่องที่ดูไม่ง่ายที่สุด"))
+    || "อย่ารีบตัดสินใจเรื่องสำคัญโดยไม่มีข้อมูลพอ";
+  const action = sectionBullets(extractMarkdownSection(content, "คำแนะนำที่ควรทำ"), 1)[0]
+    || sectionBullets(extractMarkdownSection(content, "สิ่งที่ควรสังเกตต่อ"), 1)[0]
+    || "สังเกตสัญญาณใกล้ตัว แล้วค่อยวางแผนเป็นขั้นตอน";
   if (!direct) return null;
 
   return (
-    <div className="mb-3 rounded-lg border px-3 py-2.5 sm:px-4" style={{ borderColor: "var(--accent-30)", background: "var(--surface)" }}>
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 sm:w-36 flex-shrink-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>อ่านเร็ว</span>
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+    <div className="mb-3 overflow-hidden rounded-xl border" style={{ borderColor: "var(--accent-30)", background: "linear-gradient(135deg, var(--surface), var(--card))" }}>
+      <div className="grid gap-0 lg:grid-cols-[170px_1fr]">
+        <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r" style={{ borderColor: "var(--border)" }}>
+          <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>อ่านเร็ว</div>
+          <div className="mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-black" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
             {confidenceLabel(content)}
-            </span>
           </div>
-          <div className="flex-1 min-w-0 text-sm font-bold leading-relaxed" style={{ color: "var(--text)" }}>{direct}</div>
+          <div className="mt-2 text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>น้ำหนักรวมจาก OMNIA.AI</div>
         </div>
-        {insightGroups.length > 0 && (
-          <div className="grid gap-1.5 lg:grid-cols-3">
-            {insightGroups.map((group) => (
-              <div key={group.title} className="rounded-md px-2.5 py-2" style={{ background: "var(--bg)" }}>
-                <div className="text-[11px] font-bold mb-1" style={{ color: "var(--accent)" }}>{group.title}</div>
-                <ul className="space-y-1">
-                  {group.items.map((item) => (
-                    <li key={item} className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{item}</li>
-                  ))}
-                </ul>
+        <div className="p-3 sm:p-4">
+          <div className="text-base sm:text-lg font-extrabold leading-relaxed" style={{ color: "var(--text)" }}>{direct}</div>
+          <div className="mt-3 grid gap-2 lg:grid-cols-3">
+            {[
+              { title: "เรื่องเด่น", body: keyPoint, tone: "var(--accent)" },
+              { title: "ต้องระวัง", body: risk, tone: "var(--orange)" },
+              { title: "ทำต่อ", body: action, tone: "var(--teal-soft)" },
+            ].map((item) => (
+              <div key={item.title} className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                <div className="text-[11px] font-bold mb-1" style={{ color: item.tone }}>{item.title}</div>
+                <div className="text-[11px] leading-relaxed line-clamp-3" style={{ color: "var(--text-muted)" }}>{item.body}</div>
               </div>
             ))}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -1897,11 +1897,14 @@ export default function ResearchPage() {
               {/* Sticky status bar — minimal progress indicator */}
               {running && status && (
                 <div className="sticky top-0 z-10 mx-1">
-                  <div className="rounded-lg px-3 py-2 border" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
+                  <div className="rounded-xl px-3 py-2.5 border shadow-lg" style={{ background: "color-mix(in srgb, var(--surface) 92%, #000 8%)", borderColor: "var(--accent-30)" }}>
                     <div className="flex items-center gap-3">
                       {/* Live dot + status */}
                       <span className="inline-block w-2 h-2 rounded-full bg-[var(--green)] animate-pulse flex-shrink-0" />
                       <span className="text-xs flex-1 min-w-0 truncate" style={{ color: "var(--text-muted)" }}>{status}</span>
+                      <span className="hidden sm:inline-flex text-[11px] rounded-full px-2 py-0.5" style={{ background: "var(--accent-8)", color: "var(--accent)" }}>
+                        กำลังอ่านหลายศาสตร์
+                      </span>
 
                       {/* Phase pills — meeting mode only */}
                       {effectiveMode !== "qa" && currentPhase > 0 && (
@@ -2604,9 +2607,29 @@ export default function ResearchPage() {
             {!viewingSession && (
               <div className="sticky bottom-0 flex-shrink-0 pt-2" style={{ background: "color-mix(in srgb, var(--bg) 78%, transparent)", backdropFilter: "blur(10px)" }}>
                 <div
-                  className="border rounded-xl overflow-hidden transition-colors"
-                  style={{ borderColor: running ? "var(--accent)" : "var(--border)", background: "var(--surface)" }}
+                  className="border rounded-2xl overflow-hidden transition-all shadow-2xl"
+                  style={{
+                    borderColor: running ? "var(--accent)" : "var(--accent-30)",
+                    background: "linear-gradient(135deg, var(--surface), var(--card))",
+                    boxShadow: running ? "0 0 0 3px var(--accent-8), 0 18px 60px rgba(0,0,0,.22)" : "0 18px 60px rgba(0,0,0,.18)",
+                  }}
                 >
+                  <div className="px-4 pt-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>
+                        <MessageSquare size={14} />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold" style={{ color: "var(--text)" }}>ถามตรง ๆ ได้เลย</div>
+                        <div className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>งาน เงิน ความรัก สอบ หรือเรื่องที่ต้องตัดสินใจ</div>
+                      </div>
+                    </div>
+                    {selectedIds.size > 0 && (
+                      <span className="hidden sm:inline-flex rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+                        สภา {selectedIds.size} ท่านพร้อมอ่าน
+                      </span>
+                    )}
+                  </div>
                   <textarea
                     ref={textareaRef}
                     value={question}
