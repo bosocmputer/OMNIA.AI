@@ -1,6 +1,6 @@
 /**
  * Seeds 5 astrology agents + 1 team "ราชสำนักโหราจารย์".
- * Run on server: cd ~/BossBoard && DATABASE_URL=... AGENT_ENCRYPT_KEY=... npx ts-node --project tsconfig.json scripts/seed-astro-agents.ts
+ * Run on server: cd ~/omnia-ai && DATABASE_URL=... AGENT_ENCRYPT_KEY=... npx ts-node --project tsconfig.json scripts/seed-astro-agents.ts
  * Safe to run multiple times — skips if agents already exist.
  */
 import { PrismaClient } from "@prisma/client";
@@ -10,7 +10,7 @@ import fs from "fs";
 
 const db = new PrismaClient();
 
-const BOSSBOARD_DIR = path.join(process.env.HOME || "~", ".bossboard");
+const BOSSBOARD_DIR = path.join(process.env.HOME || "~", ".omnia-ai");
 
 function getEncryptKey(): string {
   if (process.env.AGENT_ENCRYPT_KEY) return process.env.AGENT_ENCRYPT_KEY;

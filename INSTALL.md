@@ -4,10 +4,10 @@
 
 | Software | Version |
 |----------|---------|
-| Node.js | 20+ |
+| Node.js | 22+ |
 | PostgreSQL | 16+ |
 | Redis | 7+ |
-| pnpm | 9+ (แนะนำ) |
+| npm | ใช้ `package-lock.json` |
 | Docker | 24+ (สำหรับ deploy) |
 
 ---
@@ -19,7 +19,7 @@
 ```bash
 git clone https://github.com/bosocmputer/OMNIA.AI.git
 cd OMNIA.AI
-pnpm install
+npm install
 ```
 
 ### 2. Environment
@@ -45,7 +45,7 @@ OPENROUTER_API_KEY="sk-or-..."
 createdb omniadb
 
 # Run migrations
-pnpm prisma migrate dev --name init
+npx prisma migrate dev
 
 # (Optional) Seed admin user
 DATABASE_URL="..." AGENT_ENCRYPT_KEY="..." npx ts-node --project tsconfig.json scripts/seed-admin.ts
@@ -54,7 +54,7 @@ DATABASE_URL="..." AGENT_ENCRYPT_KEY="..." npx ts-node --project tsconfig.json s
 ### 4. Run
 
 ```bash
-pnpm dev
+npm run dev
 # เปิด http://localhost:3000
 ```
 
@@ -85,7 +85,7 @@ docker run -d \
   -e DATABASE_URL="postgresql://USER:PASS@127.0.0.1:PORT/omniadb" \
   -e REDIS_URL="redis://127.0.0.1:6381" \
   -e NODE_ENV=production \
-  -e PORT=3005 \
+  -e PORT=<free-port> \
   -e HOSTNAME=0.0.0.0 \
   -e JWT_SECRET="<64-char-hex>" \
   -e AGENT_ENCRYPT_KEY="<32-char-key>" \
@@ -104,7 +104,7 @@ docker exec omnia-ai npx prisma migrate deploy
 
 ```bash
 docker logs omnia-ai --tail 20
-curl http://localhost:3005/api/health
+curl http://localhost:<free-port>/api/health
 ```
 
 ---
@@ -119,7 +119,7 @@ curl http://localhost:3005/api/health
 | `AGENT_ENCRYPT_KEY` | ✅ | AES-256 key for agent data (32 chars) |
 | `OPENROUTER_API_KEY` | ✅ | OpenRouter API key |
 | `NODE_ENV` | ✅ | `development` หรือ `production` |
-| `PORT` | — | Default: 3000 |
+| `PORT` | — | Default: 3000; deploy จริงให้เลือก port ว่างก่อน |
 | `HOSTNAME` | — | Default: localhost |
 | `GOOGLE_CLIENT_ID` | — | Google OAuth (Phase 8) |
 | `STRIPE_SECRET_KEY` | — | Stripe (Phase 10) |
@@ -132,5 +132,7 @@ curl http://localhost:3005/api/health
 |----------|------|------|----------|
 | PostgreSQL | `ledgioai-db` | 5436 | `omniadb` |
 | Redis | `ledgioai-redis` | 6381 | shared |
-| OMNIA-AI app | `192.168.2.109` | **3005** | — |
+| OMNIA-AI app | `192.168.2.109` | เลือก port ว่างตอน deploy | — |
 | Volume | `~/.omnia-ai` | — | — |
+
+> หมายเหตุ: อย่า kill process ด้วย port คงที่ถ้ายังไม่ได้ตรวจว่าเป็น OMNIA-AI จริง ให้เช็ก `docker ps`, `ss -tulpen` และใช้ container name `omnia-ai` เท่านั้นเพื่อไม่กระทบโปรเจคอื่น

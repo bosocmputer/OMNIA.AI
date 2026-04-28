@@ -60,7 +60,7 @@ export default function ChatSelectorPage() {
             <Link
               href="/agents"
               className="inline-block px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-              style={{ background: "var(--accent)", color: "#000" }}
+              style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
             >
               + สร้างที่ปรึกษา AI
             </Link>

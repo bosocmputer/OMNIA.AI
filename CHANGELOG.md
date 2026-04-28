@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-04-27 — v1.14.3: User Isolation Hardening + Safe Deploy Docs
+
+### Bug Fixes
+- **Agents/Teams isolation:** API list/create/update/delete now scopes user-owned agents and teams by `x-user-id`; system agents remain readable but cannot be modified or deleted by users.
+- **Team membership validation:** Teams can only include agents visible to the current user, preventing cross-user agent references.
+- **Research stream session guard:** Existing streaming sessions are checked against the current user before reuse.
+- **Token usage / agent stats:** Non-admin users now see only stats for their accessible agents; admins still see global usage.
+- **Knowledge routes:** Agent knowledge endpoints verify agent access before list/upload/delete.
+- **Runtime storage path:** DB/JSON stores now use `OPENCLAW_HOME` (`~/.omnia-ai`) instead of the old `~/.bossboard` path, so knowledge and encryption keys persist in the mounted OMNIA volume.
+- **Docker healthcheck:** Healthcheck now respects the dynamic `PORT` env instead of hard-coding port 3000.
+- **Docker networking:** OMNIA now runs like the other web apps with bridge publish (`host:3005 -> container:3000`) instead of `--network host`, and links to `ledgioai-db` / `ledgioai-redis` for DB/Redis access.
+
+### Docs & Deploy
+- Updated docs for Next.js 16 `proxy.ts`, npm/package-lock usage, user isolation, and dynamic deploy port selection.
+- Replaced old BossBoard deploy script with `scripts/deploy.sh` scoped to `/home/bosscatdog/omnia-ai` and Docker container `omnia-ai`.
+- Deploy script now chooses/reuses a safe candidate port, preserves `.env.production`, and avoids killing arbitrary processes by port.
+
+## 2026-04-21 — v1.14.2: Next.js 16 Fix + DB Setup + SVG Logo
+
+### Fixes
+- **Next.js 16 migration:** ลบ `middleware.ts` (deprecated) — merge logic ทั้งหมด (public routes, x-username header, API 401 response) เข้า `proxy.ts` ตาม Next.js 16 convention
+- **`next.config.mjs`:** ย้าย `outputFileTracingIncludes` ออกจาก `experimental` → top-level (Next.js 16 breaking change)
+- **`node_modules` reinstall:** แก้ `Cannot find module '../server/require-hook'` ด้วย clean install → Next.js v16.2.4
+
+### Infrastructure
+- **สร้าง `omniadb`** บน server `ledgioai-db:5436` via SSH (`docker exec ledgioai-db psql`)
+- **Prisma migrate deploy:** apply 4 migrations ขึ้น server DB สำเร็จ
+- **`.env.local`:** สร้างไฟล์ชี้ไปที่ server DB/Redis (`192.168.2.109`)
+
+### Logo
+- **`public/assets/logo/TITLELOGO.svg` (new):** SVG logo ใหม่ — Geometric Yantra / Shatkona (สองสามเหลี่ยมซ้อน), วงแหวน 4 ชั้น, tick marks, inner hexagon, center bindu, Bronze Gold `#C9A84C` บน Dark `#1A1A1A`, glow effects — แทน TITLELOGO.png
+- อัปเดต reference ทั้ง 5 จาก `.png` → `.svg`: login, register, sidebar (3 positions)
+
+---
+
 ## 2026-04-21 — v1.14.1: /chat Agent Selector Page
 
 - **`app/chat/page.tsx` (new):** หน้า selector agent — แสดง system agents (DBD/RD) ก่อน แล้วตาม user agents; คลิก → `/chat/[agentId]`; empty state ลิงก์ไป `/agents`

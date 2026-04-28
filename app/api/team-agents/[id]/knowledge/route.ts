@@ -7,9 +7,16 @@ import {
   estimateTokens,
   KnowledgeFile,
   checkDuplicateKnowledge,
+  listAgents,
 } from "@/lib/agents-store";
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB
+
+async function canAccessAgent(req: NextRequest, agentId: string): Promise<boolean> {
+  const userId = req.headers.get("x-user-id") ?? undefined;
+  const agents = await listAgents(userId);
+  return agents.some((a) => a.id === agentId);
+}
 
 type ParseResult = { text: string; meta: string };
 
@@ -44,8 +51,11 @@ async function parseText(buffer: Buffer, filename: string): Promise<ParseResult>
   return { text: buffer.toString("utf-8"), meta: `Text: ${filename}` };
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!await canAccessAgent(req, id)) {
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+  }
   const knowledge = await listAgentKnowledge(id);
   return NextResponse.json({ knowledge });
 }
@@ -53,6 +63,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    if (!await canAccessAgent(req, id)) {
+      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    }
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
@@ -131,6 +144,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    if (!await canAccessAgent(req, id)) {
+      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    }
     const { knowledgeId } = await req.json();
     if (!knowledgeId) {
       return NextResponse.json({ error: "Missing knowledgeId" }, { status: 400 });

@@ -18,6 +18,7 @@ import {
 } from "@/lib/agents-store";
 import { getDomainKnowledge, isDomainQuestion } from "@/lib/domain-knowledge";
 import { rateLimit, getClientIp } from "@/lib/rate-limit-redis";
+import { buildBirthFacts } from "@/lib/astro-birth-facts";
 import crypto from "crypto";
 
 // Max request body size (100KB — questions + history + file contexts)
@@ -30,13 +31,74 @@ interface LLMMessage {
 
 function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
+function getAstrologyConcern(text: string): string {
+  const q = text.toLowerCase();
+  if (q.includes("งาน") || q.includes("อาชีพ") || q.includes("ธุรกิจ")) return "การงาน/อาชีพ";
+  if (q.includes("เงิน") || q.includes("ทรัพย์") || q.includes("ลงทุน")) return "การเงิน/ทรัพย์สิน";
+  if (q.includes("รัก") || q.includes("คู่") || q.includes("ครอบครัว")) return "ความรัก/ครอบครัว";
+  if (q.includes("สุขภาพ")) return "สุขภาพ";
+  if (q.includes("โชค") || q.includes("ลาภ")) return "โชคลาภ";
+  if (q.includes("ภาพรวม") || q.includes("รวม") || q.includes("ทั้งปี") || q.includes("12 เดือน")) return "ภาพรวมชีวิต";
+  return "";
+}
+
+function isBroadAstrologyQuestion(text: string): boolean {
+  const q = text.toLowerCase().replace(/\s+/g, "");
+  if (getAstrologyConcern(text)) return false;
+  return ["ดูดวง", "ดูดวงให้ฉันหน่อย", "ดูดวงให้หน่อย", "ดวงเป็นยังไง", "ช่วยดูดวง"].some((kw) => q.includes(kw.replace(/\s+/g, "")));
+}
+
+function detectTimeFrame(text: string): { label: string; agentInstruction: string; summaryInstruction: string } {
+  const q = text.toLowerCase().replace(/\s+/g, "");
+  if (q.includes("สัปดาห์หน้า") || q.includes("อาทิตย์หน้า")) {
+    return {
+      label: "สัปดาห์หน้า",
+      agentInstruction: "**แนวโน้มสัปดาห์หน้า**\n- แบ่งเป็นต้นสัปดาห์ / กลางสัปดาห์ / ปลายสัปดาห์ แบบสั้นและชัด\n",
+      summaryInstruction: "**แนวโน้มสัปดาห์หน้า**\n- แบ่งต้นสัปดาห์ / กลางสัปดาห์ / ปลายสัปดาห์ ให้ชัดเจน\n",
+    };
+  }
+  if (q.includes("เดือนหน้า")) {
+    return {
+      label: "เดือนหน้า",
+      agentInstruction: "**แนวโน้มเดือนหน้า**\n- แบ่งเป็นต้นเดือน / กลางเดือน / ปลายเดือน แบบสั้นและชัด\n",
+      summaryInstruction: "**แนวโน้มเดือนหน้า**\n- แบ่งต้นเดือน / กลางเดือน / ปลายเดือน ให้ชัดเจน\n",
+    };
+  }
+  if (q.includes("ปีหน้า")) {
+    return {
+      label: "ปีหน้า",
+      agentInstruction: "**แนวโน้มปีหน้า**\n- แบ่งเป็นครึ่งปีแรก / ครึ่งปีหลัง และจุดเปลี่ยนที่ควรจับตา\n",
+      summaryInstruction: "**แนวโน้มปีหน้า**\n- แบ่งครึ่งปีแรก / ครึ่งปีหลัง และจุดเปลี่ยนที่ควรจับตา\n",
+    };
+  }
+  if (q.includes("12เดือน") || q.includes("สิบสองเดือน") || q.includes("ทั้งปี")) {
+    return {
+      label: "12 เดือนข้างหน้า",
+      agentInstruction: "**แนวโน้ม 12 เดือนข้างหน้า**\n- แยก 3 เดือนแรก / 4-6 เดือน / 7-12 เดือน ให้เห็นจังหวะเปลี่ยน\n",
+      summaryInstruction: "**แนวโน้ม 12 เดือนข้างหน้า**\n- แยก 3 เดือนแรก / 4-6 เดือน / 7-12 เดือน ให้เห็นจังหวะเปลี่ยน\n",
+    };
+  }
+  if (q.includes("ช่วงนี้") || q.includes("ตอนนี้")) {
+    return {
+      label: "ช่วงนี้",
+      agentInstruction: "**แนวโน้มช่วงนี้**\n- บอกสถานการณ์ตอนนี้ / สิ่งที่กำลังเปิด / สิ่งที่ควรระวังใน 30 วัน\n",
+      summaryInstruction: "**แนวโน้มช่วงนี้**\n- บอกสถานการณ์ตอนนี้ / สิ่งที่กำลังเปิด / สิ่งที่ควรระวังใน 30 วัน\n",
+    };
+  }
+  return {
+    label: "อนาคตใกล้ ๆ",
+    agentInstruction: "**อนาคตใกล้ ๆ**\n- แนวโน้ม 3 เดือน และ 6-12 เดือนแบบเข้าใจง่าย ระบุช่วงเวลาเมื่อพอทำได้\n",
+    summaryInstruction: "**แนวโน้มอนาคต**\n- แยก 3 เดือนข้างหน้า และ 6-12 เดือนข้างหน้า ให้ชัดเจน\n",
+  };
+}
+
 async function callLLMWithRetry(
   provider: string, model: string, apiKey: string, baseUrl: string | undefined,
-  messages: LLMMessage[], signal?: AbortSignal, retries = 1
+  messages: LLMMessage[], signal?: AbortSignal, retries = 1, maxTokens = 1200
 ): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      return await callLLM(provider, model, apiKey, baseUrl, messages, signal);
+      return await callLLM(provider, model, apiKey, baseUrl, messages, signal, maxTokens);
     } catch (err: unknown) {
       const isRateLimit = err instanceof Error && (err.message.includes("429") || err.message.includes("rate"));
       if (isRateLimit && attempt < retries) {
@@ -55,7 +117,8 @@ async function callLLM(
   apiKey: string,
   baseUrl: string | undefined,
   messages: LLMMessage[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  maxTokens = 1200
 ): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
   if (provider === "anthropic") {
     const systemMsg = messages.find((m) => m.role === "system");
@@ -70,7 +133,7 @@ async function callLLM(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 2048,
+        max_tokens: maxTokens,
         temperature: 0.3,
         system: systemMsg ? [{ type: "text", text: systemMsg.content, cache_control: { type: "ephemeral" } }] : undefined,
         messages: userMsgs,
@@ -97,7 +160,7 @@ async function callLLM(
     let res = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ model, messages, max_tokens: 2048, temperature: 0.3 }),
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.3 }),
       signal,
     });
     // Fallback to gpt-4o-mini if model is invalid (400/404)
@@ -105,7 +168,7 @@ async function callLLM(
       res = await fetch(url, {
         method: "POST",
         headers,
-        body: JSON.stringify({ model: "openai/gpt-4o-mini", messages, max_tokens: 2048, temperature: 0.3 }),
+        body: JSON.stringify({ model: "openai/gpt-4o-mini", messages, max_tokens: maxTokens, temperature: 0.3 }),
         signal,
       });
     }
@@ -126,7 +189,7 @@ async function callLLM(
         Authorization: `Bearer ${apiKey}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ model, messages, max_tokens: 2048, temperature: 0.3 }),
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.3 }),
       signal,
     });
     if (!res.ok) throw new Error(`OpenAI error: ${res.status} ${await res.text()}`);
@@ -151,7 +214,7 @@ async function callLLM(
           role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: m.content }],
         })),
-        generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
+        generationConfig: { maxOutputTokens: maxTokens, temperature: 0.3 },
       }),
       signal,
     });
@@ -594,6 +657,26 @@ function getAgentVoice(role: string): string {
   return "";
 }
 
+function getAstroRoleFocus(role: string): string {
+  const lower = role.toLowerCase();
+  if (lower.includes("โหรไทย") || lower.includes("จักรทีปนี")) {
+    return "\n\n🎯 หน้าที่เฉพาะของศาสตร์นี้: โฟกัสแกนชีวิต จังหวะกดดัน/คลี่คลาย และสิ่งที่ควรรักษาไว้เมื่อชีวิตเริ่มเปลี่ยน ห้ามฟันธงลัคนาหรือดาวเจ้าเรือนถ้าระบบไม่ได้คำนวณให้";
+  }
+  if (lower.includes("bazi") || lower.includes("สี่เสา") || lower.includes("ธาตุ")) {
+    return "\n\n🎯 หน้าที่เฉพาะของศาสตร์นี้: แปลข้อมูลเกิดเป็นพฤติกรรมการตัดสินใจ สมดุลชีวิต และจังหวะที่ควรชะลอหรือเร่งมือในเชิงสัญลักษณ์ ห้ามฟันธง Day Master/ธาตุแข็งอ่อน/ยามจีน ถ้าระบบไม่ได้คำนวณให้";
+  }
+  if (lower.includes("เลข") || lower.includes("7 ตัว") || lower.includes("ฐาน")) {
+    return "\n\n🎯 หน้าที่เฉพาะของศาสตร์นี้: ใช้เลขวันเกิด เลขเส้นชีวิต และเลขปีส่วนตัวเพื่อทำ checklist แบบลงมือได้ เน้น ทำ/เลี่ยง/รอ/เตรียม และให้คำตอบสั้นคมกว่าคนอื่น";
+  }
+  if (lower.includes("ยูเรเนียน") || lower.includes("midpoint") || lower.includes("ดาว")) {
+    return "\n\n🎯 หน้าที่เฉพาะของศาสตร์นี้: จับสัญญาณเปลี่ยนแปลง หน้าต่างเวลา และความเสี่ยงที่ควรเฝ้าดู ห้ามอ้างองศาดาว midpoint หรือ aspect แม่นยำถ้าไม่มีฐานคำนวณ";
+  }
+  if (lower.includes("ทักษา") || lower.includes("ทักษาจร")) {
+    return "\n\n🎯 หน้าที่เฉพาะของศาสตร์นี้: แปลงวันเกิดและอายุจรเป็นแผน 7/30/90 วัน ช่วยผู้ใช้เลือกสิ่งที่ควรเริ่มก่อน และบอกสัญญาณที่ควรกลับมาถามต่อ";
+  }
+  return "";
+}
+
 function sseEvent(encoder: TextEncoder, event: string, data: unknown): Uint8Array {
   return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
@@ -653,7 +736,8 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: "Missing question or agentIds" }), { status: 400 });
   }
 
-  const allAgents = await listAgents();
+  const userId = req.headers.get("x-user-id")!;
+  const allAgents = await listAgents(userId);
   const selectedAgents = allAgents.filter((a) => agentIds.includes(a.id) && a.active);
   if (!selectedAgents.length) {
     return new Response(JSON.stringify({ error: "No active agents found" }), { status: 400 });
@@ -706,12 +790,12 @@ export async function POST(req: NextRequest) {
       const older = turns.slice(0, -2);
       const recent = turns.slice(-2);
       const olderText = older.length > 0
-        ? older.map((t, i) => `[วาระที่ ${i + 1}] ${t.question} → ${t.answer.slice(0, 150)}...`).join("\n")
+        ? older.map((t, i) => `[คำถามที่ ${i + 1}] ${t.question} → ${t.answer.slice(0, 150)}...`).join("\n")
         : "";
-      const recentText = recent.map((t, i) => `[วาระที่ ${older.length + i + 1}] คำถาม: ${t.question}\nสรุปมติ: ${t.answer}`).join("\n\n");
-      return `\n\n---\nสรุปประวัติการประชุมก่อนหน้า:\n${olderText ? olderText + "\n\nรายละเอียดวาระล่าสุด:\n" : ""}${recentText}\n---\n`;
+      const recentText = recent.map((t, i) => `[คำถามที่ ${older.length + i + 1}] คำถาม: ${t.question}\nคำตอบสรุป: ${t.answer}`).join("\n\n");
+      return `\n\n---\nสรุปประวัติคำถามก่อนหน้า:\n${olderText ? olderText + "\n\nรายละเอียดคำถามล่าสุด:\n" : ""}${recentText}\n---\n`;
     }
-    return `\n\n---\nประวัติการประชุมก่อนหน้า:\n${turns.map((t, i) => `[วาระที่ ${i + 1}] คำถาม: ${t.question}\nสรุปมติ: ${t.answer}`).join("\n\n")}\n---\n`;
+    return `\n\n---\nประวัติคำถามก่อนหน้า:\n${turns.map((t, i) => `[คำถามที่ ${i + 1}] คำถาม: ${t.question}\nคำตอบสรุป: ${t.answer}`).join("\n\n")}\n---\n`;
   }
 
   // Build file context (with optional sheet filter)
@@ -720,10 +804,12 @@ export async function POST(req: NextRequest) {
     return `\n\n---\n📎 เอกสารอ้างอิงที่แนบมา (ใช้ข้อมูลเหล่านี้ประกอบการวิเคราะห์):\n${contexts.map((f) => `[${f.meta}]\n${f.context}`).join("\n\n---\n")}\n---\n`;
   }
 
-  const userId = req.headers.get("x-user-id")!;
-
   let sessionId: string;
   if (existingSessionId) {
+    const existingSession = await getResearchSession(existingSessionId, userId);
+    if (!existingSession) {
+      return new Response(JSON.stringify({ error: "Session not found" }), { status: 404 });
+    }
     // Reuse existing session (multi-round meeting)
     sessionId = existingSessionId;
   } else {
@@ -774,8 +860,7 @@ export async function POST(req: NextRequest) {
       }, 15_000);
 
       send("session", { sessionId });
-      send("chairman", { agentId: chairman.id, name: chairman.name, emoji: chairman.emoji, role: chairman.role });
-      send("status", { message: mode === "qa" ? `💬 ${chairman.emoji} ${chairman.name} กำลังตอบ...` : `🏛️ ประธาน: ${chairman.emoji} ${chairman.name} (${chairman.role}) — ${mode === "close" ? "สรุปมติที่ประชุม" : "เปิดการประชุม"}` });
+      send("status", { message: mode === "qa" ? `💬 ${chairman.emoji} ${chairman.name} กำลังดูดวง...` : `🔮 เปิดห้องหมอดู — ${mode === "close" ? "กำลังสรุปคำทำนายรวม" : "หมอดูแต่ละศาสตร์กำลังดูให้คุณ"}` });
 
       const agentFindings: { agentId: string; name: string; emoji: string; role: string; content: string; searchResults?: string }[] = [];
       const agentTokens: Record<string, { input: number; output: number }> = {};
@@ -787,9 +872,28 @@ export async function POST(req: NextRequest) {
 
       // Build clarification context if user answered clarification questions
       let clarificationContext = "";
+      const subjectName = (clarificationAnswers ?? []).find((a) => a.question.includes("ชื่อ-นามสกุล"))?.answer?.trim();
+      const subjectBirthDate = (clarificationAnswers ?? []).find((a) => a.question.includes("วันเดือนปีเกิด"))?.answer?.trim();
+      const subjectBirthTime = (clarificationAnswers ?? []).find((a) => a.question.includes("เวลาเกิด"))?.answer?.trim();
+      const subjectBirthPlace = (clarificationAnswers ?? []).find((a) => a.question.includes("จังหวัด") || a.question.includes("สถานที่เกิด"))?.answer?.trim();
+      const hasSelectedBirthProfile = !!(subjectName && subjectBirthDate);
+      const birthFacts = buildBirthFacts({
+        name: subjectName,
+        birthDate: subjectBirthDate,
+        birthTime: subjectBirthTime,
+        birthPlace: subjectBirthPlace,
+      });
+      const birthFactsContext = birthFacts
+        ? `\n\n---\n🧮 ข้อมูลดวงตั้งต้นที่ระบบคำนวณได้จริง:\n${birthFacts.summaryText}\n---\nกฎการทายให้เจาะจง:\n- ทุก agent ต้องอ้างอิงข้อมูลตั้งต้นอย่างน้อย 2 จุดในคำทักหรือคำแนะนำ เช่น วันเกิด/อายุ/เลขเส้นชีวิต/ปีนักษัตร/เวลาเกิด/สถานที่เกิด\n- ห้ามตอบกว้าง ๆ แบบใช้ได้กับทุกคน ถ้าทักเรื่องใดให้โยงกลับมาที่ข้อมูลตั้งต้นหรือคำถามของผู้ใช้\n- ห้ามแต่งลัคนา Day Master องศาดาว หรือฐานเลขละเอียดที่ระบบไม่ได้คำนวณให้ ถ้าจะพูดให้ใช้คำว่า "จากข้อมูลพื้นฐานที่มี"\n- ถ้าความรู้เดิมของคุณขัดกับข้อมูลตั้งต้นที่ระบบให้ ให้ยึดข้อมูลตั้งต้นของระบบก่อนเสมอ\n---\n`
+        : "";
+      const subjectGuardContext = hasSelectedBirthProfile
+        ? `\n\n---\n🎯 เจ้าชะตาที่ต้องดูในรอบนี้: ${subjectName} (${subjectBirthDate})\nกฎสำคัญ: ใช้เฉพาะข้อมูลของเจ้าชะตานี้เท่านั้น ห้ามนำชื่อ วันเกิด หรือบริบทของบุคคลอื่นจากความจำ ประวัติคำถามเดิม หรือ profile อื่นมาปนในคำตอบ ถ้าประวัติมีชื่ออื่นให้ถือว่าเป็นคนละบริบทและไม่ต้องกล่าวถึง\n---\n`
+        : "";
       if (clarificationAnswers && clarificationAnswers.length > 0) {
-        clarificationContext = `\n\n---\n📋 ข้อมูลเพิ่มเติมจากผู้ถาม (ตอบก่อนเริ่มประชุม):\n${clarificationAnswers.map((a) => `ถาม: ${a.question}\nตอบ: ${a.answer}`).join("\n\n")}\n---\n⚠️ ใช้ข้อมูลเหล่านี้ประกอบการวิเคราะห์ ตอบให้ตรงกับสถานการณ์จริงของผู้ถาม\n`;
+        clarificationContext = `${subjectGuardContext}${birthFactsContext}\n\n---\n📋 ข้อมูลเพิ่มเติมจากผู้ถาม:\n${clarificationAnswers.map((a) => `ถาม: ${a.question}\nตอบ: ${a.answer}`).join("\n\n")}\n---\n⚠️ ใช้ข้อมูลเหล่านี้ประกอบการวิเคราะห์ ตอบให้ตรงกับสถานการณ์จริงของผู้ถาม\n`;
       }
+      const timeFrame = detectTimeFrame(question);
+      const timeFrameContext = `\n\n⏱️ กรอบเวลาที่ผู้ใช้ถาม: ${timeFrame.label}\n- รูปแบบคำตอบต้องปรับตามกรอบเวลานี้ ห้ามใช้แพทเทิร์น 3 เดือน/6-12 เดือน ถ้าผู้ใช้ถามแค่ "เดือนหน้า" หรือ "สัปดาห์หน้า"\n`;
 
       // Detect astrology/fortune-telling session — used to inject ทายทัก section into prompts
       const _astroKw = ["ดูดวง","โหราศาสตร์","ดวงชะตา","ดวง","พยากรณ์","ทำนาย","ฤกษ์","bazi","ba zi","tarot","ไพ่ยิปซี","ชะตา","ชงกับ","ราศี","จักรราศี","เลขศาสตร์","numerology","ฮวงจุ้ย","feng shui","สี่เสา","midpoint","ascendant","ทักษา"];
@@ -811,7 +915,7 @@ export async function POST(req: NextRequest) {
       const antiHallucinationRules = `\n\n🚫 กฎเหล็กป้องกันข้อมูลเท็จ (Anti-Hallucination):\n- ห้ามสร้างเลขที่คำวินิจฉัย คำพิพากษา หรือคำสั่งที่ไม่แน่ใจ 100% (เช่น "คำวินิจฉัย กค 0811/xxxx") — ถ้าไม่แน่ใจ ให้เขียนว่า "ตามแนวคำวินิจฉัยของกรมสรรพากร" โดยไม่ระบุเลขที่\n- ห้ามสร้างชื่อ พ.ร.บ. พ.ร.ก. ประกาศ หรือกฎกระทรวง ที่ไม่มีอยู่จริง\n- ถ้าอ้างอิงมาตรากฎหมาย ต้องแน่ใจว่าเลขมาตราถูกต้อง — ถ้าไม่แน่ใจ ให้ระบุเป็นหลักการแทน\n- ถ้าข้อมูลจาก Web Search ขัดกับความรู้เดิม ให้เชื่อ Web Search มากกว่า (เพราะอาจมีการแก้ไขกฎหมาย)\n- แยกชัดเจนระหว่าง "ข้อเท็จจริงที่แน่ชัด" กับ "ความเห็น/การตีความ"\n`;
 
       // Astrology-specific anti-hallucination rules (injected only for astrology sessions)
-      const astrologyAntiHallucinationRules = isAstrologySession ? `\n\n🔮 กฎเหล็กเฉพาะโหราศาสตร์:\n- ห้ามระบุ Ascendant/ลัคนา โดยไม่แสดงวิธีคำนวณจากเวลา+สถานที่เกิด — ถ้าไม่มีเวลาเกิดให้ระบุชัดว่า "ไม่สามารถระบุลัคนาได้"\n- ห้ามระบุ Day Master (ธาตุประจำตัว) โดยไม่แสดงตาราง 4 เสาก่อน (ปี เดือน วัน ยาม พร้อม Heavenly Stem + Earthly Branch + ธาตุ)\n- Day Master = Heavenly Stem ของเสาวัน (Day Pillar) เท่านั้น — ไม่ใช่ธาตุรวมหรือธาตุที่มากที่สุดในตาราง\n- ห้ามระบุตำแหน่งดาว (องศา/ราศี) ที่ไม่มีฐานข้อมูลอ้างอิง — ถ้าไม่แน่ใจให้ระบุว่า "ประมาณ ~XX°"\n- ทายทักทุกข้อต้องระบุครบ 5 องค์ประกอบ: ① เรื่องอะไร ② ช่วงเดือน/เวลาไหน ③ กลไก (ดาว/ธาตุ/เลขฐานที่ทำให้เกิด) ④ % ความน่าจะเป็น (ไม่เกิน 75%) ⑤ วิธีรับมือ\n- ถ้าข้อมูลไม่เพียงพอ (เช่น ไม่มีเวลาเกิดสำหรับลัคนา) ห้ามเดา — ระบุชัดว่าต้องการข้อมูลเพิ่ม\n` : "";
+      const astrologyAntiHallucinationRules = isAstrologySession ? `\n\n🔮 กฎเหล็กเฉพาะโหราศาสตร์:\n- ห้ามพูดมั่นเกินฐานข้อมูล: ถ้าไม่ได้คำนวณจริง ให้ใช้คำว่า "แนวโน้ม", "โดยประมาณ", หรือ "จากข้อมูลที่มี"\n- ใช้ "ข้อมูลดวงตั้งต้นที่ระบบคำนวณได้จริง" เป็นแหล่งหลัก ห้ามคำนวณวันเกิด/ราศี/เลขชีวิตใหม่แล้วขัดกับข้อมูลระบบ\n- ห้ามระบุ Ascendant/ลัคนา โดยไม่แสดงวิธีคำนวณจากเวลา+สถานที่เกิด — ถ้าไม่มีเวลาเกิดให้ระบุชัดว่า "ไม่สามารถระบุลัคนาได้"\n- ห้ามระบุ Day Master หรือธาตุประจำตัวแบบฟันธง ถ้าไม่ได้แสดงฐานคำนวณที่พอเชื่อถือได้\n- Day Master = Heavenly Stem ของเสาวัน (Day Pillar) เท่านั้น — ไม่ใช่ธาตุรวมหรือธาตุที่มากที่สุดในตาราง\n- ห้ามระบุธาตุแข็ง/อ่อน ยามจีน ฤกษ์ หรือเรือนดาวเป็นข้อเท็จจริง ถ้าระบบไม่ได้คำนวณให้ ให้พูดเป็นมุมเชิงสัญลักษณ์หรือข้อสังเกตจากข้อมูลพื้นฐานแทน\n- ห้ามระบุตำแหน่งดาว องศาดาว midpoint หรือ aspect แบบแม่นยำ ถ้าไม่มี ephemeris/ฐานคำนวณ ให้พูดว่า "สัญญาณดาวโดยประมาณ"\n- ทายทักทุกข้อต้องระบุเรื่อง ช่วงเวลา เหตุผลจากศาสตร์ของตัวเอง ความน่าจะเป็นไม่เกิน 75% และวิธีรับมือ\n- ถ้าข้อมูลไม่เพียงพอ ให้บอกข้อจำกัดสั้น ๆ แล้ววิเคราะห์เท่าที่ทำได้ หรือถามเพิ่มถ้าจำเป็นจริง ๆ\n` : "";
 
       // === QA Mode: Direct single-agent answer (no meeting ceremony) ===
       if (mode === "qa") {
@@ -847,7 +951,7 @@ export async function POST(req: NextRequest) {
           // Use streaming LLM — user sees tokens appearing in real-time
           const result = await callLLMStream(agent.provider, agent.model, apiKey, agent.baseUrl, [
             { role: "system",
-              content: `${companyContext}${memoryContext}${agent.soul}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${dateContext}${antiHallucinationRules}\n\nรูปแบบการตอบ:\n1. **ตอบคำตอบหลักให้ชัดเจนก่อนเลยในย่อหน้าแรก** (ใช่/ไม่ใช่/มี/ไม่มี + สรุปสั้น 1-2 ประโยค)\n2. จากนั้นค่อยอธิบายเหตุผล หลักกฎหมาย หรือรายละเอียดสนับสนุน\n3. ถ้ามีเงื่อนไขพิเศษหรือข้อยกเว้น ให้ระบุชัดเจนว่ากรณีของผู้ถามเข้าเงื่อนไขไหน\n\n⚠️ กฎเหล็กด้านความถูกต้อง:\n- ตอบในบริบทกฎหมายและมาตรฐานของประเทศไทยเป็นหลัก\n- ก่อนสรุปว่าต้องเสียภาษีหรือปฏิบัติตามกฎใด ต้องตรวจสอบข้อยกเว้น (exemptions) ที่เกี่ยวข้องก่อนเสมอ\n- คำตอบต้องสอดคล้องกันตลอด — ห้ามเปิดด้วยข้อมูลที่ขัดกับข้อสรุป\n- อ้างอิงมาตรากฎหมาย มาตรฐานบัญชี หรือแนวปฏิบัติที่เกี่ยวข้อง\n- ใช้ภาษาที่เข้าใจง่าย ตอบไม่เกิน 500 คำ`,
+              content: `${companyContext}${memoryContext}${agent.soul}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}\n\nรูปแบบการตอบ:\n1. **ตอบคำตอบหลักให้ชัดเจนก่อนเลยในย่อหน้าแรก** (ใช่/ไม่ใช่/มี/ไม่มี + สรุปสั้น 1-2 ประโยค)\n2. จากนั้นค่อยอธิบายเหตุผล หลักกฎหมาย หรือรายละเอียดสนับสนุน\n3. ถ้ามีเงื่อนไขพิเศษหรือข้อยกเว้น ให้ระบุชัดเจนว่ากรณีของผู้ถามเข้าเงื่อนไขไหน\n\n⚠️ กฎเหล็กด้านความถูกต้อง:\n- ตอบในบริบทกฎหมายและมาตรฐานของประเทศไทยเป็นหลัก\n- ก่อนสรุปว่าต้องเสียภาษีหรือปฏิบัติตามกฎใด ต้องตรวจสอบข้อยกเว้น (exemptions) ที่เกี่ยวข้องก่อนเสมอ\n- คำตอบต้องสอดคล้องกันตลอด — ห้ามเปิดด้วยข้อมูลที่ขัดกับข้อสรุป\n- อ้างอิงมาตรากฎหมาย มาตรฐานบัญชี หรือแนวปฏิบัติที่เกี่ยวข้อง\n- ใช้ภาษาที่เข้าใจง่าย ตอบไม่เกิน 500 คำ`,
             },
             { role: "user", content: question },
           ], clientSignal, (delta) => send("final_answer_delta", { content: delta }));
@@ -900,29 +1004,16 @@ export async function POST(req: NextRequest) {
 
       // === Phase 0: Pre-flight Clarification (only if no answers provided yet) ===
       if (!clarificationAnswers) {
-        // === Astrology / Fortune-telling detection — always ask personal info ===
-        const astrologyKeywords = [
-          "ดูดวง", "โหราศาสตร์", "ดวงชะตา", "ดวง", "พยากรณ์", "ทำนาย",
-          "ฤกษ์", "บาจี", "bazi", "ba zi", "tarot", "ไพ่ยิปซี",
-          "ชะตา", "ชงกับ", "ราศี", "จักรราศี", "ดาวพุธ", "ดาวอังคาร",
-          "ดาวเสาร์", "ดาวราหู", "ดาวเกตุ", "ลัคน์", "เลขศาสตร์", "numerology",
-          "ฮวงจุ้ย", "feng shui", "สี่เสา", "midpoint", "ascendant", "ทักษา",
-        ];
-        const questionLower = question.toLowerCase();
-        const chairmanRoleLower = (chairman.soul + " " + chairman.role).toLowerCase();
-        const isAstrologyTopic =
-          astrologyKeywords.some((kw) => questionLower.includes(kw)) ||
-          astrologyKeywords.some((kw) => chairmanRoleLower.includes(kw));
-
-        if (isAstrologyTopic) {
-          send("status", { message: "🔍 ตรวจสอบความครบถ้วนของคำถาม..." });
+        if (isBroadAstrologyQuestion(question)) {
+          send("status", { message: "🔍 ขอจับประเด็นก่อนเปิดคำทำนาย..." });
           send("clarification_needed", {
             questions: [
-              { id: "astro_name", question: "ชื่อ-นามสกุล ของผู้ต้องการดูดวง", type: "text" },
-              { id: "astro_dob", question: "วันเดือนปีเกิด (เช่น 15 มกราคม 2530 หรือ 15/01/2530)", type: "text" },
-              { id: "astro_tob", question: "เวลาเกิด (เช่น 08:30) — ถ้าไม่ทราบ ใส่ว่า \"ไม่ทราบ\"", type: "text" },
-              { id: "astro_birthplace", question: "จังหวัด/ประเทศเกิด (เช่น กรุงเทพฯ, เชียงใหม่, ลอนดอน) — ถ้าไม่ทราบ ใส่ว่า \"กรุงเทพฯ\"", type: "text" },
-              { id: "astro_concern", question: "ประเด็นหลักที่ต้องการทราบ (เช่น การงาน การเงิน ความรัก สุขภาพ)", type: "choice", options: ["การงาน/อาชีพ", "การเงิน/ทรัพย์สิน", "ความรัก/ครอบครัว", "สุขภาพ", "โชคลาภ", "ภาพรวมชีวิต"] },
+              {
+                id: "astro_focus",
+                question: "อยากให้ดูเรื่องไหนเป็นหลักครับ",
+                type: "choice",
+                options: ["การงาน/อาชีพ", "การเงิน/ทรัพย์สิน", "ความรัก/ครอบครัว", "สุขภาพ", "โชคลาภ", "ภาพรวมชีวิต"],
+              },
             ],
           });
           if (keepaliveInterval) clearInterval(keepaliveInterval);
@@ -938,8 +1029,8 @@ export async function POST(req: NextRequest) {
             const clarifyResult = await callLLM(chairman.provider, chairman.model, chairApiKeyP0, chairman.baseUrl, [
               {
                 role: "system",
-                content: `คุณคือ ${chairman.name} (${chairman.role}) ทำหน้าที่ประธานก่อนเริ่มประชุม
-ประเมินว่าคำถามต้องการข้อมูลเพิ่มเติมหรือไม่ แล้วตอบเป็น JSON เท่านั้น ไม่ต้องมีข้อความอื่น:
+                content: `คุณคือ ${chairman.name} (${chairman.role}) กำลังคุยกับผู้ใช้ก่อนเปิดคำทำนาย
+ประเมินจากคำถามจริงของผู้ใช้ว่าจำเป็นต้องถามข้อมูลเพิ่มหรือไม่ แล้วตอบเป็น JSON เท่านั้น ไม่ต้องมีข้อความอื่น:
 {
   "needsClarification": true/false,
   "questions": [
@@ -954,26 +1045,23 @@ export async function POST(req: NextRequest) {
 
 กฎ:
 - ถ้าคำถามชัดเจนพอที่จะตอบได้แม้ไม่มีข้อมูลเพิ่ม → needsClarification: false
-- ถ้าคำตอบจะเปลี่ยนไปมากขึ้นอยู่กับรายละเอียดที่ขาด → needsClarification: true
-- ถามไม่เกิน 4 ข้อ เน้นสิ่งที่กระทบคำตอบจริงๆ
-- ตัวเลือก choice ควรครอบคลุมกรณีทั่วไป (3-5 ตัวเลือก)
-
-ตัวอย่างตามโดเมน:
-- บัญชี/ภาษี: ประเภทนิติบุคคล, ขนาดกิจการ, จดทะเบียนVATหรือไม่, ประเภทสินค้า/บริการ
-- โหราศาสตร์/ดูดวง: ชื่อ-นามสกุล, วันเดือนปีเกิด (พ.ศ.), เวลาเกิด (ถ้ามี), ประเด็นที่ต้องการทราบ
-- กฎหมาย: ประเภทคดี, คู่กรณี, ข้อเท็จจริงสำคัญ
-- อื่นๆ: ใช้บริบทของ soul/role เพื่อกำหนดว่าข้อมูลใดจำเป็น`,
+- ถ้าข้อมูลที่ขาดจะเปลี่ยนคำทำนายหรือคำแนะนำอย่างมีนัยสำคัญ → needsClarification: true
+- ถามไม่เกิน 3 ข้อ และถามทีละประเด็นสำคัญจริง ๆ เท่านั้น
+- ห้ามใช้ชุดคำถามตายตัว ต้องเลือกถามตามคำถามของผู้ใช้และศาสตร์ของคุณ
+- ถามเป็นภาษาคน เหมือนหมอดูถามกลับในแชท เช่น "ขอโฟกัสนิดนึง ตอนนี้อยากดูเรื่องงานหรือความรักมากกว่ากัน?"
+- ถ้าคำถามเป็นการดูดวงกว้างมากและไม่มีข้อมูลเกิดเลย ให้ถามเฉพาะข้อมูลเกิดที่จำเป็นที่สุดก่อน เช่น วันเกิด/เวลาเกิด/เรื่องที่อยากโฟกัส
+- ถ้ามีประวัติหรือข้อมูลเพิ่มเติมใน prompt แล้ว ห้ามถามซ้ำ`,
               },
               {
                 role: "user",
                 content: `ประเมินคำถามนี้: "${question}"${fileContexts?.length ? "\n(มีเอกสารแนบมาด้วย)" : ""}${conversationHistory?.length ? "\n(มีประวัติการประชุมก่อนหน้า)" : ""}`,
               },
-            ], clientSignal);
+            ], clientSignal, 300);
 
             try {
               const jsonMatch = clarifyResult.content.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
-                const parsed = JSON.parse(jsonMatch[0]);
+                const parsed = JSON.parse(jsonMatch?.[0] ?? "{}");
                 if (parsed.needsClarification && parsed.questions?.length > 0) {
                   send("clarification_needed", {
                     questions: parsed.questions.slice(0, 3),
@@ -989,45 +1077,24 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Chairman opens the meeting
-      {
-        const apiKey = await getAgentApiKey(chairman.id);
-        if (apiKey) {
-          try {
-            const openingResult = await callLLM(chairman.provider, chairman.model, apiKey, chairman.baseUrl, [
-              {
-                role: "system",
-                content: `${companyContext}${memoryContext}${chairman.soul}${dataSourceContext}${historyContext}${fileContext}${clarificationContext}\n\nคุณเป็นประธานการประชุม มีหน้าที่เปิดประชุม กำหนดวาระ และนำทีมหาข้อสรุป`,
-              },
-              {
-                role: "user",
-                content: `กรุณาเปิดการประชุมสำหรับวาระ: "${question}"\n\nชี้แจงวัตถุประสงค์สั้นกระชับ (3-5 ประโยค) และกำหนดประเด็นหลัก 2-3 ข้อที่ต้องการหาคำตอบ เพื่อให้ทีมงานวิเคราะห์ในทิศทางเดียวกัน\n\n⚠️ สำคัญ: พูดกระชับ ไม่ต้องอธิบายรายละเอียดยาว เพราะทีมจะนำเสนอข้อมูลเชิงลึกเอง`,
-              },
-            ], clientSignal);
+      const questionMarker: ResearchMessage = {
+        id: crypto.randomUUID(),
+        agentId: "user",
+        agentName: "ผู้ใช้",
+        agentEmoji: "👤",
+        role: "user_question",
+        content: question,
+        tokensUsed: 0,
+        timestamp: new Date().toISOString(),
+      };
+      await appendResearchMessage(sessionId, questionMarker);
 
-            const openingMsg: ResearchMessage = {
-              id: crypto.randomUUID(),
-              agentId: chairman.id,
-              agentName: chairman.name,
-              agentEmoji: chairman.emoji,
-              role: "finding",
-              content: `🏛️ **เปิดการประชุม**\n\n${openingResult.content}`,
-              tokensUsed: openingResult.inputTokens + openingResult.outputTokens,
-              timestamp: new Date().toISOString(),
-            };
-            await appendResearchMessage(sessionId, openingMsg);
-            send("message", openingMsg);
-            agentTokens[chairman.id] = { input: openingResult.inputTokens, output: openingResult.outputTokens };
-          } catch { /* skip opening if error */ }
-        }
-      }
-
-      // Phase 1: Each agent presents their analysis (PARALLEL — all agents analyze simultaneously)
-      send("status", { message: "📋 Phase 1 — ผู้เชี่ยวชาญทุกคนวิเคราะห์พร้อมกัน..." });
+      // Oracle room: each agent gives an independent reading.
+      send("status", { message: "🔮 หมอดูแต่ละศาสตร์กำลังเปิดคำทำนาย..." });
 
       // Step 1: Send all "thinking" messages upfront so UI shows all agents working
       for (const agent of orderedAgents) {
-        send("agent_start", { agentId: agent.id, name: agent.name, emoji: agent.emoji, role: agent.role, isChairman: agent.id === chairman.id });
+        send("agent_start", { agentId: agent.id, name: agent.name, emoji: agent.emoji, role: agent.role, isChairman: false });
         const thinkingMsg: ResearchMessage = {
           id: crypto.randomUUID(),
           agentId: agent.id,
@@ -1071,24 +1138,21 @@ export async function POST(req: NextRequest) {
             if (sources.length > 0) send("web_sources", { agentId: agent.id, sources });
           }
 
-          const isChairman = agent.id === chairman.id;
-          const roleInstruction = isChairman
-            ? `คุณเป็นประธานการประชุม นำเสนอมุมมองจากตำแหน่ง ${agent.role} ของคุณ`
-            : `นำเสนอมุมมองจากมุมมองของ ${agent.role} อย่างชัดเจนและตรงประเด็น`;
+          const roleInstruction = `คุณคือหมอดูสาย ${agent.role} กำลังดูดวงให้ผู้ถามแบบตัวต่อตัว ให้ตอบจากศาสตร์ของคุณโดยตรง${getAstroRoleFocus(agent.role)}`;
 
           const knowledgeContext = await getAgentKnowledgeContent(agent.id, question);
           const agentVoice = getAgentVoice(agent.role);
           const result = await callLLMWithRetry(agent.provider, agent.model, apiKey, agent.baseUrl, [
             {
               role: "system",
-              content: `${companyContext}${memoryContext}${agent.soul}${agentVoice}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${dateContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
+              content: `${companyContext}${memoryContext}${agent.soul}${agentVoice}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
             },
             {
               role: "user",
-              content: `วาระการประชุม: ${question}\n\n${roleInstruction}\n\nกรุณาวิเคราะห์เชิงลึกจากมุมมองเฉพาะทางของ ${agent.role} พร้อมระบุ:\n1. ประเด็นสำคัญจากมุมมองเฉพาะบทบาทของคุณ\n2. ความเสี่ยงหรือข้อกังวลจากมุมมองของคุณ\n3. ข้อเสนอแนะเฉพาะทาง${isAstrologySession ? "\n4. ⚠️ ทายทัก — สิ่งที่ควรระวังเป็นพิเศษจากศาสตร์ของ " + agent.role + ":\n   แต่ละทายทักต้องระบุครบ 5 องค์ประกอบ: ① เรื่องอะไร ② ช่วงเดือน/เวลาไหน ③ กลไก (ดาว/ธาตุ/เลขฐานที่ทำให้เกิด) ④ % ความน่าจะเป็น (ไม่เกิน 75%) ⑤ วิธีรับมือ\n   - ระยะสั้น (3 เดือนนี้): อย่างน้อย 2 ทายทัก ระบุเดือนที่ชัดเจน\n   - ระยะยาว (1 ปีข้างหน้า): อย่างน้อย 2 ทายทัก ระบุช่วงเวลา" : ""}${fileContexts?.length ? "\n\nอ้างอิงข้อมูลจากเอกสารที่แนบมาด้วย" : ""}\n\n⚠️ ความยาว: ตอบกระชับไม่เกิน ${isAstrologySession ? "1000" : "800"} คำ เน้นประเด็นสำคัญที่สุด 3-5 ข้อ ไม่ต้องอารัมภบทยาว\n⚠️ วิเคราะห์เฉพาะในขอบเขตบทบาท ${agent.role} ของคุณเท่านั้น ไม่ต้องรุกล้ำบทบาทผู้เชี่ยวชาญคนอื่น\n\n⚠️ กฎเหล็กด้านความถูกต้อง:\n- ตอบในบริบทกฎหมายและมาตรฐานของประเทศไทยเป็นหลัก\n- ตอบเจาะจงกรณีที่ผู้ถามถาม อย่าพูดหลักการทั่วไปที่ไม่ตรงกับกรณีของเขา\n- ก่อนสรุปว่าต้องเสียภาษีหรือปฏิบัติตามกฎใด ต้องตรวจสอบข้อยกเว้น (exemptions) ตามกฎหมายก่อนเสมอ (เช่น ม.81 สำหรับ VAT, ม.65 ทวิ/ตรี สำหรับ CIT)\n- ถ้ามีข้อยกเว้นที่ทำให้กรณีนี้ต่างจากกฎทั่วไป ให้ระบุข้อยกเว้นนั้นเป็นจุดหลัก ไม่ใช่แค่หมายเหตุท้าย\n- อ้างอิงมาตรากฎหมาย พ.ร.ก. คำวินิจฉัย หรือแนวปฏิบัติที่เกี่ยวข้องให้ชัดเจน\n- ห้ามให้ข้อมูลที่ขัดแย้งกันในคำตอบเดียวกัน`,
+              content: `คำถามของผู้ใช้: ${question}\n\n${roleInstruction}\n\nให้ตอบเป็นภาษาไทยแบบคนทั่วไป อ่านง่าย อบอุ่น และทักให้ตรงใจ ห้ามใช้ศัพท์โหราศาสตร์ยาก ๆ ลอย ๆ ถ้าจำเป็นต้องใช้ศัพท์เฉพาะให้แปลเป็นภาษาคนทันที\n\nรูปแบบคำตอบของคุณต้องเป็นหัวข้อต่อไปนี้เท่านั้น:\n\n**คำตอบตรง ๆ**\n- ตอบประเด็นหลักของผู้ใช้ก่อนใน 1-2 ประโยค ถ้าเป็นคำถามใช่/ไม่ใช่ ให้ให้น้ำหนักแบบ "ยังไม่เห็นชัดว่าใช่", "มีโอกาสแต่ยังไม่สุด", หรือ "ควรจับตา" พร้อมเหตุผลสั้น ๆ ห้ามฟันธง\n- ถ้าเป็นคำถามขอแผน/ทางเลือก ให้บอกสิ่งที่ควรทำก่อนเป็นอันดับแรกทันที\n\n**หลักที่ใช้ทัก**\n- ระบุข้อมูลตั้งต้น 2-3 จุดที่ใช้จริง เช่น วันเกิด/อายุ/เลขเส้นชีวิต/เลขปีส่วนตัว/เวลาเกิด/สถานที่เกิด และแปลว่ามันทำให้คุณมองอะไร ไม่ต้องยาว\n\n**สัญญาณที่เห็น**\n- บอก 2-3 สัญญาณจากศาสตร์ของคุณว่าทำไมจึงตอบแบบนั้น ต้องโยงกับคำถามและข้อมูลตั้งต้น\n\n**จุดเด่นและจุดติดของช่วงนี้**\n- 2-3 bullet ที่โยงกับคำถามและข้อมูลตั้งต้น\n\n${timeFrame.agentInstruction}\n**ตัวอย่างเรื่องที่อาจเจอ**\n- ยกตัวอย่างสถานการณ์ชีวิตจริง 1-2 ข้อ โดยต้องโยงกับข้อมูลตั้งต้นหรือกรอบเวลาที่ถาม\n\n**เรื่องที่ควรระวัง**\n- บอกสิ่งที่ควรระวัง 1-2 ข้อแบบไม่ขู่ และบอกวิธีรับมือสั้น ๆ\n\n**สิ่งที่ควรสังเกตต่อ**\n- บอก 1-2 สัญญาณในชีวิตจริงที่ถ้าเริ่มเกิดขึ้น แปลว่าคำทำนายกำลังเดินไปทางนั้น เช่น ข่าวเปลี่ยนแปลง คนเริ่มพูดเรื่องเดิมซ้ำ เงินรั่วจากจุดเดิม ความสัมพันธ์เริ่มนิ่ง/ห่าง ฯลฯ โดยเลือกให้ตรงกับคำถามจริง\n\n**คำแนะนำจากศาสตร์นี้**\n- ให้คำแนะนำที่ทำได้จริง 2-3 ข้อ โดยอย่างน้อย 1 ข้อต้องผูกกับเลข/วัน/อายุ/เวลาเกิดที่ระบบให้\n\nกติกาสำคัญ:\n- ตอบไม่เกิน 420 คำ\n- ใช้คำธรรมดา ประโยคสั้น\n- น้ำเสียงเหมือนหมอดูที่พูดตรง แต่อบอุ่น\n- ให้ความหวังแบบมีสติ ไม่ขายฝัน ไม่ทำให้กลัว\n- ห้ามใช้คำฟันธง เช่น "รวยแน่นอน", "เกิดแน่", "เลิกแน่" ให้ใช้ "มีโอกาส", "มีแนวโน้ม", "ถ้าบริหารดี"\n- ห้ามตอบ generic ถ้าประโยคไหนใช้ได้กับทุกคน ให้ตัดทิ้งหรือเติมเหตุผลจากข้อมูลตั้งต้น\n- ตัวอย่างต้องเป็น "แนวโน้มที่อาจเจอ" ไม่ใช่ข้อเท็จจริงเด็ดขาด ห้ามแต่งเหตุการณ์เฉพาะเจาะจงเกินข้อมูล\n- ห้ามบอกให้ผู้ใช้เชื่อสนิทใจ ให้บอกให้ใช้เป็นแนวทางประกอบการตัดสินใจ\n- ถ้าข้อมูลเกิดไม่ครบ ให้บอกข้อจำกัดสั้น ๆ แล้วดูจากข้อมูลที่มี\n${fileContexts?.length ? "\n- ถ้ามีเอกสารแนบ ให้อ้างอิงเฉพาะส่วนที่เกี่ยวข้อง" : ""}`,
               // isAstrologySession flag is set above — injects ทายทัก section only for astrology topics
             },
-          ], clientSignal);
+          ], clientSignal, 1, 900);
 
           return { agent, result, searchContext };
         } catch (err) {
@@ -1106,7 +1170,7 @@ export async function POST(req: NextRequest) {
 
         if (i > 0) await delay(120); // Stagger for natural feel
 
-        send("agent_start", { agentId: agent.id, name: agent.name, emoji: agent.emoji, role: agent.role, isChairman: agent.id === chairman.id });
+        send("agent_start", { agentId: agent.id, name: agent.name, emoji: agent.emoji, role: agent.role, isChairman: false });
 
         if (settled.status === "rejected" || (settled.status === "fulfilled" && settled.value.error)) {
           const errMsg = settled.status === "rejected" ? "LLM connection error" : settled.value.error!;
@@ -1167,9 +1231,9 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Consensus check: chairman evaluates if agents agree → skip Phase 2
-      let skipDiscussion = false;
-      if (agentFindings.length > 1) {
+      // Oracle room: no cross-debate. Each reading stands on its own, then OMNIA.AI summarizes.
+      let skipDiscussion = true;
+      if (false && agentFindings.length > 1) {
         const chairApiKeyCC = await getAgentApiKey(chairman.id);
         if (chairApiKeyCC) {
           try {
@@ -1182,14 +1246,14 @@ export async function POST(req: NextRequest) {
                 content: 'ประเมินว่าผู้เชี่ยวชาญเห็นตรงกันหรือไม่ ตอบเป็น JSON เท่านั้น: {"consensus": true/false, "reason": "เหตุผลสั้นๆ"}\n\nconsensus=true หมายถึง ทุกคนเห็นตรงกันในสาระสำคัญ เช่น ข้อสรุปเหมือนกัน แม้จะมีรายละเอียดเสริมที่ต่างกัน\nconsensus=false หมายถึง มีความเห็นขัดแย้งจริงๆ เช่น สรุปตรงข้ามกัน ตีความกฎหมายต่างกัน แนะนำวิธีต่างกัน',
               },
               { role: "user", content: `วาระ: ${question}\n\nข้อสรุปของแต่ละคน:\n${findingsSummary}` },
-            ], clientSignal);
+            ], clientSignal, 250);
             try {
               const jsonMatch = consensusResult.content.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
-                const parsed = JSON.parse(jsonMatch[0]);
+                const parsed = JSON.parse(jsonMatch?.[0] ?? "{}");
                 if (parsed.consensus === true) {
                   skipDiscussion = true;
-                  send("status", { message: `✅ ผู้เชี่ยวชาญเห็นพ้องกัน — ข้ามขั้นอภิปราย (${parsed.reason || "consensus"})` });
+                  send("status", { message: `✅ อ่านครบทุกศาสตร์ — กำลังเตรียมสรุปรวม` });
                 }
               }
             } catch { /* proceed with discussion */ }
@@ -1221,13 +1285,13 @@ export async function POST(req: NextRequest) {
             const result = await callLLM(agent.provider, agent.model, apiKey, agent.baseUrl, [
               {
                 role: "system",
-                content: `${companyContext}${memoryContext}${agent.soul}${agentVoice2}${knowledgeCtx}${domainKnowledge}${clarificationContext}${dateContext}${antiHallucinationRules}\n\nคุณกำลังอยู่ในวงอภิปราย จงแสดงความเห็นตามบทบาท ${agent.role} ของคุณอย่างตรงไปตรงมา\n\n⚠️ กฎเหล็กของการอภิปราย:\n1. ห้ามพูดแค่ "เห็นด้วย" โดยไม่มีเนื้อหาใหม่ — ถ้าเห็นด้วยต้องเสริมมุมมองใหม่ที่คนอื่นยังไม่ได้พูด\n2. คุณต้องระบุอย่างน้อย 1 จุดที่ไม่เห็นด้วยหรือมีข้อกังวล พร้อมเหตุผลจากประสบการณ์ในบทบาท ${agent.role}\n3. คุณต้องชี้อย่างน้อย 1 ความเสี่ยงหรือข้อควรระวังที่คนอื่นอาจมองข้าม\n4. พูดกระชับ เน้นเฉพาะจุดที่ต่างจากคนอื่น ไม่ต้องสรุปซ้ำสิ่งที่ทุกคนเห็นตรงกันแล้ว\n5. ถ้าพบว่าคนอื่นให้ข้อมูลที่ไม่ถูกต้องหรืออ้างกฎหมายผิด ต้องชี้แจงและแก้ไขทันที พร้อมอ้างอิงมาตราที่ถูกต้อง\n6. ถ้าคนอื่นสรุปว่าต้องเสียภาษี/ปฏิบัติตามกฎใด โดยยังไม่ได้ตรวจสอบข้อยกเว้นตามกฎหมาย ต้องชี้ให้ตรวจสอบทันที\n7. ห้ามให้ข้อมูลที่ขัดแย้งกับข้อสรุปของตัวเอง`,
+                content: `${companyContext}${memoryContext}${agent.soul}${agentVoice2}${knowledgeCtx}${domainKnowledge}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}\n\nคุณกำลังอยู่ในวงอภิปราย จงแสดงความเห็นตามบทบาท ${agent.role} ของคุณอย่างตรงไปตรงมา\n\n⚠️ กฎเหล็กของการอภิปราย:\n1. ห้ามพูดแค่ "เห็นด้วย" โดยไม่มีเนื้อหาใหม่ — ถ้าเห็นด้วยต้องเสริมมุมมองใหม่ที่คนอื่นยังไม่ได้พูด\n2. คุณต้องระบุอย่างน้อย 1 จุดที่ไม่เห็นด้วยหรือมีข้อกังวล พร้อมเหตุผลจากประสบการณ์ในบทบาท ${agent.role}\n3. คุณต้องชี้อย่างน้อย 1 ความเสี่ยงหรือข้อควรระวังที่คนอื่นอาจมองข้าม\n4. พูดกระชับ เน้นเฉพาะจุดที่ต่างจากคนอื่น ไม่ต้องสรุปซ้ำสิ่งที่ทุกคนเห็นตรงกันแล้ว\n5. ถ้าพบว่าคนอื่นให้ข้อมูลที่ไม่ถูกต้องหรืออ้างกฎหมายผิด ต้องชี้แจงและแก้ไขทันที พร้อมอ้างอิงมาตราที่ถูกต้อง\n6. ถ้าคนอื่นสรุปว่าต้องเสียภาษี/ปฏิบัติตามกฎใด โดยยังไม่ได้ตรวจสอบข้อยกเว้นตามกฎหมาย ต้องชี้ให้ตรวจสอบทันที\n7. ห้ามให้ข้อมูลที่ขัดแย้งกับข้อสรุปของตัวเอง`,
               },
               {
                 role: "user",
                 content: `วาระ: ${question}\n\nสรุปมุมมองของคุณ:\n${myFinding.content.slice(0, 500)}${myFinding.content.length > 500 ? "..." : ""}\n\n---\nมุมมองจากสมาชิกคนอื่น:\n${otherFindings}\n\n---\nในฐานะ ${agent.role}:\n1. ระบุจุดที่คุณไม่เห็นด้วยกับใคร เพราะอะไร?\n2. มีความเสี่ยงอะไรที่คนอื่นมองข้าม?\n3. มีข้อเสนอเพิ่มเติมจากมุมมอง ${agent.role} ของคุณไหม?\n\n⚠️ ความยาว: ตอบกระชับไม่เกิน 400 คำ เน้นจุดที่เห็นต่างเท่านั้น ไม่ต้องสรุปซ้ำสิ่งที่ทุกคนเห็นตรงกัน`,
               },
-            ], clientSignal);
+            ], clientSignal, 250);
 
             const tokens = agentTokens[agent.id] ?? { input: 0, output: 0 };
             agentTokens[agent.id] = {
@@ -1271,7 +1335,7 @@ export async function POST(req: NextRequest) {
       } // end if (mode !== "close") — Phase 1+2
 
       // === Phase 1.5: Astrology Consistency Verification (only for astrology sessions with multiple agents) ===
-      if (isAstrologySession && agentFindings.length >= 2 && mode !== "close") {
+      if (false && isAstrologySession && agentFindings.length >= 2 && mode !== "close") {
         const chairApiKeyV = await getAgentApiKey(chairman.id);
         if (chairApiKeyV) {
           try {
@@ -1322,7 +1386,7 @@ export async function POST(req: NextRequest) {
 
       // === Fact-checking phase: verify cited laws/facts before synthesis ===
       let factCheckNote = "";
-      if (agentFindings.length > 0 && mode !== "close") {
+      if (false && agentFindings.length > 0 && mode !== "close") {
         const chairApiKeyFC = await getAgentApiKey(chairman.id);
         if (chairApiKeyFC) {
           try {
@@ -1362,16 +1426,16 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // === Phase 3: Chairman synthesis (skip in "discuss" mode) ===
+      // === Final OMNIA.AI synthesis (skip in "discuss" mode) ===
       if (mode !== "discuss") {
 
-      send("status", { message: "🏛️ Phase 3 — ประธานสรุปมติและ Action Items" });
+      send("status", { message: "✨ OMNIA.AI กำลังสรุปคำทำนายรวมให้อ่านง่าย..." });
 
       const chairApiKey = await getAgentApiKey(chairman.id);
 
       // Build allContext from either current round findings or all rounds (close mode)
       let allContext = "";
-      const SYNTHESIS_MSG_CAP = 2000; // per-message cap to prevent synthesis timeout
+      const SYNTHESIS_MSG_CAP = 1000; // per-message cap to prevent synthesis timeout
       if (mode === "close" && allRounds && allRounds.length > 0) {
         // Close mode: cap each message to prevent LLM timeout on large sessions
         allContext = allRounds.map((round: { question: string; messages: { agentEmoji: string; agentName: string; role: string; content: string }[] }, i: number) => {
@@ -1391,11 +1455,11 @@ export async function POST(req: NextRequest) {
       } else {
         // Full/default mode: use current round findings
         // Cap each finding at 3000 chars to prevent synthesis timeout on large sessions
-        const SYNTHESIS_FINDING_CAP = 3000;
+        const SYNTHESIS_FINDING_CAP = 1200;
         allContext = agentFindings
           .map((f) => {
             const text = f.content.length > SYNTHESIS_FINDING_CAP
-              ? f.content.slice(0, 1500) + "\n\n[...สรุปย่อ...]\n\n" + f.content.slice(-1000)
+              ? f.content.slice(0, 800) + "\n\n[...สรุปย่อ...]\n\n" + f.content.slice(-300)
               : f.content;
             return `[${f.emoji} ${f.name} — ${f.role}]:\n${text}`;
           })
@@ -1414,25 +1478,24 @@ export async function POST(req: NextRequest) {
           const result = await callLLM(chairman.provider, chairman.model, chairApiKey, chairman.baseUrl, [
             {
               role: "system",
-              content: `${companyContext}${memoryContext}คุณเป็นประธานการประชุมในบทบาท ${chairman.role} มีหน้าที่สรุปมติที่ประชุมให้ชัดเจน ถูกต้อง ครบถ้วน ห้ามสรุปผิดจากข้อเท็จจริงที่นำเสนอ${mode === "close" && allRounds && allRounds.length > 1 ? ` (การประชุมนี้มี ${allRounds.length} วาระ สรุปรวมทั้งหมด)` : ""}${failureNote}${factCheckNote}${domainKnowledge}${clarificationContext}${dateContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
+              content: `${companyContext}${memoryContext}คุณคือ OMNIA.AI ผู้สรุปคำทำนายรวมจากหมอดูหลายศาสตร์ หน้าที่ของคุณคืออ่านคำทำนายของแต่ละศาสตร์ แล้วสรุปให้ผู้ใช้เข้าใจง่าย อบอุ่น ตรงประเด็น และนำไปใช้ได้จริง ห้ามใช้ภาษาเป็นทางการหรือศัพท์ยากเกินจำเป็น ห้ามเรียกตัวเองว่าประธาน ห้ามใช้คำว่า วาระ/มติ/ประชุม${mode === "close" && allRounds && allRounds.length > 1 ? ` (มีคำถามต่อเนื่อง ${allRounds.length} รอบ ให้สรุปรวมทั้งหมด)` : ""}${failureNote}${factCheckNote}${domainKnowledge}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
             },
             {
               role: "user",
-              content: `${mode === "close" && allRounds && allRounds.length > 1 ? `การประชุมครั้งนี้มี ${allRounds.length} วาระที่อภิปราย:\n\n` : `วาระ: ${question}\n\n`}ความเห็นจากทีมที่ปรึกษา:\n\n${allContext}\n\n---\nกรุณาสรุปเป็นรายงานสรุปมติ เข้าเนื้อหาเลยไม่ต้องมี header วันที่/สถานที่/ผู้เข้าร่วม (นี่คือระบบ AI อัตโนมัติ):\n1. **คำตอบหลัก** — ตอบคำถามของผู้ถามให้ชัดเจนตรงประเด็นก่อนเลย (ใช่/ไม่ใช่/มี/ไม่มี + เหตุผลสั้นๆ)\n2. **ประเด็นที่ที่ประชุมเห็นพ้องกัน** — สิ่งที่ทุกฝ่ายเห็นตรงกัน\n3. **ประเด็นที่ยังมีความเห็นต่าง** — ระบุชัดเจนว่าใครเห็นต่างอย่างไร พร้อมเหตุผลแต่ละฝ่าย\n4. **มติที่ประชุม** — ข้อสรุปที่ดีที่สุดพร้อมเหตุผลที่หนักแน่น\n5. **Action Items** — สิ่งที่ต้องดำเนินการต่อ (ระบุผู้รับผิดชอบตาม role)\n${isAstrologySession ? "6. **⚠️ ทายทัก รวมจากทุกศาสตร์** — สรุปคำทำนายเชิง predictive ที่ผู้เชี่ยวชาญระบุไว้ (เฉพาะทายทักที่ระบุครบ 5 องค์ประกอบ: เรื่อง+เดือน+กลไก+%+รับมือ):\n   - **ระยะสั้น (3 เดือนนี้):** ทายทักที่ผู้เชี่ยวชาญ ≥2 คนเห็นตรงกัน ระบุเดือนชัดเจน\n   - **ระยะยาว (1 ปีข้างหน้า):** แนวโน้มสำคัญพร้อมช่วงเวลา\n   - ⚠️ ระบุถ้าผู้เชี่ยวชาญคนใดระบุทายทักไม่ครบ 5 องค์ประกอบ\n7. **ข้อจำกัดและสิ่งที่ต้องตรวจสอบเพิ่มเติม** — ข้อมูลที่ยังขาดหรือต้องยืนยัน" : "6. **ข้อจำกัดและสิ่งที่ต้องตรวจสอบเพิ่มเติม** — ข้อมูลที่ยังขาดหรือต้องยืนยัน"}\n\n⚠️ ความยาว: สรุปไม่เกิน ${isAstrologySession ? "2000" : "1500"} คำ เน้นความชัดเจนและกระชับ\n\n⚠️ กฎเหล็กด้านความถูกต้อง:\n- สรุปในบริบทกฎหมายและมาตรฐานของประเทศไทยเป็นหลัก\n- มติต้องตอบเจาะจงกรณีที่ผู้ถามถาม ไม่ใช่หลักการทั่วไป\n- ถ้ามีข้อยกเว้นตามกฎหมายที่เกี่ยวข้อง ต้องระบุชัดเจนในคำตอบหลักว่าเข้าเงื่อนไขยกเว้นหรือไม่\n- ห้ามมีข้อมูลขัดแย้งกันในรายงาน (เช่น เปิดด้วย \"ยกเว้น\" แต่สรุปว่า \"ต้องเสีย\")\n- ข้อมูลตัวเลข มาตรากฎหมาย ต้องถูกต้องตรงกับข้อมูลต้นฉบับ ห้ามปัดเศษหรือประมาณค่า\n- ถ้าผู้เชี่ยวชาญให้ข้อมูลขัดกัน ต้องวิเคราะห์ว่าฝ่ายไหนถูกต้องกว่า พร้อมอ้างอิงมาตราเฉพาะ\n\nจากนั้นให้เพิ่มบรรทัดสุดท้ายเป็น JSON สำหรับ visualization ในรูปแบบ:\n\`\`\`chart\n{"type":"bar|line|pie|none","title":"...","labels":[...],"datasets":[{"label":"...","data":[...]}]}\n\`\`\`\nถ้าไม่มีข้อมูลตัวเลขที่เหมาะกับกราฟ ให้ใส่ type: "none"`,
+              content: `${mode === "close" && allRounds && allRounds.length > 1 ? `คำถามต่อเนื่องทั้งหมด ${allRounds.length} รอบ:\n\n` : `คำถามของผู้ใช้: ${question}\n\n`}คำทำนายจากหมอดูแต่ละศาสตร์:\n\n${allContext}\n\n---\nกรุณาสรุปเป็นภาษาไทยแบบคนทั่วไป อ่านง่าย และทักให้ตรงใจ โดยใช้หัวข้อนี้เท่านั้น:\n\n**คำตอบตรง ๆ**\n- ตอบประเด็นหลักของผู้ใช้ก่อน 2-3 ประโยค ถ้าเป็นคำถามใช่/ไม่ใช่ ให้ให้น้ำหนักแบบไม่ฟันธง เช่น "ยังไม่เห็นเป็นภาพนั้นชัด", "มีโอกาสบางส่วน", "ควรจับตาใกล้ ๆ" พร้อมเหตุผลหลัก\n- ถ้าเป็นคำถามขอแผน/ทางเลือก ให้บอกสิ่งที่ควรทำก่อนอันดับแรกทันที\n\n**หลักที่ใช้สรุปดวงนี้**\n- สรุปข้อมูลตั้งต้นที่ใช้จริง 3-4 จุด เช่น อายุ วันเกิด เลขเส้นชีวิต เลขปีส่วนตัว ปีนักษัตร หรือข้อจำกัดเรื่องเวลาเกิด\n\n**สัญญาณที่ทำให้เชื่อแบบนี้**\n- สรุป 3 bullet ว่าหมอดูแต่ละศาสตร์เห็นสัญญาณอะไรตรงกันหรือเสริมกัน ต้องโยงกับข้อมูลตั้งต้นและคำถาม\n\n**จุดที่ทักได้ชัดที่สุด**\n- 2-3 bullet แบบเจาะจงว่าช่วงนี้เจ้าชะตากำลังเด่น/ติดเรื่องอะไร เพราะอะไร\n\n${timeFrame.summaryInstruction}\n**ตัวอย่างเรื่องที่อาจเจอ**\n- ยกตัวอย่างสถานการณ์จริง 2 bullet ที่ผู้ใช้อาจเจอในเรื่องที่ถาม โดยใช้คำว่า "อาจ" หรือ "มีแนวโน้ม" เสมอ และโยงกับข้อมูลตั้งต้นอย่างน้อย 1 จุด\n\n**เรื่องที่ควรระวัง**\n- ระบุ 2 bullet ว่าควรระวังเรื่องอะไร และควรรับมืออย่างไรแบบสั้น ๆ\n\n**สิ่งที่ควรสังเกตต่อ**\n- ระบุ 2 bullet เป็นสัญญาณในชีวิตจริงที่ผู้ใช้ควรดูต่อ ถ้าสัญญาณนั้นเกิดขึ้นแปลว่าคำทำนายกำลังเดินไปทางนั้น\n\n**มุมที่แต่ละศาสตร์เห็นต่างกัน**\n- สรุป 1-2 bullet ว่าแต่ละศาสตร์เน้นต่างกันตรงไหน ถ้าไม่ต่าง ให้บอกว่าแต่ละศาสตร์ยืนยันคนละมุมจากข้อมูลตั้งต้นใด\n\n**คำแนะนำที่ควรทำ**\n- ภายใน 7 วัน\n- ภายใน 30 วัน\n- ภายใน 3 เดือน\n\n**ข้อควรรู้ก่อนเชื่อคำทำนายนี้**\n- บอกข้อจำกัด เช่น เวลาเกิดไม่ครบ หรือข้อมูลยังน้อย ด้วยภาษาสั้น ๆ และย้ำว่าให้ใช้เป็นแนวทางประกอบการตัดสินใจ\n\nกติกา:\n- ไม่เกิน 700 คำ และต้องเขียนให้จบครบทุกหัวข้อ ห้ามหยุดกลางหัวข้อ\n- ห้ามใช้คำว่า ประธาน, มติ, วาระ, ประชุม\n- ห้ามทำให้กลัว ห้ามฟันธงแรงเกินจริง\n- ห้ามใช้คำฟันธง เช่น "รวยแน่นอน", "เกิดแน่", "เลิกแน่" ให้ใช้ "มีโอกาส", "มีแนวโน้ม", "ถ้าบริหารดี"\n- ห้ามตอบ generic ถ้าประโยคไหนใช้ได้กับทุกคน ให้ตัดทิ้งหรือเติมเหตุผลจากข้อมูลตั้งต้น\n- ใช้ภาษาง่าย เหมือนหมอดูที่พูดตรงและหวังดี\n- รวมประเด็นซ้ำจากหลายศาสตร์ให้เหลือครั้งเดียว อย่าคัดลอกคำตอบของแต่ละคนมายาว ๆ\n- ตัวอย่างเหตุการณ์ต้องเป็นภาพให้ user เข้าใจง่าย ไม่ใช่การยืนยันว่าจะเกิดแน่นอน${isAstrologySession ? "" : `\n\nจากนั้นให้เพิ่มบรรทัดสุดท้ายเป็น JSON สำหรับ visualization ในรูปแบบ:\n\`\`\`chart\n{"type":"bar|line|pie|none","title":"...","labels":[...],"datasets":[{"label":"...","data":[...]}]}\n\`\`\`\nถ้าไม่มีข้อมูลตัวเลขที่เหมาะกับกราฟ ให้ใส่ type: "none"`}`,
             },
-          ], clientSignal);
+          ], clientSignal, 1600);
 
           const synthMsg: ResearchMessage = {
             id: crypto.randomUUID(),
-            agentId: chairman.id,
-            agentName: chairman.name,
-            agentEmoji: chairman.emoji,
+            agentId: "omnia-summary",
+            agentName: "OMNIA.AI สรุปรวม",
+            agentEmoji: "✦",
             role: "synthesis",
             content: result.content.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim(),
             tokensUsed: result.inputTokens + result.outputTokens,
             timestamp: new Date().toISOString(),
           };
-          await appendResearchMessage(sessionId, synthMsg);
           send("message", synthMsg);
 
           // Parse chart data from synthesis (LLM may use ```chart or ```json)
@@ -1469,20 +1532,16 @@ export async function POST(req: NextRequest) {
           // Generate follow-up suggestions
           try {
             const historyForFollowup = conversationHistory && conversationHistory.length > 0
-              ? `ประวัติก่อนหน้า:\n${conversationHistory.map((t, i) => `${(mode as string) === "qa" ? "คำถาม" : "วาระ"}ที่ ${i + 1}: ${t.question}`).join("\n")}\n\n`
+              ? `ประวัติก่อนหน้า:\n${conversationHistory.map((t, i) => `คำถามที่ ${i + 1}: ${t.question}`).join("\n")}\n\n`
               : "";
             const followupResult = await callLLM(chairman.provider, chairman.model, chairApiKey, chairman.baseUrl, [
               {
                 role: "system",
-                content: ((mode as string) === "qa")
-                  ? "คุณช่วยแนะนำคำถามต่อเนื่องที่น่าสนใจ ตอบในรูปแบบ JSON array เท่านั้น เช่น [\"คำถาม 1\", \"คำถาม 2\", \"คำถาม 3\"]"
-                  : "คุณช่วยแนะนำวาระการประชุมต่อเนื่องที่น่าสนใจ ตอบในรูปแบบ JSON array เท่านั้น เช่น [\"วาระ 1\", \"วาระ 2\", \"วาระ 3\"]",
+                content: "คุณช่วยแนะนำคำถามดูดวงต่อเนื่องที่น่าสนใจ ตอบในรูปแบบ JSON array เท่านั้น เช่น [\"คำถาม 1\", \"คำถาม 2\", \"คำถาม 3\"]",
               },
               {
                 role: "user",
-                content: ((mode as string) === "qa")
-                  ? `${historyForFollowup}คำถามล่าสุด: ${question}\n\nคำตอบ: ${result.content.slice(0, 500)}\n\nแนะนำ 3 คำถามต่อเนื่องที่น่าสนใจ ตอบเป็น JSON array เท่านั้น ไม่ต้องมีข้อความอื่น`
-                  : `${historyForFollowup}วาระล่าสุด: ${question}\n\nมติที่ประชุม: ${result.content.slice(0, 500)}\n\nแนะนำ 3 วาระต่อเนื่องที่ควรพิจารณาต่อ ตอบเป็น JSON array เท่านั้น ไม่ต้องมีข้อความอื่น`,
+                content: `${historyForFollowup}คำถามล่าสุด: ${question}\n\nคำตอบสรุป: ${result.content.slice(0, 500)}\n\nแนะนำ 3 คำถามต่อเนื่องที่ผู้ใช้น่าจะอยากถามต่อ ตอบเป็น JSON array เท่านั้น ไม่ต้องมีข้อความอื่น`,
               },
             ], clientSignal);
             try {
@@ -1499,9 +1558,9 @@ export async function POST(req: NextRequest) {
             const memResult = await callLLM(chairman.provider, chairman.model, chairApiKey, chairman.baseUrl, [
               {
                 role: "system",
-                content: 'จากการประชุม ให้ดึงข้อเท็จจริงสำคัญเกี่ยวกับผู้ถาม/บริษัทที่ควรจำไว้ ตอบเป็น JSON array เท่านั้น: [{"key":"ชื่อภาษาอังกฤษสั้นๆ","value":"ค่า"}]\n\nตัวอย่าง key: vat_registered, company_type, business_sector, employee_count, accounting_standard, fiscal_year\nถ้าไม่มีข้อมูลใหม่ที่ควรจำ ตอบ []',
+                content: 'จากการดูดวง ให้ดึงข้อเท็จจริงสำคัญเกี่ยวกับผู้ถามที่ควรจำไว้ ตอบเป็น JSON array เท่านั้น: [{"key":"ชื่อภาษาอังกฤษสั้นๆ","value":"ค่า"}]\n\nตัวอย่าง key: birth_date, birth_time_known, birth_place, main_concern, preferred_name\nถ้าไม่มีข้อมูลใหม่ที่ควรจำ ตอบ []',
               },
-              { role: "user", content: `${(mode as string) === "qa" ? "คำถาม" : "วาระ"}: ${question}\n\nข้อมูลจากผู้ถาม: ${clarificationContext || "ไม่มี"}\n\n${(mode as string) === "qa" ? "คำตอบ" : "มติ"}: ${result.content.slice(0, 500)}` },
+              { role: "user", content: `คำถาม: ${question}\n\nข้อมูลจากผู้ถาม: ${clarificationContext || "ไม่มี"}\n\nคำตอบสรุป: ${result.content.slice(0, 500)}` },
             ], clientSignal);
             try {
               const jsonMatch = memResult.content.match(/\[[\s\S]*\]/);

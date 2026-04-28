@@ -138,7 +138,7 @@ export function OnboardingOverlay({
           <button
             onClick={onNext}
             className="px-5 py-2 rounded-xl text-sm font-bold transition-all"
-            style={{ background: "var(--accent)", color: "#000" }}
+            style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
           >
             {isLast ? "เริ่มใช้งาน!" : `ต่อไป (${step + 1}/${totalSteps})`}
           </button>

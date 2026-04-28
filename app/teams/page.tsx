@@ -149,7 +149,7 @@ export default function TeamsPage() {
             <button
               onClick={openCreate}
               className="px-3 sm:px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 flex-shrink-0 hover:scale-[1.02] active:scale-[0.98]"
-              style={{ background: "var(--accent)", color: "#000" }}
+              style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
             >
               <Plus size={16} />
               <span className="hidden sm:inline">สร้าง Team</span>
@@ -220,7 +220,7 @@ export default function TeamsPage() {
             <button
               onClick={openCreate}
               className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
-              style={{ background: "var(--accent)", color: "#000" }}
+              style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
             >
               <Plus size={16} />
               สร้าง Team แรก
@@ -515,7 +515,7 @@ export default function TeamsPage() {
                             style={{
                               borderColor: selected ? "var(--accent)" : "var(--border)",
                               background: selected ? "var(--accent)" : "transparent",
-                              color: selected ? "#000" : "transparent",
+                              color: selected ? "var(--accent-contrast)" : "transparent",
                             }}
                           >
                             {selected && <span className="text-xs font-bold">✓</span>}
@@ -542,7 +542,7 @@ export default function TeamsPage() {
                 onClick={handleSave}
                 disabled={saving}
                 className="flex-1 py-2.5 text-sm rounded-xl font-bold disabled:opacity-40 transition-all hover:scale-[1.01] active:scale-[0.99]"
-                style={{ background: "var(--accent)", color: "#000" }}
+                style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
               >
                 {saving ? "กำลังบันทึก…" : editTarget ? "บันทึก" : "สร้างทีม"}
               </button>

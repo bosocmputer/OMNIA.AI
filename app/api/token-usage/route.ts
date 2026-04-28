@@ -4,10 +4,11 @@ import { getAgentStats, listAgents, listResearch } from "@/lib/agents-store";
 export async function GET(req: NextRequest) {
   try {
     const userId = req.headers.get("x-user-id")!;
+    const role = req.headers.get("x-user-role") ?? "user";
     const [stats, agents, sessions] = await Promise.all([
       getAgentStats(),
-      listAgents(),
-      listResearch(userId, "admin"), // token-usage is admin analytics — show all sessions
+      listAgents(role === "admin" ? undefined : userId),
+      listResearch(userId, role),
     ]);
 
     const agentMap = new Map(agents.map((a) => [a.id, a]));
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
     const agentBreakdown = Object.values(stats)
       .map((s) => {
         const agent = agentMap.get(s.agentId);
+        if (!agent) return null;
         return {
           agentId: s.agentId,
           agentName: agent?.name || "Unknown",
@@ -28,6 +30,7 @@ export async function GET(req: NextRequest) {
           daily: s.daily,
         };
       })
+      .filter((a): a is NonNullable<typeof a> => Boolean(a))
       .sort((a, b) => b.totalTokens - a.totalTokens);
 
     const dailyMap: Record<string, { date: string; input: number; output: number; sessions: number }> = {};

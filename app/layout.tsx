@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const pathname = headersList.get("x-invoke-path") ?? headersList.get("x-pathname") ?? "";
-  const isAuthPage = pathname.startsWith("/login");
+  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
 
   return (
     <html lang="th">

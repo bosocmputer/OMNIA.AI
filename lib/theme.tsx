@@ -31,7 +31,7 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>("auto");
+  const [mode, setModeState] = useState<ThemeMode>("dark");
   const [theme, setThemeState] = useState<Theme>("dark");
 
   const applyTheme = useCallback((t: Theme) => {
@@ -45,10 +45,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (savedMode === "dark" || savedMode === "light") {
       setModeState(savedMode);
       applyTheme(savedMode);
-    } else if (savedMode === "auto" || !savedMode) {
-      // Migrate old "theme" key or default to auto
+    } else if (savedMode === "auto") {
       setModeState("auto");
       applyTheme(getAutoTheme());
+    } else {
+      setModeState("dark");
+      applyTheme("dark");
     }
   }, [applyTheme]);
 

@@ -2,14 +2,14 @@
 
 ## Overview
 
-OMNIA.AI เป็น B2C web app สำหรับดูดวง AI ที่สร้างบน Next.js 15 App Router โดยใช้ architecture แบบ monolith (frontend + API ในโปรเจกต์เดียว) deploy ด้วย Docker
+OMNIA.AI เป็น B2C web app สำหรับดูดวง AI ที่สร้างบน Next.js 16 App Router โดยใช้ architecture แบบ monolith (frontend + API ในโปรเจกต์เดียว) deploy ด้วย Docker
 
 ```
 Browser
-  └── Next.js App (port 3005)
+  └── Next.js App (เลือก port ว่างตอน deploy)
         ├── App Router Pages      (React Server + Client Components)
         ├── API Routes            (Edge/Node.js handlers)
-        ├── Middleware            (Edge JWT auth)
+        ├── Proxy                 (Edge JWT auth, Next.js 16)
         └── Prisma ORM
               └── PostgreSQL 16
         └── ioredis
@@ -51,7 +51,7 @@ Browser
 ├── prisma/
 │   └── schema.prisma        # DB schema
 │
-└── middleware.ts            # Edge JWT protection
+└── proxy.ts                 # Edge JWT protection
 ```
 
 ---
@@ -102,11 +102,22 @@ POST /api/auth/register
   → Set-Cookie: bb_token (httpOnly, 8h)
   → redirect /research
 
-middleware.ts (Edge)
+proxy.ts (Edge)
   → verifyToken(cookie)
   → if invalid → redirect /login?from=<path>
   → if valid → forward x-user-id, x-username headers
 ```
+
+> ใน Next.js 16 โปรเจคนี้ใช้ `proxy.ts` แทน `middleware.ts` แล้ว
+
+## User Isolation
+
+API routes ต้องอ่าน `x-user-id` จาก `proxy.ts` และส่งต่อเข้า storage layer เสมอเมื่อจัดการข้อมูลผู้ใช้:
+
+- `Agent` / `Team`: list/create/update/delete scoped ด้วย `userId`; system agents อ่านได้ทุก user แต่แก้ไข/ลบไม่ได้
+- `ResearchSession`: user เห็นเฉพาะ session ตัวเอง, admin เห็นทั้งหมด
+- `BirthProfile` / `ClientMemory`: ผูกกับ `userId`
+- `Token usage` / `Agent stats`: user เห็นเฉพาะ stats ของ agents ที่เข้าถึงได้, admin เห็นทั้งหมด
 
 ---
 
@@ -143,9 +154,9 @@ POST /api/team-research/stream
 docker run -d --name omnia-ai --restart unless-stopped --network host \
   -e DATABASE_URL="..." -e REDIS_URL="..." \
   -e JWT_SECRET="..." -e AGENT_ENCRYPT_KEY="..." \
-  -e NODE_ENV=production -e PORT=3005 -e HOSTNAME=0.0.0.0 \
+  -e NODE_ENV=production -e PORT=<free-port> -e HOSTNAME=0.0.0.0 \
   -v ~/.omnia-ai:/home/node/.omnia-ai \
   omnia-ai
 ```
 
-Server: `192.168.2.109:3005`
+Server: `192.168.2.109:<free-port>` โดยเลือก port ว่างก่อน deploy เพื่อไม่ชนโปรเจคอื่น

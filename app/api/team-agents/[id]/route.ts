@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "mcpEndpoint not allowed" }, { status: 400 });
     }
 
-    const updated = await updateAgent(id, body);
+    const updated = await updateAgent(id, body, req.headers.get("x-user-id") ?? undefined);
     if (!updated) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     return NextResponse.json({ agent: updated });
   } catch {
@@ -52,7 +52,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
   try {
     const { id } = await params;
-    const ok = await deleteAgent(id);
+    const ok = await deleteAgent(id, _req.headers.get("x-user-id") ?? undefined);
     if (ok === "system") return NextResponse.json({ error: "ไม่สามารถลบ Agent ระบบได้" }, { status: 403 });
     if (!ok) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     return NextResponse.json({ success: true });

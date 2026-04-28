@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { listTeams, updateTeam, deleteTeam } from "@/lib/agents-store";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const teams = await listTeams();
+    const teams = await listTeams(req.headers.get("x-user-id") ?? undefined);
     const team = teams.find(t => t.id === id);
     if (!team) return NextResponse.json({ error: "Team not found" }, { status: 404 });
     return NextResponse.json({ team });
@@ -14,7 +14,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const body = await req.json();
@@ -24,7 +24,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (emoji !== undefined) patch.emoji = String(emoji).trim() || "👥";
     if (description !== undefined) patch.description = String(description).trim();
     if (Array.isArray(agentIds)) patch.agentIds = agentIds.filter((x) => typeof x === "string");
-    const team = await updateTeam(id, patch);
+    const team = await updateTeam(id, patch, req.headers.get("x-user-id") ?? undefined);
     if (!team) return NextResponse.json({ error: "Team not found" }, { status: 404 });
     return NextResponse.json({ team });
   } catch (e) {
@@ -33,10 +33,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const ok = await deleteTeam(id);
+    const ok = await deleteTeam(id, req.headers.get("x-user-id") ?? undefined);
     if (!ok) return NextResponse.json({ error: "Team not found" }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (e) {

@@ -12,7 +12,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // nav sidebar
     "nav.dashboard": "หน้าหลัก",
-    "nav.teamAgents": "ทีมที่ปรึกษา",
+    "nav.teamAgents": "สภาโหราจารย์",
     "nav.research": "ดูดวง",
     "nav.profile": "โปรไฟล์ข้อมูลเกิด",
     "nav.upgrade": "อัพเกรด Premium",
@@ -313,7 +313,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // nav sidebar
     "nav.dashboard": "Dashboard",
-    "nav.teamAgents": "Astrology Agents",
+    "nav.teamAgents": "Oracle Council",
     "nav.research": "Reading Room",
     "nav.profile": "Birth Profile",
     "nav.upgrade": "Upgrade Premium",

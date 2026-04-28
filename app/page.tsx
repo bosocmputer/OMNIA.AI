@@ -1,91 +1,76 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useI18n } from "@/lib/i18n";
 import {
-  Users,
-  UsersRound,
-  MessageSquare,
-  Zap,
-  ArrowRight,
   Activity,
-  TrendingUp,
+  ArrowRight,
+  CheckCircle2,
   Clock,
+  MessageSquare,
+  Sparkles,
+  UserCircle,
+  Users,
 } from "lucide-react";
 import Card from "./components/Card";
 import { Skeleton, SkeletonCard } from "./components/Skeleton";
-import Tooltip from "./components/Tooltip";
-import { GLOSSARY } from "@/lib/glossary";
 
 interface DashboardData {
   totalAgents: number;
   activeAgents: number;
-  totalTeams: number;
   totalSessions: number;
   runningSessions: number;
-  totalTokens: number;
   recentSessions: { id: string; question: string; status: string; startedAt: string; totalTokens: number }[];
   topAgents: { name: string; emoji: string; sessions: number }[];
+  hasBirthProfile: boolean;
+  profileName?: string;
 }
 
+const READING_TEMPLATES = [
+  "ดูดวงภาพรวม 12 เดือนข้างหน้า",
+  "ปีนี้การงานและการเงินควรวางแผนอย่างไร",
+  "ช่วงไหนเหมาะเริ่มงานใหม่หรือขยายธุรกิจ",
+  "วิเคราะห์ความรักและความสัมพันธ์ในปีนี้",
+];
+
 export default function DashboardPage() {
-  const { t } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchDashboard() {
       try {
-        const [agentsRes, teamsRes, sessionsRes, statsRes] = await Promise.all([
+        const [agentsRes, sessionsRes, statsRes, profileRes] = await Promise.all([
           fetch("/api/team-agents"),
-          fetch("/api/teams"),
           fetch("/api/team-research"),
           fetch("/api/agent-stats"),
+          fetch("/api/birth-profile"),
         ]);
 
-        const [agentsData, teamsData, sessionsData, statsData] = await Promise.all([
+        const [agentsData, sessionsData, statsData, profileData] = await Promise.all([
           agentsRes.json(),
-          teamsRes.json(),
           sessionsRes.json(),
           statsRes.json(),
+          profileRes.json(),
         ]);
 
         const agents = agentsData.agents || [];
-        const teams = teamsData.teams || [];
         const sessions = sessionsData.sessions || [];
-        const stats: Record<string, {
-          agentId: string;
-          totalSessions: number;
-          totalInputTokens: number;
-          totalOutputTokens: number;
-        }> = statsData || {};
-
-        const totalTokens = Object.values(stats).reduce(
-          (sum, s) => sum + (s.totalInputTokens || 0) + (s.totalOutputTokens || 0),
-          0
-        );
-
+        const stats: Record<string, { agentId: string; totalSessions: number }> = statsData || {};
         const agentMap = new Map(agents.map((a: { id: string; name: string; emoji: string }) => [a.id, a]));
         const topAgents = Object.values(stats)
           .sort((a, b) => b.totalSessions - a.totalSessions)
           .slice(0, 5)
           .map((s) => {
             const agent = agentMap.get(s.agentId) as { name: string; emoji: string } | undefined;
-            return {
-              name: agent?.name || "Unknown",
-              emoji: agent?.emoji || "🤖",
-              sessions: s.totalSessions,
-            };
+            return { name: agent?.name || "Unknown", emoji: agent?.emoji || "✦", sessions: s.totalSessions };
           });
 
         setData({
           totalAgents: agents.length,
           activeAgents: agents.filter((a: { active: boolean }) => a.active).length,
-          totalTeams: teams.length,
           totalSessions: sessions.length,
           runningSessions: sessions.filter((s: { status: string }) => s.status === "running").length,
-          totalTokens,
           recentSessions: sessions.slice(0, 5).map((s: { id: string; question: string; status: string; startedAt: string; totalTokens: number }) => ({
             id: s.id,
             question: s.question,
@@ -94,6 +79,8 @@ export default function DashboardPage() {
             totalTokens: s.totalTokens,
           })),
           topAgents,
+          hasBirthProfile: !!profileData.profile,
+          profileName: profileData.profile?.name,
         });
       } catch (e) {
         console.error("Failed to load dashboard:", e);
@@ -104,100 +91,110 @@ export default function DashboardPage() {
     fetchDashboard();
   }, []);
 
-  const formatTokens = (n: number) => {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-    if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
-    return n.toString();
-  };
+  const readiness = useMemo(() => {
+    if (!data) return [];
+    return [
+      {
+        label: "ข้อมูลเกิด",
+        ready: data.hasBirthProfile,
+        detail: data.hasBirthProfile ? `พร้อมอ่านดวงของ ${data.profileName || "คุณ"}` : "ยังไม่ได้กรอกวันเกิดและเวลาเกิด",
+        href: "/profile",
+      },
+      {
+        label: "สภาโหราจารย์",
+        ready: data.activeAgents > 0,
+        detail: `${data.activeAgents}/${data.totalAgents} ท่านพร้อมทำงาน`,
+        href: "/agents",
+      },
+      {
+        label: "ประวัติคำทำนาย",
+        ready: data.totalSessions > 0,
+        detail: data.totalSessions > 0 ? `${data.totalSessions} คำทำนายที่ผ่านมา` : "ยังไม่มีคำทำนาย",
+        href: "/research",
+      },
+    ];
+  }, [data]);
 
   const timeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1) return "เมื่อสักครู่";
+    if (mins < 60) return `${mins} นาทีที่แล้ว`;
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
+    if (hours < 24) return `${hours} ชั่วโมงที่แล้ว`;
+    return `${Math.floor(hours / 24)} วันที่แล้ว`;
   };
 
-  const statCards = data
-    ? [
-        { label: "ที่ปรึกษา AI", value: data.totalAgents, sub: `${data.activeAgents} ใช้งาน`, icon: Users, color: "var(--accent)", tooltip: GLOSSARY.agent?.long },
-        { label: "ทีม", value: data.totalTeams, sub: "ตั้งค่าแล้ว", icon: Zap, color: "var(--info)", tooltip: GLOSSARY.team?.long },
-        { label: "การประชุม", value: data.totalSessions, sub: data.runningSessions > 0 ? `${data.runningSessions} กำลังประชุม` : "ทั้งหมด", icon: MessageSquare, color: "var(--purple)", tooltip: GLOSSARY.session?.long },
-        { label: "การใช้งาน (Tokens)", value: formatTokens(data.totalTokens), sub: "มูลค่ารวม", icon: TrendingUp, color: "var(--success)", href: "/tokens", tooltip: GLOSSARY.tokens?.long },
-      ]
-    : [];
-
-  const quickActions = [
-    { href: "/research", icon: MessageSquare, label: t("nav.research"), desc: "เริ่มการประชุม AI", color: "var(--accent)" },
-    { href: "/agents", icon: Users, label: t("nav.teamAgents"), desc: "จัดการเอเจนต์", color: "var(--info)" },
-    { href: "/teams", icon: UsersRound, label: t("nav.teams"), desc: "จัดการทีม", color: "var(--purple)" },
-  ];
+  const primaryHref = data?.hasBirthProfile ? "/research" : "/profile";
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-6xl mx-auto">
-      {/* Greeting */}
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold" style={{ color: "var(--text)" }}>
-          {t("nav.dashboard")}
-        </h1>
-      </div>
-
-      {/* Hero CTA: Start Meeting — compact banner */}
-      <Link href="/research">
-        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border mb-4 transition-colors hover:border-[var(--accent)]/50" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-          <div className="flex items-center gap-3 min-w-0">
-            <MessageSquare size={18} style={{ color: "var(--accent)" }} />
-            <span className="text-sm font-medium" style={{ color: "var(--text)" }}>เปิดห้องประชุม</span>
-            <span className="text-xs hidden sm:inline" style={{ color: "var(--text-muted)" }}>พิมพ์วาระ แล้ว AI ทีมจะถกเถียงและสรุปมติให้</span>
+      <section className="mb-6 rounded-2xl border p-5 md:p-7" style={{ borderColor: "var(--border)", background: "linear-gradient(135deg, var(--card), var(--surface))" }}>
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 text-xs font-semibold mb-3" style={{ color: "var(--accent)" }}>
+              <Sparkles size={14} /> OMNIA.AI
+            </div>
+            <h1 className="text-2xl md:text-4xl font-bold leading-tight" style={{ color: "var(--text)" }}>
+              เปิดสภาโหราจารย์ แล้วถามเรื่องชีวิตที่อยากรู้
+            </h1>
+            <p className="text-sm md:text-base mt-3 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              กรอกข้อมูลเกิดครั้งเดียว จากนั้นให้โหราจารย์หลายศาสตร์วิเคราะห์ร่วมกันและสรุปเป็นคำตอบที่อ่านง่าย
+            </p>
           </div>
-          <ArrowRight size={16} style={{ color: "var(--accent)" }} />
+          <div className="flex flex-col sm:flex-row gap-2 lg:pb-1">
+            <Link
+              href="/profile"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:border-[var(--accent)]"
+              style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--card)" }}
+            >
+              <UserCircle size={16} /> ข้อมูลเกิด
+            </Link>
+            <Link
+              href={primaryHref}
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all hover:brightness-110"
+              style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
+            >
+              {data?.hasBirthProfile ? "เริ่มอ่านดวง" : "เริ่มตั้งค่าดวง"}
+              <ArrowRight size={16} />
+            </Link>
+          </div>
         </div>
-      </Link>
+      </section>
 
-      {/* Chat vs Research disambiguation */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-        <Link href="/research">
-          <div className="p-3 rounded-xl border transition-colors hover:border-[var(--accent)]/50" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-            <div className="flex items-center gap-2 mb-1">
-              <UsersRound size={16} style={{ color: "var(--accent)" }} />
-              <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>ประชุมทีม (Research)</span>
-            </div>
-            <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              ที่ปรึกษาหลายคนถกเถียงและสรุปมติ · ใช้เวลา 3–8 นาที · เหมาะงานวิเคราะห์ลึก
-            </p>
-          </div>
-        </Link>
-        <Link href="/chat">
-          <div className="p-3 rounded-xl border transition-colors hover:border-[var(--accent)]/50" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-            <div className="flex items-center gap-2 mb-1">
-              <MessageSquare size={16} style={{ color: "var(--info)" }} />
-              <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>ถามด่วน (Chat)</span>
-            </div>
-            <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              คุย 1-ต่อ-1 กับที่ปรึกษาคนเดียว · ตอบทันที · ประหยัด Token
-            </p>
-          </div>
-        </Link>
-      </div>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
+          {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
+          {readiness.map((item) => (
+            <Link key={item.label} href={item.href}>
+              <Card padding="md" hover>
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: item.ready ? "var(--accent-10)" : "var(--surface)", color: item.ready ? "var(--accent)" : "var(--text-muted)" }}>
+                    {item.ready ? <CheckCircle2 size={18} /> : <Clock size={18} />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{item.label}</div>
+                    <div className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>{item.detail}</div>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
 
-      {/* Quick meeting templates */}
       <div className="mb-6">
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="text-xs font-medium flex-shrink-0" style={{ color: "var(--text-muted)" }}>วาระตัวอย่าง</span>
-          {[
-            "วิเคราะห์งบการเงินไตรมาส 1/2568",
-            "วางแผนภาษีนิติบุคคลปลายปี",
-            "ประเมินความเสี่ยง Internal Control",
-            "วิเคราะห์ต้นทุนและจุดคุ้มทุน",
-          ].map((q) => (
+          <span className="text-xs font-medium flex-shrink-0" style={{ color: "var(--text-muted)" }}>คำถามเริ่มต้น</span>
+          {READING_TEMPLATES.map((q) => (
             <Link
               key={q}
               href={`/research?q=${encodeURIComponent(q)}`}
-              className="text-[11px] px-3 py-1.5 rounded-full border whitespace-nowrap transition-all hover:opacity-80 flex-shrink-0"
-              style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+              className="text-[11px] px-3 py-1.5 rounded-full border whitespace-nowrap transition-all hover:border-[var(--accent)] flex-shrink-0"
+              style={{ borderColor: "var(--border)", color: "var(--text-muted)", background: "var(--card)" }}
             >
               {q}
             </Link>
@@ -205,126 +202,47 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stat cards */}
-      {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-          {[1, 2, 3, 4].map((i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-          {statCards.map((stat) => {
-            const inner = (
-              <Card key={stat.label} padding="md" hover={!!stat.href}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    {stat.tooltip ? (
-                      <Tooltip content={stat.tooltip}>
-                        <p className="text-xs font-medium mb-1 cursor-help inline-block border-b border-dotted" style={{ color: "var(--text-muted)", borderColor: "var(--text-muted)" }}>{stat.label}</p>
-                      </Tooltip>
-                    ) : (
-                      <p className="text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>{stat.label}</p>
-                    )}
-                    <p className="text-2xl md:text-3xl font-bold" style={{ color: "var(--text)" }}>{stat.value}</p>
-                    <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{stat.sub}</p>
-                  </div>
-                  <stat.icon size={18} style={{ color: "var(--text-muted)" }} />
-                </div>
-              </Card>
-            );
-            return stat.href ? <Link key={stat.label} href={stat.href}>{inner}</Link> : <div key={stat.label}>{inner}</div>;
-          })}
-        </div>
-      )}
-
-      {/* Quick actions — compact links */}
-      <div className="mb-6">
-        <div className="flex items-center gap-4 flex-wrap">
-          {quickActions.map((action) => (
-            <Link key={action.href} href={action.href} className="flex items-center gap-2 text-sm transition-colors hover:opacity-80" style={{ color: "var(--accent)" }}>
-              <action.icon size={16} />
-              <span>{action.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Bottom section: recent sessions + top agents */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Recent sessions */}
         <Card padding="md">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "var(--text)" }}>
-              <Clock size={16} style={{ color: "var(--text-muted)" }} />
-              การประชุมล่าสุด
+              <MessageSquare size={16} style={{ color: "var(--text-muted)" }} /> คำทำนายล่าสุด
             </h3>
-            <Link href="/research" className="text-xs font-medium" style={{ color: "var(--accent)" }}>
-              ดูทั้งหมด
-            </Link>
+            <Link href="/research" className="text-xs font-medium" style={{ color: "var(--accent)" }}>เปิดห้องดูดวง</Link>
           </div>
           {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}
-            </div>
+            <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
           ) : data && data.recentSessions.length > 0 ? (
             <div className="space-y-2">
               {data.recentSessions.map((s) => (
-                <Link key={s.id} href={`/research?sessionId=${s.id}`} className="block">
-                  <div
-                    className="px-3 py-2.5 rounded-xl transition-colors hover:bg-[var(--surface)]"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm truncate flex-1" style={{ color: "var(--text)" }}>
-                        {s.question}
-                      </p>
-                      <span
-                        className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0"
-                        style={{
-                          background: s.status === "running" ? "var(--success)" + "20" : "var(--surface)",
-                          color: s.status === "running" ? "var(--success)" : "var(--text-muted)",
-                        }}
-                      >
-                        {s.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                        {timeAgo(s.startedAt)}
-                      </span>
-                      <Tooltip content={GLOSSARY.tokens?.short || ""}>
-                        <span className="text-[11px] cursor-help" style={{ color: "var(--text-muted)" }}>
-                          {formatTokens(s.totalTokens)} tokens
-                        </span>
-                      </Tooltip>
-                    </div>
+                <Link key={s.id} href={`/research?sessionId=${s.id}`} className="block px-3 py-2.5 rounded-xl transition-colors hover:bg-[var(--surface)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm truncate flex-1" style={{ color: "var(--text)" }}>{s.question}</p>
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: s.status === "running" ? "var(--success-10)" : "var(--surface)", color: s.status === "running" ? "var(--success)" : "var(--text-muted)" }}>
+                      {s.status === "running" ? "กำลังอ่าน" : "เสร็จแล้ว"}
+                    </span>
                   </div>
+                  <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{timeAgo(s.startedAt)}</span>
                 </Link>
               ))}
             </div>
           ) : (
             <div className="text-center py-6">
               <MessageSquare size={24} className="mx-auto mb-2" style={{ color: "var(--text-muted)" }} />
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>ยังไม่มีการประชุม</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>ยังไม่มีคำทำนาย ลองเริ่มด้วยคำถามด้านบนได้เลย</p>
             </div>
           )}
         </Card>
 
-        {/* Top agents */}
         <Card padding="md">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "var(--text)" }}>
-              <Activity size={16} style={{ color: "var(--text-muted)" }} />
-              เอเจนต์ยอดนิยม
+              <Activity size={16} style={{ color: "var(--text-muted)" }} /> โหราจารย์ที่ปรากฏบ่อย
             </h3>
-            <Link href="/agents" className="text-xs font-medium" style={{ color: "var(--accent)" }}>
-              ดูทั้งหมด
-            </Link>
+            <Link href="/agents" className="text-xs font-medium" style={{ color: "var(--accent)" }}>ดูสภา</Link>
           </div>
           {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}
-            </div>
+            <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
           ) : data && data.topAgents.length > 0 ? (
             <div className="space-y-2">
               {data.topAgents.map((agent, i) => (
@@ -332,18 +250,16 @@ export default function DashboardPage() {
                   <span className="text-xl">{agent.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>{agent.name}</p>
-                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{agent.sessions} การประชุม</p>
+                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{agent.sessions} ครั้ง</p>
                   </div>
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: "var(--accent)" + "18", color: "var(--accent)" }}>
-                    #{i + 1}
-                  </div>
+                  <Users size={16} style={{ color: "var(--accent)" }} />
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center py-6">
               <Users size={24} className="mx-auto mb-2" style={{ color: "var(--text-muted)" }} />
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>ยังไม่มีข้อมูลเอเจนต์</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>สภาโหราจารย์พร้อมรอคำถามแรก</p>
             </div>
           )}
         </Card>

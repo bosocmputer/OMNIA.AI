@@ -9,6 +9,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { db } from "./db";
+import { OPENCLAW_HOME } from "./openclaw-paths";
 import type {
   Agent,
   AgentPublic,
@@ -44,7 +45,7 @@ export type {
 
 // ─── Encryption (same as agents-store.ts) ────────────────────────────────────
 
-const BOSSBOARD_DIR = path.join(process.env.HOME || "", ".bossboard");
+const BOSSBOARD_DIR = OPENCLAW_HOME;
 const KNOWLEDGE_DIR = path.join(BOSSBOARD_DIR, "knowledge");
 const SYSTEM_KNOWLEDGE_DIR = path.join(BOSSBOARD_DIR, "system-knowledge");
 
@@ -59,7 +60,7 @@ function getOrCreateEncryptKey(): string {
     if (!fs.existsSync(BOSSBOARD_DIR)) fs.mkdirSync(BOSSBOARD_DIR, { recursive: true });
     fs.writeFileSync(keyFile, newKey, { mode: 0o600 });
   } catch { /* ignore */ }
-  console.warn("[BossBoard] ⚠️ Generated new encryption key. Set AGENT_ENCRYPT_KEY env var for production.");
+  console.warn("[OMNIA.AI] Generated new encryption key. Set AGENT_ENCRYPT_KEY env var for production.");
   return newKey;
 }
 
@@ -225,9 +226,9 @@ export async function migrateSouls(): Promise<void> {
 
 // ─── Agents ───────────────────────────────────────────────────────────────────
 
-export async function listAgents(): Promise<AgentPublic[]> {
-  await ensureSystemAgents();
+export async function listAgents(userId?: string): Promise<AgentPublic[]> {
   const agents = await db.agent.findMany({
+    where: userId ? { userId } : undefined,
     include: { knowledge: true },
     orderBy: { createdAt: "asc" },
   });
@@ -244,7 +245,7 @@ export async function createAgent(data: {
   name: string; emoji: string; provider: AgentProvider; apiKey: string;
   baseUrl?: string; model: string; soul: string; role: string;
   useWebSearch?: boolean; seniority?: number; mcpEndpoint?: string;
-  mcpAccessMode?: string; trustedUrls?: string[];
+  mcpAccessMode?: string; trustedUrls?: string[]; userId?: string;
 }): Promise<AgentPublic> {
   const now = new Date();
   const agent = await db.agent.create({
@@ -264,6 +265,7 @@ export async function createAgent(data: {
       mcpEndpoint: data.mcpEndpoint,
       mcpAccessMode: data.mcpAccessMode,
       trustedUrls: data.trustedUrls ?? [],
+      userId: data.userId,
       createdAt: now,
       updatedAt: now,
     },
@@ -279,10 +281,13 @@ export async function updateAgent(
     baseUrl: string; model: string; soul: string; role: string; active: boolean;
     useWebSearch: boolean; seniority: number; mcpEndpoint: string;
     mcpAccessMode: string; trustedUrls: string[];
-  }>
+  }>,
+  userId?: string
 ): Promise<AgentPublic | null> {
   const existing = await db.agent.findUnique({ where: { id } });
   if (!existing) return null;
+  if (userId && existing.userId !== userId) return null;
+  if (existing.isSystem) return null;
 
   const updateData: Record<string, unknown> = { updatedAt: new Date() };
   if (data.name !== undefined) updateData.name = data.name;
@@ -308,9 +313,10 @@ export async function updateAgent(
   return dbAgentToPublic(updated);
 }
 
-export async function deleteAgent(id: string): Promise<boolean | "system"> {
+export async function deleteAgent(id: string, userId?: string): Promise<boolean | "system"> {
   const agent = await db.agent.findUnique({ where: { id } });
   if (!agent) return false;
+  if (userId && agent.userId !== userId) return false;
   if (agent.isSystem) return "system";
   await db.agent.delete({ where: { id } });
   return true;
@@ -351,7 +357,7 @@ function dbSessionToDomain(s: {
     completedAt: s.completedAt?.toISOString(),
     finalAnswer: s.finalAnswer ?? undefined,
     totalTokens: s.totalTokens,
-    messages: s.messages.map((m) => ({
+    messages: s.messages.filter((m) => !(s.finalAnswer && m.role === "synthesis")).map((m) => ({
       id: m.id,
       agentId: m.agentId,
       agentName: m.agentName,
@@ -530,6 +536,19 @@ export async function getCompanyInfoContextAsync(): Promise<string> {
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
 
+async function filterAccessibleAgentIds(agentIds: string[], userId?: string): Promise<string[]> {
+  if (!userId || agentIds.length === 0) return agentIds;
+  const agents = await db.agent.findMany({
+    where: {
+      id: { in: agentIds },
+      OR: [{ userId }, { isSystem: true }],
+    },
+    select: { id: true },
+  });
+  const allowed = new Set(agents.map((a) => a.id));
+  return agentIds.filter((id) => allowed.has(id));
+}
+
 function dbTeamToDomain(t: {
   id: string; name: string; emoji: string; description: string;
   createdAt: Date; updatedAt: Date;
@@ -549,8 +568,9 @@ function dbTeamToDomain(t: {
   };
 }
 
-export async function listTeams(): Promise<Team[]> {
+export async function listTeams(userId?: string): Promise<Team[]> {
   const teams = await db.team.findMany({
+    where: userId ? { userId } : undefined,
     include: { members: true },
     orderBy: { createdAt: "asc" },
   });
@@ -558,19 +578,21 @@ export async function listTeams(): Promise<Team[]> {
 }
 
 export async function createTeam(data: {
-  name: string; emoji: string; description: string; agentIds: string[];
+  name: string; emoji: string; description: string; agentIds: string[]; userId?: string;
 }): Promise<Team> {
   const now = new Date();
+  const agentIds = await filterAccessibleAgentIds(data.agentIds, data.userId);
   const team = await db.team.create({
     data: {
       id: crypto.randomUUID(),
       name: data.name,
       emoji: data.emoji,
       description: data.description,
+      userId: data.userId,
       createdAt: now,
       updatedAt: now,
       members: {
-        create: data.agentIds.map((agentId, i) => ({ agentId, position: i })),
+        create: agentIds.map((agentId, i) => ({ agentId, position: i })),
       },
     },
     include: { members: true },
@@ -580,10 +602,12 @@ export async function createTeam(data: {
 
 export async function updateTeam(
   id: string,
-  data: Partial<{ name: string; emoji: string; description: string; agentIds: string[] }>
+  data: Partial<{ name: string; emoji: string; description: string; agentIds: string[] }>,
+  userId?: string
 ): Promise<Team | null> {
   const existing = await db.team.findUnique({ where: { id } });
   if (!existing) return null;
+  if (userId && existing.userId !== userId) return null;
 
   const updateData: Record<string, unknown> = { updatedAt: new Date() };
   if (data.name !== undefined) updateData.name = data.name;
@@ -591,9 +615,10 @@ export async function updateTeam(
   if (data.description !== undefined) updateData.description = data.description;
 
   if (data.agentIds !== undefined) {
+    const agentIds = await filterAccessibleAgentIds(data.agentIds, userId);
     await db.teamAgent.deleteMany({ where: { teamId: id } });
     await db.teamAgent.createMany({
-      data: data.agentIds.map((agentId, i) => ({ teamId: id, agentId, position: i })),
+      data: agentIds.map((agentId, i) => ({ teamId: id, agentId, position: i })),
     });
   }
 
@@ -605,9 +630,10 @@ export async function updateTeam(
   return dbTeamToDomain(updated);
 }
 
-export async function deleteTeam(id: string): Promise<boolean> {
+export async function deleteTeam(id: string, userId?: string): Promise<boolean> {
   const existing = await db.team.findUnique({ where: { id } });
   if (!existing) return false;
+  if (userId && existing.userId !== userId) return false;
   await db.team.delete({ where: { id } });
   return true;
 }

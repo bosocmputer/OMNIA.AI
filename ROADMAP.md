@@ -31,7 +31,7 @@
 
 - [x] `app/api/auth/register/route.ts` — register API พร้อม rate limit + bcrypt
 - [x] `app/(auth)/register/page.tsx` — หน้าสมัครสมาชิก + PDPA checkbox
-- [x] `middleware.ts` — Edge JWT protection ทุก route
+- [x] `proxy.ts` — Edge JWT protection ทุก route (Next.js 16 convention)
 
 ## ✅ Phase 5 — Astrology UX (เสร็จแล้ว)
 
@@ -39,14 +39,15 @@
 - [x] `app/api/birth-profile/route.ts` — GET/PUT birth profile
 - [x] `app/profile/page.tsx` — ฟอร์มข้อมูลวันเกิด
 - [x] `app/upgrade/page.tsx` — Premium placeholder
+- [x] `public/assets/logo/TITLELOGO.svg` — Geometric Yantra logo (Bronze Gold / Dark)
 
 ---
 
-## 🔜 Phase 6 — Deploy รอบแรก (ถัดไป)
+## 🚀 Phase 6 — Deploy รอบแรก (กำลังดำเนินการ)
 
-- [ ] สร้าง DB `omniadb` บน server (`ledgioai-db` port 5436)
-- [ ] `prisma migrate deploy` บน server
-- [ ] Docker build + run บน `192.168.2.109:3005`
+- [x] สร้าง DB `omniadb` บน server (`ledgioai-db` port 5436)
+- [x] `prisma migrate deploy` บน server (4 migrations applied)
+- [ ] Docker build + run บน `192.168.2.109:<free-port>` โดยไม่ชนโปรเจคอื่น
 - [ ] ทดสอบ register → seed agents → ดูดวง end-to-end
 
 ## 🔜 Phase 7 — PWA

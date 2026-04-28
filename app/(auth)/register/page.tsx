@@ -70,7 +70,7 @@ export default function RegisterPage() {
         <div className="mb-6 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/assets/logo/TITLELOGO.png"
+            src="/assets/logo/TITLELOGO.svg"
             alt="OMNIA.AI"
             className="w-auto object-contain drop-shadow-lg"
             style={{ height: "clamp(56px, 12vw, 80px)" }}

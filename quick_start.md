@@ -1,51 +1,53 @@
-# Quick Start — BossBoard ห้องประชุม AI
+# Quick Start — OMNIA.AI
 
-## ติดตั้งเร็ว (5 นาที)
+## ติดตั้งเร็ว (Local Dev)
 
 ```bash
 # 1. ต้องมี Node.js 22+
-node --version    # ต้องได้ v22.x.x
+node --version
 
-# 2. Clone และติดตั้ง
-git clone https://github.com/bosocmputer/BossBoard.git
-cd BossBoard
+# 2. ติดตั้ง dependencies
 npm install
 
-# 3. ตั้งค่า encryption key (แนะนำ)
-echo "AGENT_ENCRYPT_KEY=$(openssl rand -hex 16)" > .env.local
+# 3. ตั้งค่า env
+cp .env.example .env.local
+# แก้ DATABASE_URL, REDIS_URL, JWT_SECRET, AGENT_ENCRYPT_KEY, OPENROUTER_API_KEY
 
-# 4. รัน Development
+# 4. เตรียม database
+npx prisma migrate dev
+
+# 5. รัน development server
 npm run dev
 # เปิด http://localhost:3000
 ```
 
-## รัน Production (Docker — แนะนำ)
-
-```bash
-docker build -t bossboard .
-docker run -d --name bossboard -p 3003:3000 \
-  -v ~/.bossboard:/home/node/.bossboard \
-  --restart unless-stopped bossboard
-# เปิด http://localhost:3003
-```
-
-## รัน Production (Standalone)
+## Production Build
 
 ```bash
 npm run build
-cp -r .next/static .next/standalone/.next/static
-cp -r public .next/standalone/public
-cd .next/standalone
-PORT=3003 node server.js
-# เปิด http://localhost:3003
+npm run start
+```
+
+## Production Docker
+
+```bash
+docker build -t omnia-ai .
+docker run -d --name omnia-ai --restart unless-stopped --network host \
+  -e DATABASE_URL="postgresql://USER:PASS@127.0.0.1:5436/omniadb" \
+  -e REDIS_URL="redis://127.0.0.1:6381" \
+  -e JWT_SECRET="<openssl rand -hex 32>" \
+  -e AGENT_ENCRYPT_KEY="<openssl rand -hex 16>" \
+  -e OPENROUTER_API_KEY="sk-or-..." \
+  -e NODE_ENV=production -e PORT=<free-port> -e HOSTNAME=0.0.0.0 \
+  -v ~/.omnia-ai:/home/node/.omnia-ai \
+  omnia-ai
 ```
 
 ## หลังติดตั้ง
 
-1. เปิดเบราว์เซอร์ → `http://localhost:3000` (dev) หรือ `http://<IP>:3003` (production)
-2. ไปที่ **👥 จัดการเอเจนต์** → สร้าง agent อย่างน้อย 2 ตัว (ใส่ API Key จาก OpenRouter/OpenAI/etc.)
-3. ไปที่ **🏛️ ห้องประชุม** → เลือก agents → พิมพ์คำถาม → **เริ่มประชุม**
+1. สมัครสมาชิกที่ `/register` และยอมรับ PDPA
+2. ระบบจะ seed โหราจารย์ AI 5 ท่านและทีมเริ่มต้นให้อัตโนมัติ
+3. กรอกข้อมูลวันเกิดที่ `/profile`
+4. เริ่มดูดวงที่ `/research`
 
-## ต้องการคู่มือเต็ม?
-
-ดู [INSTALL.md](INSTALL.md) — คู่มือติดตั้ง server ตั้งแต่เริ่มต้น สำหรับผู้ไม่มีความรู้ด้านเทคนิค
+คู่มือเต็มอยู่ที่ `INSTALL.md`

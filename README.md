@@ -2,7 +2,7 @@
 
 > **สภาโหราจารย์ AI 5 ศาสตร์** — โหราศาสตร์ไทย · BaZi จีน · เลข 7 ตัว · ยูเรเนียน · ทักษามหาพยากรณ์
 
-[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org)
 [![Prisma](https://img.shields.io/badge/Prisma-5.x-2D3748)](https://prisma.io)
 [![License](https://img.shields.io/badge/License-MIT-gold)](LICENSE)
@@ -29,21 +29,21 @@ OMNIA.AI คือแพลตฟอร์ม B2C สำหรับการด
 
 ### สิ่งที่ต้องมี
 
-- Node.js 20+
+- Node.js 22+
 - PostgreSQL 16+
 - Redis 7+
-- pnpm (แนะนำ) หรือ npm
+- npm (ใช้ `package-lock.json`)
 
 ### ติดตั้ง
 
 ```bash
 git clone https://github.com/bosocmputer/OMNIA.AI.git
 cd OMNIA.AI
-pnpm install
+npm install
 cp .env.example .env.local
 # แก้ไข .env.local ให้ครบ
-pnpm prisma migrate dev --name init
-pnpm dev
+npx prisma migrate dev
+npm run dev
 ```
 
 เปิด [http://localhost:3000](http://localhost:3000)
@@ -54,7 +54,7 @@ pnpm dev
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 15 (App Router), TypeScript, Tailwind CSS v4 |
+| Frontend | Next.js 16 (App Router), TypeScript, Tailwind CSS v4 |
 | Backend | Next.js API Routes, Prisma ORM v5 |
 | Database | PostgreSQL 16 |
 | Cache / Rate-limit | Redis 7 (ioredis) |
@@ -99,6 +99,10 @@ prisma/
 Dark/Gold — สีพื้นหลัง `#1A1A1A` · Accent `#C9A84C` (Bronze Gold) · Text `#F5F5F5`
 
 ---
+
+## 🔐 Data Isolation
+
+ข้อมูลหลักที่ผู้ใช้สร้างเองถูกผูกกับ `userId`: agents, teams, birth profile, research sessions และ client memory. ระบบ auth อยู่ใน `proxy.ts` ตาม convention ของ Next.js 16 และส่ง `x-user-id` / `x-user-role` ให้ API routes หลัง verify JWT แล้ว
 
 ## ⚠️ ข้อกำหนด
 

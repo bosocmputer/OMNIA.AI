@@ -23,10 +23,10 @@ function isUnsafeUrl(urlStr: string): boolean {
   } catch { return true; }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await (migrateSouls as () => Promise<void> | void)();
-    const agents = await (listAgents as () => Promise<unknown[]>)();
+    const agents = await (listAgents as (userId?: string) => Promise<unknown[]>)(req.headers.get("x-user-id") ?? undefined);
     return NextResponse.json({ agents });
   } catch (e) {
     return NextResponse.json({ error: "เกิดข้อผิดพลาดในระบบ" }, { status: 500 });
@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
       mcpEndpoint,
       mcpAccessMode,
       trustedUrls,
+      userId: req.headers.get("x-user-id") ?? undefined,
     });
 
     return NextResponse.json({ agent }, { status: 201 });

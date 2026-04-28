@@ -82,7 +82,7 @@ export default function BenefitsPage() {
           สร้างทีมที่ปรึกษา AI เฉพาะทาง ให้ถกเถียงและสรุปมติเหมือนประชุมจริง ตอบคำถามลูกค้าได้เร็วขึ้น ควบคุมต้นทุนได้
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
-          <a href="https://line.me/ti/p/@ledgio" target="_blank" rel="noopener noreferrer" className="px-6 py-2.5 rounded-lg font-bold text-sm transition-colors" style={{ background: "var(--accent)", color: "#000" }}>
+          <a href="https://line.me/ti/p/@ledgio" target="_blank" rel="noopener noreferrer" className="px-6 py-2.5 rounded-lg font-bold text-sm transition-colors" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
             นัดทดลองใช้ฟรี
           </a>
           <a href="#pricing" className="px-6 py-2.5 rounded-lg font-bold text-sm border transition-colors" style={{ borderColor: "var(--border)", color: "var(--text)" }}>
@@ -148,7 +148,7 @@ export default function BenefitsPage() {
               }}
             >
               {plan.highlight && (
-                <div className="text-xs font-bold text-center mb-3 py-1 rounded-full" style={{ background: "var(--accent)", color: "#000" }}>
+                <div className="text-xs font-bold text-center mb-3 py-1 rounded-full" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
                   แนะนำ
                 </div>
               )}
@@ -180,7 +180,7 @@ export default function BenefitsPage() {
                 className="w-full py-2.5 rounded-lg font-bold text-sm transition-colors cursor-pointer"
                 style={{
                   background: plan.name === "Solo" ? "transparent" : plan.highlight ? "var(--accent)" : "var(--accent)",
-                  color: plan.name === "Solo" ? "var(--accent)" : "#000",
+                  color: plan.name === "Solo" ? "var(--accent)" : "var(--accent-contrast)",
                   border: plan.name === "Solo" ? "1.5px solid var(--accent)" : "none",
                 }}
               >
@@ -232,7 +232,7 @@ export default function BenefitsPage() {
         <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>
           ทดลองใช้ฟรี 14 วัน พร้อมให้คำปรึกษาและช่วย setup — ติดต่อเราได้เลย
         </p>
-        <a href="https://line.me/ti/p/@ledgio" target="_blank" rel="noopener noreferrer" className="inline-block px-8 py-2.5 rounded-lg font-bold text-sm transition-colors" style={{ background: "var(--accent)", color: "#000" }}>
+        <a href="https://line.me/ti/p/@ledgio" target="_blank" rel="noopener noreferrer" className="inline-block px-8 py-2.5 rounded-lg font-bold text-sm transition-colors" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
           ติดต่อนัดทดลองใช้
         </a>
         <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>

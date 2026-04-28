@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import json, time, http.client
+import json, os, time, http.client
 
-host = "192.168.2.109"
-port = 3003
+host = os.environ.get("OMNIA_HOST", "192.168.2.109")
+port = int(os.environ.get("OMNIA_PORT", "3005"))
 body = json.dumps({
     "question": "บริษัทจำกัดที่จดทะเบียน VAT แล้ว มีรายได้ 10 ล้านบาทต่อปี ขายสินค้าทั่วไป ต้องเสียภาษีมูลค่าเพิ่มอัตราเท่าไหร่ และมีข้อยกเว้นอะไรบ้าง",
     "agentIds": [

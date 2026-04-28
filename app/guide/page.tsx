@@ -171,7 +171,7 @@ export default function GuidePage() {
               { step: "4", label: "พิมพ์วาระ แล้วส่ง", link: "/research" },
             ].map((s) => (
               <a key={s.step} href={s.link} className="flex items-center gap-3 p-3 rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: "var(--accent)", color: "#000" }}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
                   {s.step}
                 </div>
                 <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{s.label}</span>
@@ -198,7 +198,7 @@ export default function GuidePage() {
                   onClick={() => setExpandedId(isOpen ? null : step.id)}
                   className="w-full flex items-center gap-3 p-4 text-left transition-all"
                 >
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: isOpen ? "var(--accent)" : "var(--surface)", color: isOpen ? "#000" : "var(--text-muted)" }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: isOpen ? "var(--accent)" : "var(--surface)", color: isOpen ? "var(--accent-contrast)" : "var(--text-muted)" }}>
                     {idx + 1}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -294,7 +294,7 @@ export default function GuidePage() {
 
         {/* CTA */}
         <div className="mt-12 text-center">
-          <a href="https://line.me/ti/p/@ledgio" target="_blank" rel="noopener noreferrer" className="inline-block px-8 py-3 rounded-lg font-bold text-sm transition-colors" style={{ background: "var(--accent)", color: "#000" }}>
+          <a href="https://line.me/ti/p/@ledgio" target="_blank" rel="noopener noreferrer" className="inline-block px-8 py-3 rounded-lg font-bold text-sm transition-colors" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
             ติดต่อนัดทดลองใช้
           </a>
           <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>

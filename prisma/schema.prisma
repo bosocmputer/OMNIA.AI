@@ -190,22 +190,26 @@ model User {
   memories     ClientMemory[]
   agents       Agent[]
   teams        Team[]
-  birthProfile BirthProfile?
+  birthProfiles BirthProfile[]
 
   @@map("users")
 }
 
 model BirthProfile {
   id          String    @id @default(cuid())
-  userId      String    @unique
+  userId      String
+  label       String?   @db.VarChar(50)
   name        String    @db.VarChar(100)
   birthDate   String    @db.VarChar(20)
   birthTime   String?   @db.VarChar(10)
   birthPlace  String?   @db.VarChar(200)
   timezone    String?   @db.VarChar(50)
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("birth_profiles")
 }

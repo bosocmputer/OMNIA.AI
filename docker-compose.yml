@@ -1,0 +1,23 @@
+services:
+  omnia-ai:
+    container_name: omnia-ai
+    image: omnia-ai:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${OMNIA_PORT:-3005}:3000"
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: postgresql://ledgioai:ledgioai_dev_2026@ledgioai-db:5432/omniadb
+      REDIS_URL: redis://ledgioai-redis:6379
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    volumes:
+      - /home/bosscatdog/.omnia-ai:/home/node/.omnia-ai
+    network_mode: bridge
+    links:
+      - ledgioai-db:ledgioai-db
+      - ledgioai-redis:ledgioai-redis

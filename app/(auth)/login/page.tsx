@@ -64,7 +64,7 @@ function LoginForm() {
         <div className="mb-8 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/assets/logo/TITLELOGO.png"
+            src="/assets/logo/TITLELOGO.svg"
             alt="OMNIA.AI"
             className="w-auto object-contain drop-shadow-lg"
             style={{ height: "clamp(72px, 16vw, 110px)" }}

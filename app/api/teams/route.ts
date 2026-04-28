@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { listTeams, createTeam } from "@/lib/agents-store";
 import { rateLimit, getClientIp } from "@/lib/rate-limit-redis";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const teams = await listTeams();
+    const teams = await listTeams(req.headers.get("x-user-id") ?? undefined);
     return NextResponse.json({ teams });
   } catch (e) {
     console.error("GET /api/teams error", e);
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
       emoji: typeof emoji === "string" ? emoji.trim() || "👥" : "👥",
       description: typeof description === "string" ? description.trim() : "",
       agentIds: Array.isArray(agentIds) ? agentIds.filter((id) => typeof id === "string") : [],
+      userId: req.headers.get("x-user-id") ?? undefined,
     });
     return NextResponse.json({ team }, { status: 201 });
   } catch (e) {

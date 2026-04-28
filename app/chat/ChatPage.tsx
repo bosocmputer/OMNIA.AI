@@ -422,7 +422,7 @@ export default function ChatPage({ agentId }: { agentId: string }) {
                 }`}
                 style={
                   msg.role === "user"
-                    ? { background: "var(--accent)", color: "#000" }
+                    ? { background: "var(--accent)", color: "var(--accent-contrast)" }
                     : { borderColor: "var(--border)", background: "var(--surface)", color: "var(--text)" }
                 }
               >
@@ -584,7 +584,7 @@ export default function ChatPage({ agentId }: { agentId: string }) {
               <button
                 onClick={handleStop}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                style={{ background: "var(--accent)", color: "#000" }}
+                style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
               >
                 <Square size={12} fill="currentColor" /> หยุด
               </button>
@@ -593,7 +593,7 @@ export default function ChatPage({ agentId }: { agentId: string }) {
                 onClick={() => handleSend()}
                 disabled={!input.trim() || !agent.hasApiKey}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40"
-                style={{ background: "var(--accent)", color: "#000" }}
+                style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
               >
                 <Send size={12} /> ส่ง
               </button>

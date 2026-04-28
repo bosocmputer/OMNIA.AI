@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { OPENCLAW_HOME } from "./openclaw-paths";
 
-const BOSSBOARD_DIR = path.join(process.env.HOME || "", ".bossboard");
+const BOSSBOARD_DIR = OPENCLAW_HOME;
 const AGENTS_FILE = path.join(BOSSBOARD_DIR, "agents.json");
 const RESEARCH_FILE = path.join(BOSSBOARD_DIR, "research-history.json");
 
@@ -18,7 +19,7 @@ function getOrCreateEncryptKey(): string {
     if (!fs.existsSync(BOSSBOARD_DIR)) fs.mkdirSync(BOSSBOARD_DIR, { recursive: true });
     fs.writeFileSync(keyFile, newKey, { mode: 0o600 });
   } catch { /* fallback to in-memory key */ }
-  console.warn("[BossBoard] ⚠️ Generated new encryption key. Set AGENT_ENCRYPT_KEY env var for production.");
+  console.warn("[OMNIA.AI] Generated new encryption key. Set AGENT_ENCRYPT_KEY env var for production.");
   return newKey;
 }
 
@@ -92,7 +93,7 @@ export interface ResearchMessage {
   agentId: string;
   agentName: string;
   agentEmoji: string;
-  role: "thinking" | "finding" | "analysis" | "synthesis" | "chat";
+  role: "user_question" | "thinking" | "finding" | "analysis" | "synthesis" | "chat";
   content: string;
   tokensUsed: number;
   timestamp: string;
@@ -274,7 +275,6 @@ function ensureSystemAgents(): void {
 }
 
 export async function listAgents(): Promise<AgentPublic[]> {
-  ensureSystemAgents();
   return readAgents().map(({ apiKeyEncrypted, ...rest }) => ({
     ...rest,
     hasApiKey: !!apiKeyEncrypted,
@@ -485,7 +485,7 @@ export async function completeResearchSession(sessionId: string, finalAnswer: st
 
 // --- Settings ---
 
-const SETTINGS_FILE = path.join(process.env.HOME || "", ".bossboard", "settings.json");
+const SETTINGS_FILE = path.join(OPENCLAW_HOME, "settings.json");
 
 export interface CompanyInfo {
   name?: string;
@@ -550,7 +550,7 @@ export async function saveSettings(data: { serperApiKey?: string; serpApiKey?: s
 
 // --- Teams ---
 
-const TEAMS_FILE = path.join(process.env.HOME || "", ".bossboard", "teams.json");
+const TEAMS_FILE = path.join(OPENCLAW_HOME, "teams.json");
 
 export interface Team {
   id: string;
@@ -626,7 +626,7 @@ export async function deleteTeam(id: string): Promise<boolean> {
 
 // --- Agent Stats ---
 
-const STATS_FILE = path.join(process.env.HOME || "", ".bossboard", "agent-stats.json");
+const STATS_FILE = path.join(OPENCLAW_HOME, "agent-stats.json");
 
 export interface AgentDayStat {
   date: string; // YYYY-MM-DD
@@ -722,7 +722,7 @@ export async function incrementAgentSessionCount(agentId: string) {
 }
 
 // --- Agent Knowledge Base ---
-// Knowledge content is stored in separate files under ~/.bossboard/knowledge/{agentId}/{knowledgeId}.txt
+// Knowledge content is stored in separate files under ~/.omnia-ai/knowledge/{agentId}/{knowledgeId}.txt
 // agents.json only stores metadata (filename, tokens, meta, etc.) — NOT content.
 
 const KNOWLEDGE_DIR = path.join(BOSSBOARD_DIR, "knowledge");
@@ -1000,7 +1000,7 @@ export async function getMemoryContext(): Promise<string> {
 
 // --- System Knowledge Sync ---
 
-/** Read system knowledge files for a system agent from ~/.bossboard/system-knowledge/{agentType}/ */
+/** Read system knowledge files for a system agent from ~/.omnia-ai/system-knowledge/{agentType}/ */
 export function getSystemKnowledgeContent(agentId: string, question?: string): string {
   const agents = readAgents();
   const agent = agents.find((a) => a.id === agentId);
@@ -1056,7 +1056,7 @@ export function getSystemKnowledgeContent(agentId: string, question?: string): s
 
 const KNOWLEDGE_REPO_RAW = "https://raw.githubusercontent.com/bosocmputer/system-knowledge-ledgio-ai/main";
 
-/** Sync system knowledge from GitHub repo to ~/.bossboard/system-knowledge/ */
+/** Sync system knowledge from GitHub repo to ~/.omnia-ai/system-knowledge/ */
 export async function syncSystemKnowledge(): Promise<{ synced: number; version: string }> {
   // Fetch manifest from GitHub
   const manifestRes = await fetch(`${KNOWLEDGE_REPO_RAW}/manifest.json`);

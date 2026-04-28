@@ -213,7 +213,7 @@ export default function AgentsPage() {
   const fetchAgents = useCallback(async () => {
     const res = await fetch("/api/team-agents");
     const data = await res.json();
-    setAgents(data.agents ?? []);
+    setAgents((data.agents ?? []).filter((agent: Agent) => !agent.isSystem));
     setLoading(false);
   }, []);
 
@@ -446,25 +446,6 @@ export default function AgentsPage() {
     }
   };
 
-  const [syncLoading, setSyncLoading] = useState(false);
-
-  const handleSyncKnowledge = async () => {
-    setSyncLoading(true);
-    try {
-      const res = await fetch("/api/team-agents/sync-knowledge", { method: "POST" });
-      const data = await res.json();
-      if (data.ok) {
-        showToast("success", data.message);
-      } else {
-        showToast("error", `ซิงค์ไม่สำเร็จ: ${data.error}`);
-      }
-    } catch {
-      showToast("error", "ซิงค์ไม่สำเร็จ");
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
   const categoriesWithTemplates = Object.entries(TEMPLATE_CATEGORIES).map(([key, cat]) => ({
     key,
     ...cat,
@@ -478,28 +459,19 @@ export default function AgentsPage() {
         <div className="flex items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "var(--text)" }}>
-              Team Agents
+              สภาโหราจารย์
             </h1>
             <p className="text-xs sm:text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-              สร้างและจัดการ AI agents สำหรับทีม
+              ดูบทบาทของโหราจารย์แต่ละท่าน เปิด/ปิดสมาชิก และเพิ่มผู้เชี่ยวชาญเฉพาะทางได้เมื่อจำเป็น
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleSyncKnowledge}
-              disabled={syncLoading}
-              className="px-3 py-2 rounded-lg text-xs border transition-all disabled:opacity-50"
-              style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
-              title="อัพเดทข้อมูล Agent ระบบ"
-            >
-              {syncLoading ? "⏳ กำลังซิงค์..." : "🔄 อัพเดทข้อมูล"}
-            </button>
-            <button
               onClick={openCreate}
               className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
-              style={{ background: "var(--accent)", color: "#000" }}
+              style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
             >
-              + New Agent
+              + เพิ่มโหราจารย์
             </button>
           </div>
         </div>
@@ -509,7 +481,7 @@ export default function AgentsPage() {
           <div className="text-center py-20" style={{ color: "var(--text-muted)" }}>Loading...</div>
         ) : agents.length === 0 ? (
           <div className="border rounded-xl p-12 text-center" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-            <p>ยังไม่มี agents — กด New Agent เพื่อเริ่มต้น</p>
+            <p>ยังไม่มีโหราจารย์ — กดเพิ่มโหราจารย์เพื่อเริ่มต้น</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -524,7 +496,7 @@ export default function AgentsPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold" style={{ color: "var(--text)" }}>{agent.name}</span>
                     {agent.isSystem && (
-                      <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: "var(--accent)", color: "#000" }}>ระบบ</span>
+                      <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>ระบบ</span>
                     )}
                     <span className="px-2 py-0.5 rounded text-xs border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
                       {agent.role}
@@ -643,7 +615,7 @@ export default function AgentsPage() {
             <div className="flex-shrink-0 p-4 sm:p-6 pb-0">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <h2 className="font-bold text-lg" style={{ color: "var(--text)" }}>
-                  {editingIsSystem ? `⚙️ ตั้งค่า ${form.name}` : editingId ? "แก้ไขที่ปรึกษา" : "สร้างที่ปรึกษาใหม่"}
+                  {editingIsSystem ? `ตั้งค่า ${form.name}` : editingId ? "แก้ไขโหราจารย์" : "เพิ่มโหราจารย์ใหม่"}
                 </h2>
                 <div className="flex items-center gap-2">
                   {!editingIsSystem && (
@@ -683,8 +655,8 @@ export default function AgentsPage() {
                 {(editingIsSystem
                   ? ["Model", "API Key"]
                   : wizardMode === "easy"
-                    ? ["ตำแหน่ง", "โมเดล", "ข้อมูล"]
-                    : ["ตำแหน่ง", "Model", "ข้อมูล", "ขั้นสูง"]
+                    ? ["บทบาท", "โมเดล", "ข้อมูล"]
+                    : ["บทบาท", "Model", "ข้อมูล", "ขั้นสูง"]
                 ).map((label, i) => {
                   const stepIndex = editingIsSystem ? i + 1 : i; // system: tab 0→step1, tab 1→step2
                   return (
@@ -1241,7 +1213,7 @@ export default function AgentsPage() {
                     <button
                       onClick={() => setFormStep(2)}
                       className="px-6 py-2 rounded-lg text-sm font-bold transition-all"
-                      style={{ background: "var(--accent)", color: "#000" }}
+                      style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
                     >
                       ถัดไป →
                     </button>
@@ -1250,7 +1222,7 @@ export default function AgentsPage() {
                       onClick={handleSave}
                       disabled={saving}
                       className="px-6 py-2 rounded-lg text-sm font-bold disabled:opacity-50 transition-all"
-                      style={{ background: "var(--accent)", color: "#000" }}
+                      style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
                     >
                       {saving ? "Saving..." : "บันทึก"}
                     </button>
@@ -1270,7 +1242,7 @@ export default function AgentsPage() {
                     <button
                       onClick={() => setFormStep(formStep + 1)}
                       className="px-6 py-2 rounded-lg text-sm font-bold transition-all"
-                      style={{ background: "var(--accent)", color: "#000" }}
+                      style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
                     >
                       ถัดไป →
                     </button>
@@ -1280,7 +1252,7 @@ export default function AgentsPage() {
                     onClick={handleSave}
                     disabled={saving}
                     className="px-6 py-2 rounded-lg text-sm font-bold disabled:opacity-50 transition-all"
-                    style={{ background: "var(--accent)", color: "#000" }}
+                    style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
                   >
                     {saving ? "Saving..." : editingId ? "บันทึก" : "สร้างที่ปรึกษา"}
                   </button>
@@ -1361,7 +1333,7 @@ export default function AgentsPage() {
               <button
                 onClick={() => { setKnowledgeAgentId(null); setKnowledgePreview(null); }}
                 className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
-                style={{ background: "var(--accent)", color: "#000" }}
+                style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
               >
                 ปิด
               </button>

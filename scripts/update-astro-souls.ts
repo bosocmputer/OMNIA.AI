@@ -1,7 +1,7 @@
 /**
  * Updates soul prompts, model, and provider for all 5 astrology agents.
  * Safe to run multiple times — uses updateMany by name.
- * Run on server: cd ~/BossBoard && DATABASE_URL=... AGENT_ENCRYPT_KEY=... npx ts-node --project tsconfig.json scripts/update-astro-souls.ts
+ * Run on server: cd ~/omnia-ai && DATABASE_URL=... AGENT_ENCRYPT_KEY=... npx ts-node --project tsconfig.json scripts/update-astro-souls.ts
  */
 import { PrismaClient } from "@prisma/client";
 import path from "path";

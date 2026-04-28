@@ -1,5 +1,5 @@
 /**
- * One-time migration: reads all JSON files from ~/.bossboard/ and inserts them into Postgres.
+ * One-time migration: reads all JSON files from ~/.omnia-ai/ and inserts them into Postgres.
  * Run with: DATABASE_URL=... npx ts-node --project tsconfig.json scripts/migrate-json-to-db.ts
  *
  * JSON files are NOT deleted — they remain as backup.
@@ -12,7 +12,7 @@ import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
 
 const db = new PrismaClient();
-const BOSSBOARD_DIR = process.env.OPENCLAW_HOME || path.join(process.env.HOME || "", ".bossboard");
+const BOSSBOARD_DIR = process.env.OPENCLAW_HOME || path.join(process.env.HOME || "", ".omnia-ai");
 
 function readJson<T>(file: string, fallback: T): T {
   try {

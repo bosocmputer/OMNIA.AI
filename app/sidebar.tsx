@@ -9,14 +9,11 @@ import {
   Home,
   MessageSquare,
   Users,
-  UsersRound,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Menu,
   X,
   Award,
-  PieChart,
   BookOpen,
   Star,
   LogOut,
@@ -59,14 +56,11 @@ const NAV_ITEMS: NavGroup[] = [
     group: "จัดการ",
     items: [
       { href: "/agents", icon: Users, labelKey: "nav.teamAgents" },
-      { href: "/teams", icon: UsersRound, labelKey: "nav.teams" },
-      { href: "/tokens", icon: PieChart, labelKey: "nav.tokens" },
     ],
   },
   {
     group: "ตั้งค่า",
     items: [
-      { href: "/settings", icon: Settings, labelKey: "nav.settings" },
       { href: "/guide", icon: BookOpen, labelKey: "nav.guide" },
       { href: "/upgrade", icon: Star, labelKey: "nav.upgrade" },
     ],
@@ -205,7 +199,7 @@ export function Sidebar() {
             </button>
             <Link href="/" className="flex items-center gap-2 min-w-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/logo/TITLELOGO.png" alt="OMNIA.AI" className="w-7 h-7 object-contain flex-shrink-0" />
+              <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-7 h-7 object-contain flex-shrink-0" />
               <div className="min-w-0">
                 <div className="text-xs font-bold tracking-wide truncate" style={{ color: "var(--text)" }}>OMNIA.AI</div>
                 <div className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>
@@ -275,7 +269,7 @@ export function Sidebar() {
             <div className="flex flex-col items-center gap-3">
               <Link href="/">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/logo/TITLELOGO.png" alt="OMNIA.AI" className="w-8 h-8 object-contain" />
+                <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-8 h-8 object-contain" />
               </Link>
               <button
                 onClick={() => setCollapsed(false)}
@@ -291,7 +285,7 @@ export function Sidebar() {
               <div className="flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/assets/logo/TITLELOGO.png" alt="OMNIA.AI" className="w-9 h-9 object-contain flex-shrink-0" />
+                  <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-9 h-9 object-contain flex-shrink-0" />
                   <div>
                     <div className="text-sm font-bold tracking-wide" style={{ color: "var(--text)" }}>OMNIA.AI</div>
                     <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>ที่ปรึกษาพยากรณ์ AI</div>

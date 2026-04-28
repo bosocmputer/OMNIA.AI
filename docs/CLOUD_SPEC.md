@@ -5,87 +5,57 @@
 | Item | Value |
 |------|-------|
 | Server IP | `192.168.2.109` |
-| App Port | **3005** |
+| SSH user | `bosscatdog` |
+| App directory | `/home/bosscatdog/omnia-ai` |
 | Container name | `omnia-ai` |
-| Volume | `~/.omnia-ai` → `/home/node/.omnia-ai` |
+| Image name | `omnia-ai:latest` |
+| Port policy | Reuse `/home/bosscatdog/.omnia-ai-port` when free; otherwise choose a free candidate port |
+| Volume | `/home/bosscatdog/.omnia-ai` → `/home/node/.omnia-ai` |
+| Docker network | Bridge publish, e.g. `0.0.0.0:3005->3000/tcp` |
 
-## Database
+## Shared Services
 
-| Item | Value |
-|------|-------|
-| Container | `ledgioai-db` |
-| Port | 5436 |
-| Database name | `omniadb` |
-| User | `ledgioai` |
-| Password | `ledgioai_dev_2026` |
+| Service | Host/Port | Notes |
+|---------|-----------|-------|
+| PostgreSQL | `127.0.0.1:5436` | database `omniadb` |
+| Redis | `127.0.0.1:6381` | shared Redis instance |
 
-## Redis
+## Safety Rules
 
-| Item | Value |
-|------|-------|
-| Container | `ledgioai-redis` |
-| Port | 6381 |
-| Shared with | BossBoard (port 3003) |
+- Deploy only to `/home/bosscatdog/omnia-ai`.
+- Manage only Docker container `omnia-ai`; do not stop containers from other projects.
+- Do not kill processes by port. Check `ss -tulpen` first and choose a free port.
+- Keep production secrets in `/home/bosscatdog/omnia-ai/.env.production`; do not commit them.
+- Run Prisma migrations before starting/restarting the app container.
+- Run the app like the other web projects: Docker bridge mode with `-p <host-port>:3000`, not `--network host`.
 
----
+## Required `.env.production`
 
-## Docker Run Command
-
-```bash
-docker run -d \
-  --name omnia-ai \
-  --restart unless-stopped \
-  --network host \
-  -e DATABASE_URL="postgresql://ledgioai:ledgioai_dev_2026@127.0.0.1:5436/omniadb" \
-  -e REDIS_URL="redis://127.0.0.1:6381" \
-  -e NODE_ENV=production \
-  -e PORT=3005 \
-  -e HOSTNAME=0.0.0.0 \
-  -e JWT_SECRET="<generate: openssl rand -hex 32>" \
-  -e AGENT_ENCRYPT_KEY="<generate: openssl rand -hex 16>" \
-  -e OPENROUTER_API_KEY="sk-or-..." \
-  -v /home/bosscatdog/.omnia-ai:/home/node/.omnia-ai \
-  omnia-ai
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@127.0.0.1:5436/omniadb
+REDIS_URL=redis://127.0.0.1:6381
+JWT_SECRET=<openssl rand -hex 32>
+AGENT_ENCRYPT_KEY=<openssl rand -hex 16>
+OPENROUTER_API_KEY=sk-or-...
+NODE_ENV=production
 ```
 
-## Deploy Script (ใช้งานได้ทันที)
+`PORT` and `HOSTNAME` are injected by the deploy script. In the running container, `PORT=3000`; the host port is mapped by Docker.
+
+## Deploy
+
+From the project root:
 
 ```bash
-sshpass -p 'boss123456' ssh -o StrictHostKeyChecking=no bosscatdog@192.168.2.109 '
-  cd ~/OMNIA.AI && git pull &&
-  docker build -t omnia-ai . &&
-  docker stop omnia-ai; docker rm omnia-ai;
-  docker run -d --name omnia-ai --restart unless-stopped --network host \
-    -e DATABASE_URL="postgresql://ledgioai:ledgioai_dev_2026@127.0.0.1:5436/omniadb" \
-    -e REDIS_URL="redis://127.0.0.1:6381" \
-    -e NODE_ENV=production -e PORT=3005 -e HOSTNAME=0.0.0.0 \
-    -e JWT_SECRET="REPLACE_ME" -e AGENT_ENCRYPT_KEY="REPLACE_ME" \
-    -e OPENROUTER_API_KEY="REPLACE_ME" \
-    -v /home/bosscatdog/.omnia-ai:/home/node/.omnia-ai omnia-ai
-'
+bash scripts/deploy.sh
 ```
 
-## First-time DB Setup (server)
+The script syncs the current workspace, installs dependencies on the server for migrations, builds the Docker image, recreates only the `omnia-ai` container, and prints the final URL.
+
+## Manual Verify
 
 ```bash
-# สร้าง database
-docker exec ledgioai-db psql -U ledgioai -c "CREATE DATABASE omniadb;"
-
-# Run migrations
-docker exec omnia-ai npx prisma migrate deploy
+ssh bosscatdog@192.168.2.109 'cat /home/bosscatdog/.omnia-ai-port'
+ssh bosscatdog@192.168.2.109 'docker ps --filter name=omnia-ai'
+ssh bosscatdog@192.168.2.109 'curl -fsS http://127.0.0.1:$(cat /home/bosscatdog/.omnia-ai-port)/api/health'
 ```
-
-## Health Check
-
-```bash
-curl http://192.168.2.109:3005/api/health
-```
-
-## Services Overview (Server)
-
-| Service | Container | Port | Status |
-|---------|-----------|------|--------|
-| BossBoard | `bossboard` | 3003 | running |
-| OMNIA.AI | `omnia-ai` | 3005 | pending deploy |
-| PostgreSQL | `ledgioai-db` | 5436 | running |
-| Redis | `ledgioai-redis` | 6381 | running |

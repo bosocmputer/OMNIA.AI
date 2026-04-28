@@ -1,22 +1,24 @@
 @import "tailwindcss";
 
-/* ── OMNIA.AI Dark Gold (default) ── */
+/* ── OMNIA.AI Mystic Royal (default) ── */
 :root {
-  --bg: #1A1A1A;
-  --card: #222222;
-  --surface: #2A2A2A;
-  --border: #2E2E2E;
-  --text: #F5F5F5;
-  --text-muted: #888888;
-  --accent: #C9A84C;
-  --accent2: #E0B85C;
-  --green: #4CAF50;
-  --orange: #FFC107;
-  --danger: #f87171;
-  --warning: #FFC107;
-  --success: #4CAF50;
-  --info: #60a5fa;
-  --purple: #a78bfa;
+  --bg: #09070F;
+  --card: #14101D;
+  --surface: #1D1728;
+  --border: #352A45;
+  --text: #F7F1E3;
+  --text-muted: #A79AAF;
+  --accent: #D6B25E;
+  --accent2: #F0D486;
+  --accent-contrast: #09070F;
+  --green: #53C68A;
+  --orange: #E5A84A;
+  --danger: #F87171;
+  --warning: #E5A84A;
+  --success: #53C68A;
+  --info: #8FB8FF;
+  --purple: #8B5CF6;
+  --purple-deep: #4C1D95;
   /* Accent shades */
   --accent-3: color-mix(in srgb, var(--accent) 3%, transparent);
   --accent-4: color-mix(in srgb, var(--accent) 4%, transparent);
@@ -49,23 +51,25 @@
   --orange-8: color-mix(in srgb, orange 8%, transparent);
 }
 
-/* ── OMNIA.AI Soft Gold Light ── */
+/* ── OMNIA.AI Moonlit Light ── */
 [data-theme="light"] {
-  --bg: #FAF7F0;
-  --card: #ffffff;
-  --surface: #F2EDD7;
-  --border: #DDD0A8;
-  --text: #1A1A1A;
-  --text-muted: #7A6A4A;
-  --accent: #B8922A;
-  --accent2: #9A7820;
+  --bg: #F8F4EA;
+  --card: #FFFDF8;
+  --surface: #EFE7DA;
+  --border: #D8C9AD;
+  --text: #211629;
+  --text-muted: #75697E;
+  --accent: #B58B2E;
+  --accent2: #7B5B18;
+  --accent-contrast: #211629;
   --green: #059669;
-  --orange: #d97706;
-  --danger: #dc2626;
-  --warning: #d97706;
+  --orange: #C77718;
+  --danger: #DC2626;
+  --warning: #C77718;
   --success: #059669;
-  --info: #2563eb;
-  --purple: #7c3aed;
+  --info: #315FBD;
+  --purple: #6D28D9;
+  --purple-deep: #3B0764;
   /* Accent shades */
   --accent-3: color-mix(in srgb, var(--accent) 3%, transparent);
   --accent-4: color-mix(in srgb, var(--accent) 4%, transparent);
@@ -118,7 +122,7 @@ body {
   min-height: 100vh;
 }
 
-/* ── Global ambient background — matches login page ── */
+/* ── Global ambient background ── */
 /* Grid layer */
 body::before {
   content: "";
@@ -127,10 +131,10 @@ body::before {
   pointer-events: none;
   z-index: -2;
   background-image:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);
   background-size: 48px 48px;
-  opacity: 0.08;
+  opacity: 0.14;
 }
 
 [data-theme="light"] body::before {
@@ -145,14 +149,15 @@ body::after {
   pointer-events: none;
   z-index: -1;
   background:
-    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 35%),
-    radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 35%);
+    linear-gradient(135deg, color-mix(in srgb, var(--purple-deep) 26%, transparent), transparent 42%),
+    linear-gradient(315deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 46%),
+    radial-gradient(ellipse at center, transparent 0%, color-mix(in srgb, #000 34%, transparent) 100%);
 }
 
 [data-theme="light"] body::after {
   background:
-    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 35%),
-    radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--accent) 3%, transparent) 0%, transparent 35%);
+    linear-gradient(135deg, color-mix(in srgb, var(--purple) 9%, transparent), transparent 48%),
+    linear-gradient(315deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 50%);
 }
 
 /* ── Layout ── */
@@ -163,7 +168,7 @@ body::after {
   bottom: 0;
   flex-direction: column;
   border-right: 1px solid var(--border);
-  background: var(--card);
+  background: color-mix(in srgb, var(--card) 92%, #000 8%);
   z-index: 40;
   transition: width 0.2s ease;
 }
