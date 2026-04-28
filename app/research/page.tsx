@@ -12,7 +12,7 @@ import {
   Brain, Paperclip, Lightbulb, Send, Square, SkipForward,
   ChevronDown, ChevronRight, X, Download, Search, Check,
   AlertTriangle, Edit3, Clock, Coins,
-  BarChart3, File, Trash2, RefreshCw,
+  BarChart3, File, Trash2, RefreshCw, UserCircle, Plus,
 } from "lucide-react";
 
 interface Agent {
@@ -289,6 +289,7 @@ function ReadingFeedback({ scope }: { scope: string }) {
   const options = [
     { id: "accurate", label: "แม่น", icon: "✓" },
     { id: "easy", label: "อ่านง่าย", icon: "✦" },
+    { id: "too_broad", label: "กว้างไป", icon: "?" },
     { id: "too_long", label: "ยาวไป", icon: "!" },
   ];
 
@@ -585,6 +586,9 @@ export default function ResearchPage() {
     if (q) setQuestion(q);
     const profileId = params.get("profileId");
     if (profileId) setSelectedBirthProfileId(profileId);
+
+    const agentId = params.get("agentId");
+    if (agentId) setSelectedIds(new Set([agentId]));
 
     const teamId = params.get("teamId");
     if (teamId) {
@@ -1221,6 +1225,49 @@ export default function ResearchPage() {
 
   const renderSidebarContent = (onNavigate?: () => void) => (
     <>
+      {/* Birth profile selector */}
+      <div className="border rounded-xl p-3" style={{ borderColor: "var(--accent-30)", background: "var(--accent-5)" }}>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="text-xs font-bold flex items-center gap-1.5" style={{ color: "var(--accent)" }}>
+            <UserCircle size={13} /> เจ้าชะตา
+          </div>
+          <a href="/profile" className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "var(--accent)", color: "var(--accent)" }} onClick={onNavigate}>
+            <Plus size={11} /> เพิ่ม
+          </a>
+        </div>
+        {birthProfiles.length > 0 ? (
+          <div className="space-y-2">
+            <select
+              value={selectedBirthProfileId}
+              onChange={(e) => setSelectedBirthProfileId(e.target.value)}
+              className="w-full rounded-lg border px-2 py-2 text-xs outline-none"
+              style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--text)" }}
+              title="เลือกเจ้าชะตา"
+            >
+              {birthProfiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {(profile.label ? `${profile.label}: ` : "") + (profile.name || "ไม่ระบุชื่อ")}
+                </option>
+              ))}
+            </select>
+            {birthProfile && (
+              <div className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                ใช้ข้อมูลของ <strong style={{ color: "var(--text)" }}>{birthProfile.name}</strong>
+                {birthProfile.birthDate ? ` · ${birthProfile.birthDate}` : ""}
+                {birthProfile.birthTime ? ` · ${birthProfile.birthTime}` : " · ไม่ระบุเวลาเกิด"}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>ยังไม่มีข้อมูลเกิด เพิ่มเจ้าชะตาก่อนเพื่อให้คำทำนายละเอียดขึ้น</p>
+            <a href="/profile" className="inline-flex items-center justify-center w-full gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }} onClick={onNavigate}>
+              เพิ่มเจ้าชะตา
+            </a>
+          </div>
+        )}
+      </div>
+
       {/* Agent selector */}
       <div className="border rounded-xl p-3" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         <div className="flex items-center justify-between">
@@ -1564,20 +1611,15 @@ export default function ResearchPage() {
               </div>
             </div>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-              {birthProfiles.length > 0 && (
-                <select
-                  value={selectedBirthProfileId}
-                  onChange={(e) => setSelectedBirthProfileId(e.target.value)}
-                  className="h-9 min-w-[170px] rounded-lg border px-2 text-xs outline-none"
+              {birthProfile && (
+                <div
+                  className="h-9 min-w-[150px] rounded-lg border px-2 text-xs flex items-center gap-1.5"
                   style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--text)" }}
-                  title="เลือกเจ้าชะตา"
+                  title="เจ้าชะตาปัจจุบัน"
                 >
-                  {birthProfiles.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {(profile.label ? `${profile.label}: ` : "") + (profile.name || "ไม่ระบุชื่อ")}
-                    </option>
-                  ))}
-                </select>
+                  <UserCircle size={13} style={{ color: "var(--accent)" }} />
+                  <span className="truncate">{birthProfile.name || "เจ้าชะตา"}</span>
+                </div>
               )}
               {agents.filter((agent) => selectedIds.has(agent.id)).slice(0, 6).map((agent) => (
                 <div

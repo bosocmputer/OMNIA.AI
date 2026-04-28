@@ -12,10 +12,10 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // nav sidebar
     "nav.dashboard": "หน้าหลัก",
-    "nav.teamAgents": "สภาโหราจารย์",
-    "nav.research": "ดูดวง",
-    "nav.profile": "โปรไฟล์ข้อมูลเกิด",
-    "nav.upgrade": "อัพเกรด Premium",
+    "nav.teamAgents": "หมอดู",
+    "nav.research": "ห้องดูดวง",
+    "nav.profile": "เจ้าชะตา",
+    "nav.upgrade": "Premium",
     "nav.dbd": "กรมพัฒนาธุรกิจการค้า (DBD)",
     "nav.rd": "กรมสรรพากร (RD)",
     "nav.chat": "ถามด่วน",
@@ -32,7 +32,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "nav.skills": "ทักษะ",
     "nav.settings": "ตั้งค่า",
     "nav.guide": "วิธีใช้งาน",
-    "nav.benefits": "แพ็คเกจ",
+    "nav.benefits": "สิทธิ์ Premium",
     "nav.alerts": "แจ้งเตือน",
     "nav.experiments": "ทดลอง",
     "nav.expandSidebar": "ขยายเมนู",
@@ -313,15 +313,15 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // nav sidebar
     "nav.dashboard": "Dashboard",
-    "nav.teamAgents": "Oracle Council",
+    "nav.teamAgents": "Readers",
     "nav.research": "Reading Room",
-    "nav.profile": "Birth Profile",
-    "nav.upgrade": "Upgrade Premium",
+    "nav.profile": "Birth Book",
+    "nav.upgrade": "Premium",
     "nav.teams": "Teams",
     "nav.tokens": "Token Usage",
     "nav.settings": "Settings",
     "nav.guide": "User Guide",
-    "nav.benefits": "Packages",
+    "nav.benefits": "Premium Benefits",
     "nav.bugsOff": "Bugs Off",
     "nav.bugsCount": "Count",
 

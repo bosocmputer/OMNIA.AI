@@ -2,306 +2,147 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowRight, BookOpen, CheckCircle2, MessageSquare, Sparkles, UserCircle, Users } from "lucide-react";
 
-interface Step {
-  id: string;
-  title: string;
-  desc: string;
-  details: string[];
-  tips?: string[];
-}
+const STEPS = [
+  {
+    icon: UserCircle,
+    title: "เลือกเจ้าชะตา",
+    desc: "บันทึกข้อมูลเกิดของตัวเอง แฟน ลูกค้า หรือคนที่อยากดูให้",
+    details: ["ไปที่หน้า เจ้าชะตา", "เพิ่มชื่อ วันเกิด เวลาเกิด และสถานที่เกิด", "ตั้งคนที่ใช้บ่อยเป็นเจ้าชะตาหลัก"],
+    href: "/profile",
+  },
+  {
+    icon: MessageSquare,
+    title: "ถามเรื่องที่อยากรู้",
+    desc: "พิมพ์เป็นภาษาคนปกติ เช่น งาน เงิน ความรัก สอบ หรือเดือนหน้า",
+    details: ["เปิดห้องดูดวง", "เลือกเจ้าชะตาที่ต้องการ", "พิมพ์คำถามเดียวหรือหลายเรื่องในข้อความเดียวได้"],
+    href: "/research",
+  },
+  {
+    icon: Users,
+    title: "เลือกหมอดู",
+    desc: "ให้หลายศาสตร์ช่วยมองคนละมุม หรือเลือกหมอดูเฉพาะคนก็ได้",
+    details: ["เลือกหมอดูในแผงด้านซ้ายของห้องดูดวง", "เปิดหลายท่านเพื่อให้ OMNIA สรุปรวม", "เปิดคนเดียวเมื่อต้องการคำตอบเร็วและตรงจากศาสตร์นั้น"],
+    href: "/agents",
+  },
+  {
+    icon: Sparkles,
+    title: "อ่านสรุปจาก OMNIA",
+    desc: "ระบบรวมคำทำนายเป็นคำตอบเดียว พร้อมสิ่งที่ควรสังเกตและแผนต่อไป",
+    details: ["อ่านคำตอบตรง ๆ ก่อน", "ดูตัวอย่างเรื่องที่อาจเจอและเรื่องที่ควรระวัง", "กด feedback ว่าแม่น กว้างไป หรือยาวไป เพื่อช่วยปรับคำตอบครั้งต่อไป"],
+    href: "/research",
+  },
+];
 
-const STEPS: Step[] = [
+const FAQS = [
   {
-    id: "get-started",
-    title: "เริ่มต้นใช้งาน",
-    desc: "ติดต่อทีมงานเพื่อเปิดใช้งานระบบ",
-    details: [
-      "ติดต่อ Line @ledgio หรือ info@ledgio.ai",
-      "ทีมงานจะช่วย setup ระบบและตั้งค่าเบื้องต้นให้",
-      "เมื่อพร้อมแล้ว เข้าใช้งานได้ทันที ไม่ต้องตั้งค่าอะไรเพิ่มเติม",
-    ],
-    tips: [
-      "ทดลองใช้ฟรี 14 วัน ไม่มีข้อผูกมัด",
-      "รองรับแพ็กเกจตั้งแต่ Starter 790 บาท/เดือน ถึง Enterprise 4,990 บาท/เดือน",
-    ],
+    q: "ต้องกรอกเวลาเกิดไหม?",
+    a: "ถ้ารู้เวลาเกิด คำทำนายจะละเอียดขึ้น โดยเฉพาะศาสตร์ที่ใช้เวลาและสถานที่เกิด ถ้าไม่รู้ก็ยังดูจากวันเกิดและข้อมูลที่มีได้",
   },
   {
-    id: "company-info",
-    title: "กรอกข้อมูลบริษัท",
-    desc: "ให้ AI รู้จักบริษัทของคุณเพื่อให้คำตอบที่ตรงประเด็น",
-    details: [
-      "ไปที่หน้า Settings > ส่วน ข้อมูลบริษัท",
-      "กรอกชื่อบริษัท ประเภทธุรกิจ มาตรฐานบัญชี (PAEs/NPAEs)",
-      "เลือกรอบบัญชี และจำนวนพนักงาน",
-      'เพิ่มหมายเหตุเพิ่มเติมในช่อง "บันทึกเพิ่มเติม" ถ้าต้องการ',
-      "กด บันทึกข้อมูลบริษัท — ข้อมูลจะถูกส่งให้ทุก Agent อัตโนมัติ",
-    ],
-    tips: [
-      "ดูตัวอย่างสิ่งที่ AI จะเห็นได้ในส่วน Context Preview",
-      "ไม่จำเป็นต้องกรอกทุกช่อง — กรอกเฉพาะที่เกี่ยวข้อง",
-    ],
+    q: "ดูดวงให้คนอื่นได้ไหม?",
+    a: "ได้ เพิ่มเจ้าชะตาใหม่ในหน้าเจ้าชะตา แล้วเลือกคนนั้นก่อนถามในห้องดูดวง",
   },
   {
-    id: "agents",
-    title: "สร้างทีม Agent",
-    desc: "ตั้งค่าทีมที่ปรึกษา AI ตามบทบาทที่ต้องการ",
-    details: [
-      "ไปที่หน้า Team Agents",
-      'กด "+ สร้าง Agent ใหม่" หรือใช้ Template สำเร็จรูป',
-      "ตั้งชื่อ เลือก Emoji บทบาท (เช่น นักบัญชี, ที่ปรึกษาภาษี, ทนายความ)",
-      'เขียน "จิตวิญญาณ" (Soul) — คำอธิบายบุคลิกและทักษะของ Agent',
-      "เลือก AI Model ที่ต้องการ (มีคำแนะนำให้ตามประเภทงาน)",
-      "กำหนดลำดับอาวุโส — Agent ที่อาวุโสสูงสุดจะเป็นประธานการประชุม",
-      "เปิด/ปิด Web Search ถ้าต้องการให้ค้นข้อมูลจากอินเทอร์เน็ต",
-    ],
-    tips: [
-      "แนะนำให้มี Agent อย่างน้อย 3 ตัว เพื่อให้ได้มุมมองที่หลากหลาย",
-      "ลำดับอาวุโส (Seniority) กำหนดว่าใครพูดก่อน — ตัวเลขสูง = อาวุโสมาก",
-      "ใช้ Template เป็นจุดเริ่มต้นแล้วปรับแต่งตาม scope งานลูกค้า",
-    ],
+    q: "ถามต่อได้ไหม?",
+    a: "ได้ หลังคำตอบแรกจบ พิมพ์คำถามต่อได้เลย ระบบจะใช้บริบทเดิมประกอบ โดยไม่ต้องเริ่มใหม่ทุกครั้ง",
   },
   {
-    id: "knowledge",
-    title: "เพิ่มฐานความรู้ให้ Agent",
-    desc: "แนบไฟล์เฉพาะทางเพื่อให้ Agent มีข้อมูลเพิ่มเติม",
-    details: [
-      'ในหน้า Team Agents กดปุ่ม "Knowledge" ที่ Agent ที่ต้องการ',
-      'กด "อัพโหลดไฟล์ความรู้"',
-      "เลือกไฟล์ที่ต้องการ — รองรับ xlsx, pdf, docx, txt, md, csv, json",
-      "ระบบจะอ่านเนื้อหาและแสดง preview + ขนาดโดยประมาณ",
-      "ความรู้จะถูกส่งให้เฉพาะ Agent ที่เป็นเจ้าของเท่านั้น",
-    ],
-    tips: [
-      "ตัวอย่างไฟล์: มาตรฐานบัญชี, ระเบียบสรรพากร, ข้อมูลลูกค้า, ตัวอย่างสัญญา",
-      "แต่ละไฟล์รองรับเนื้อหาสูงสุด 50,000 ตัวอักษร",
-      "สามารถลบไฟล์ที่ไม่ใช้แล้วได้ตลอดเวลา",
-    ],
-  },
-  {
-    id: "meeting",
-    title: "เปิดห้องประชุม AI",
-    desc: "เริ่มการประชุมกับทีม Agent ของคุณ",
-    details: [
-      "ไปที่หน้า Meeting Room",
-      "เลือก Agent ที่จะเข้าประชุมจากแถบด้านข้าง (✓ = เข้าร่วม)",
-      "พิมพ์วาระการประชุม เช่น \"วิเคราะห์งบการเงินบริษัท ABC ปี 2568\"",
-      "กด Enter หรือปุ่มส่ง — Agent ที่อาวุโสสูงสุดจะเปิดการประชุม",
-      "แต่ละ Agent จะวิเคราะห์ตามบทบาทของตน (Phase 1)",
-      "จากนั้นทุกคนจะถกเถียงกัน (Phase 2) ก่อนประธานสรุปมติ",
-    ],
-    tips: [
-      "แนบไฟล์ Excel/PDF ได้ในช่องพิมพ์ — Agent จะวิเคราะห์ข้อมูลในไฟล์ด้วย",
-      "ถ้าอยากถามต่อ พิมพ์วาระใหม่ได้เลย ระบบจำบริบทเดิม",
-      'กด "🔚 สรุปมติ" เพื่อให้ประธานสรุปรวมทุกวาระ',
-    ],
-  },
-  {
-    id: "multi-round",
-    title: "ประชุมหลายรอบ",
-    desc: "ถามต่อเนื่องเพื่อเจาะลึกรายละเอียด",
-    details: [
-      "หลังรอบแรกจบ ระบบจะแนะนำคำถามต่อยอด (Suggestions)",
-      "คลิกคำถามที่แนะนำ หรือพิมพ์วาระใหม่เอง",
-      "Agent จะจำเนื้อหาจากรอบก่อนหน้า ไม่ต้องอธิบายซ้ำ",
-      "ประชุมกี่รอบก็ได้ — ทุกรอบบันทึกไว้ให้",
-      'กด "สรุปมติ" เมื่อพร้อม — ประธานจะสรุปรวมทุกวาระ',
-    ],
-    tips: [
-      "ใช้วิธีนี้สำหรับงานซับซ้อน เช่น วิเคราะห์งบ → วางแผนภาษี → เขียนรายงาน",
-      "แต่ละรอบมีกราฟ visualization ให้ถ้ามีข้อมูลตัวเลข",
-    ],
-  },
-  {
-    id: "export",
-    title: "Export รายงานการประชุม",
-    desc: "ดาวน์โหลดรายงานเป็นไฟล์ Markdown พร้อมใช้",
-    details: [
-      'กดปุ่ม "Export Minutes" ที่มุมขวาบนของห้องประชุม',
-      "ระบบจะรวมทุกรอบวาระ + มติ + action items เป็นไฟล์เดียว",
-      "ไฟล์เป็น Markdown (.md) เปิดอ่านได้ทุกที่ แปลงเป็น PDF/Word ได้ง่าย",
-    ],
-    tips: [
-      "ส่งรายงานให้ลูกค้าหรือกรรมการได้ทันที",
-      "ประวัติการประชุมเก็บไว้ในระบบ ดูย้อนหลังได้จากประวัติ",
-    ],
-  },
-  {
-    id: "usage",
-    title: "ดูสถิติการใช้งาน",
-    desc: "ติดตามปริมาณการใช้งานและต้นทุน AI",
-    details: [
-      "ไปที่หน้า สถิติการใช้งาน",
-      "ดูกราฟการใช้งานรายวัน",
-      "ดูว่าที่ปรึกษาตัวไหนใช้งานมากที่สุด",
-      "ดูรายละเอียดแต่ละครั้งประชุม — วาระ + มูลค่าการใช้งาน",
-    ],
-    tips: [
-      "ค่า AI โดยเฉลี่ย: ~0.50-5 บาท/ครั้งประชุม",
-      "รายละเอียดค่าใช้จ่ายดูได้ใน Dashboard",
-    ],
+    q: "คำทำนายเชื่อได้แค่ไหน?",
+    a: "ให้ใช้เป็นแนวทางประกอบการตัดสินใจ จุดที่ควรเชื่อมากขึ้นคือคำตอบที่โยงกับข้อมูลเกิด คำถามจริง และสัญญาณที่สังเกตได้ในชีวิต",
   },
 ];
 
 export default function GuidePage() {
-  const [expandedId, setExpandedId] = useState<string | null>("get-started");
-  const [expandedFaqs, setExpandedFaqs] = useState<Set<number>>(new Set());
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-3" style={{ color: "var(--text)" }}>
-            วิธีใช้งาน LEDGIO AI
-          </h1>
-          <p className="text-sm sm:text-base" style={{ color: "var(--text-muted)" }}>
-            8 ขั้นตอนง่ายๆ จากเริ่มต้นจนใช้งานประชุม AI ได้จริง
-          </p>
+    <div className="min-h-screen p-4 md:p-8 max-w-5xl mx-auto">
+      <section className="rounded-2xl border p-5 md:p-7 mb-5" style={{ borderColor: "var(--border)", background: "linear-gradient(135deg, var(--card), var(--surface))" }}>
+        <div className="inline-flex items-center gap-2 text-xs font-semibold mb-3" style={{ color: "var(--accent)" }}>
+          <BookOpen size={14} /> OMNIA.AI Guide
         </div>
-
-        {/* Quick Start */}
-        <div className="rounded-xl p-5 mb-8 border" style={{ background: "var(--accent-5)", borderColor: "var(--accent-35)" }}>
-          <h2 className="font-bold text-sm mb-3" style={{ color: "var(--accent)" }}>เริ่มต้นเร็ว (3 นาที)</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            {[
-              { step: "1", label: "กรอกข้อมูลบริษัท", link: "/settings" },
-              { step: "2", label: "ดูทีมที่ปรึกษา", link: "/agents" },
-              { step: "3", label: "เปิดห้องประชุม", link: "/research" },
-              { step: "4", label: "พิมพ์วาระ แล้วส่ง", link: "/research" },
-            ].map((s) => (
-              <a key={s.step} href={s.link} className="flex items-center gap-3 p-3 rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
-                  {s.step}
-                </div>
-                <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{s.label}</span>
-              </a>
-            ))}
-          </div>
+        <h1 className="text-2xl md:text-4xl font-bold leading-tight" style={{ color: "var(--text)" }}>
+          ใช้งาน OMNIA.AI ให้ได้คำทำนายที่ตรงขึ้น
+        </h1>
+        <p className="text-sm md:text-base mt-3 max-w-2xl leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          เริ่มจากเลือกเจ้าชะตา ถามเรื่องที่อยากรู้ แล้วให้หมอดูหลายศาสตร์อ่านร่วมกันก่อน OMNIA สรุปเป็นภาษาที่ใช้ตัดสินใจได้จริง
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2 mt-5">
+          <Link href="/research" className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+            เปิดห้องดูดวง <ArrowRight size={16} />
+          </Link>
+          <Link href="/profile" className="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium" style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--card)" }}>
+            เพิ่มเจ้าชะตา
+          </Link>
         </div>
+      </section>
 
-        {/* Steps Accordion */}
-        <div className="space-y-3">
-          {STEPS.map((step, idx) => {
-            const isOpen = expandedId === step.id;
-            return (
-              <div
-                key={step.id}
-                className="rounded-xl border overflow-hidden transition-all"
-                style={{
-                  borderColor: isOpen ? "var(--accent)" : "var(--border)",
-                  background: "var(--card)",
-                  boxShadow: isOpen ? "0 0 16px var(--accent-10)" : undefined,
-                }}
-              >
-                <button
-                  onClick={() => setExpandedId(isOpen ? null : step.id)}
-                  className="w-full flex items-center gap-3 p-4 text-left transition-all"
-                >
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: isOpen ? "var(--accent)" : "var(--surface)", color: isOpen ? "var(--accent-contrast)" : "var(--text-muted)" }}>
-                    {idx + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-sm" style={{ color: "var(--text)" }}>{step.title}</h3>
-                    <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{step.desc}</p>
-                  </div>
-                  <span className="text-lg flex-shrink-0 transition-transform" style={{ color: "var(--text-muted)", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}>
-                    ▾
-                  </span>
-                </button>
-
-                {isOpen && (
-                  <div className="px-4 pb-4">
-                    <div className="ml-11">
-                      {/* Steps */}
-                      <ol className="space-y-2 mb-4">
-                        {step.details.map((d, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--text)" }}>
-                            <span className="font-bold flex-shrink-0" style={{ color: "var(--accent)" }}>{i + 1}.</span>
-                            <span>{d}</span>
-                          </li>
-                        ))}
-                      </ol>
-
-                      {/* Tips */}
-                      {step.tips && step.tips.length > 0 && (
-                        <div className="rounded-lg p-3 border" style={{ background: "var(--accent-3)", borderColor: "var(--accent-15)" }}>
-                          <p className="text-xs font-bold mb-1.5" style={{ color: "var(--accent)" }}>เคล็ดลับ</p>
-                          <ul className="space-y-1">
-                            {step.tips.map((tip, i) => (
-                              <li key={i} className="flex items-start gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                                <span>•</span>
-                                <span>{tip}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+      <section className="grid gap-3 md:grid-cols-2 mb-8">
+        {STEPS.map((step, index) => (
+          <Link key={step.title} href={step.href} className="rounded-2xl border p-4 transition-all hover:border-[var(--accent)]" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>
+                <step.icon size={18} />
               </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold mb-1" style={{ color: "var(--accent)" }}>ขั้นตอนที่ {index + 1}</div>
+                <h2 className="text-base font-bold" style={{ color: "var(--text)" }}>{step.title}</h2>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>{step.desc}</p>
+              </div>
+            </div>
+            <ul className="mt-4 space-y-1.5">
+              {step.details.map((detail) => (
+                <li key={detail} className="flex items-start gap-2 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                  <CheckCircle2 size={13} className="mt-0.5 flex-shrink-0" style={{ color: "var(--accent)" }} />
+                  <span>{detail}</span>
+                </li>
+              ))}
+            </ul>
+          </Link>
+        ))}
+      </section>
+
+      <section className="rounded-2xl border p-5 mb-8" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <h2 className="text-lg font-bold mb-3" style={{ color: "var(--text)" }}>ถามอย่างไรให้แม่นขึ้น</h2>
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            { title: "ระบุเรื่อง", desc: "เช่น งาน เงิน ความรัก สอบ หรือการตัดสินใจสำคัญ" },
+            { title: "ระบุเวลา", desc: "เช่น เดือนหน้า 3 เดือนนี้ ปีนี้ หรือวันที่เกิดเหตุการณ์" },
+            { title: "ระบุบริบท", desc: "เช่น เพิ่งสอบมา กำลังสมัครงาน หรือมีภาระบ้านอยู่" },
+          ].map((item) => (
+            <div key={item.title} className="rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+              <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{item.title}</div>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-lg font-bold mb-3" style={{ color: "var(--text)" }}>คำถามที่พบบ่อย</h2>
+        <div className="space-y-2">
+          {FAQS.map((faq, index) => {
+            const open = openFaq === index;
+            return (
+              <button
+                key={faq.q}
+                type="button"
+                onClick={() => setOpenFaq(open ? null : index)}
+                className="w-full text-left rounded-2xl border p-4 transition-all"
+                style={{ borderColor: open ? "var(--accent)" : "var(--border)", background: "var(--card)" }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{faq.q}</div>
+                  <span style={{ color: "var(--text-muted)" }}>{open ? "−" : "+"}</span>
+                </div>
+                {open && <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--text-muted)" }}>{faq.a}</p>}
+              </button>
             );
           })}
         </div>
-
-        {/* FAQ */}
-        <div className="mt-12">
-          <h2 className="text-xl font-bold mb-6 text-center" style={{ color: "var(--text)" }}>คำถามที่พบบ่อย</h2>
-          <div className="space-y-3">
-            {[
-              { q: "ต้องเสียเงินเท่าไหร่?", a: "เริ่มต้นที่แพ็กเกจ Starter 790 บาท/เดือน พร้อมค่า AI เริ่มต้นไม่ถึง 5 บาท/ครั้งประชุม ดูรายละเอียดที่หน้าแพ็กเกจ หรือติดต่อเรา" },
-              { q: "ข้อมูลลูกค้าจะหลุดไหม?", a: "ข้อมูลเก็บในเซิร์ฟเวอร์ของคุณเอง เข้ารหัส AES-256 ไม่ส่งขึ้น cloud ไม่แชร์กับบุคคลที่สาม" },
-              { q: "ต้องเก่งคอมพิวเตอร์ไหม?", a: "ไม่ต้องเลย — แค่พิมพ์คำถามเป็นภาษาไทยธรรมดา AI จะเข้าใจบริบทบัญชีและตอบให้" },
-              { q: "ใช้กับลูกค้าหลายรายได้ไหม?", a: "ได้ — สร้าง Agent set ต่างกันตาม scope งาน หรือตั้งค่าข้อมูลบริษัทใหม่ได้เสมอ" },
-              { q: "รองรับไฟล์อะไรบ้าง?", a: "Excel (.xlsx/.xls), PDF, Word (.docx), Text (.txt/.md), CSV, JSON — อัพโหลดได้ทั้งในห้องประชุมและฐานความรู้ Agent" },
-              { q: "เลือก AI ระดับไหนดี?", a: "ระบบจะเลือกระดับที่เหมาะสมตามประเภทงาน งานทั่วไปใช้ระดับเร็วและประหยัด ส่วนงานซับซ้อนใช้ระดับละเอียดและแม่นยำกว่า" },
-            ].map((faq, i) => {
-              const open = expandedFaqs.has(i);
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => {
-                    setExpandedFaqs((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(i)) next.delete(i); else next.add(i);
-                      return next;
-                    });
-                  }}
-                  className="w-full text-left rounded-xl p-4 border transition-all"
-                  style={{ background: "var(--card)", borderColor: open ? "var(--accent)" : "var(--border)" }}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-bold text-sm" style={{ color: "var(--text)" }}>{faq.q}</p>
-                    <span className="text-sm flex-shrink-0" style={{ color: "var(--text-muted)", transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
-                  </div>
-                  {open && (
-                    <p className="text-xs leading-relaxed mt-2" style={{ color: "var(--text-muted)" }}>{faq.a}</p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Glossary link */}
-        <div className="mt-8 text-center">
-          <Link href="/glossary" className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80" style={{ color: "var(--accent)" }}>
-            📖 ดูคำศัพท์ทั้งหมด (AI / บัญชี / ภาษี)
-          </Link>
-        </div>
-
-        {/* CTA */}
-        <div className="mt-12 text-center">
-          <a href="https://line.me/ti/p/@ledgio" target="_blank" rel="noopener noreferrer" className="inline-block px-8 py-3 rounded-lg font-bold text-sm transition-colors" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
-            ติดต่อนัดทดลองใช้
-          </a>
-          <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
-            มีปัญหาหรือข้อสงสัย? ติดต่อ Line @ledgio
-          </p>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

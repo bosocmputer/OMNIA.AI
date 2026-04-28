@@ -13,7 +13,6 @@ import {
   ChevronRight,
   Menu,
   X,
-  Award,
   BookOpen,
   Star,
   LogOut,
@@ -44,22 +43,17 @@ const NAV_ITEMS: NavGroup[] = [
     group: "ดูดวง",
     items: [
       { href: "/research", icon: MessageSquare, labelKey: "nav.research" },
-    ],
-  },
-  {
-    group: "โปรไฟล์",
-    items: [
       { href: "/profile", icon: UserCircle, labelKey: "nav.profile" },
     ],
   },
   {
-    group: "จัดการ",
+    group: "หมอดู",
     items: [
       { href: "/agents", icon: Users, labelKey: "nav.teamAgents" },
     ],
   },
   {
-    group: "ตั้งค่า",
+    group: "ช่วยเหลือ",
     items: [
       { href: "/guide", icon: BookOpen, labelKey: "nav.guide" },
       { href: "/upgrade", icon: Star, labelKey: "nav.upgrade" },
@@ -238,19 +232,10 @@ export function Sidebar() {
                 {renderNavItems(() => setMobileMenuOpen(false))}
               </nav>
               <div className="sidebar-footer">
-                <Link
-                  href="/benefits"
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)]"
-                  style={{ color: "var(--text-muted)" }}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Award size={14} />
-                  {t("nav.benefits")}
-                </Link>
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)] mt-1"
+                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)]"
                 >
                   <LogOut size={14} />
                   ออกจากระบบ
@@ -316,17 +301,10 @@ export function Sidebar() {
         {/* Footer */}
         {!collapsed && (
           <div className="sidebar-footer">
-            <Link
-              href="/benefits"
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)]"
-            >
-              <Award size={14} />
-              {t("nav.benefits")}
-            </Link>
             <button
               type="button"
               onClick={handleLogout}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)] mt-1"
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)]"
             >
               <LogOut size={14} />
               ออกจากระบบ

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { showToast } from "../components/Toast";
 import Tooltip from "../components/Tooltip";
 import { GLOSSARY } from "@/lib/glossary";
@@ -178,6 +179,7 @@ const EMPTY_FORM = {
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingIsSystem, setEditingIsSystem] = useState(false);
@@ -218,6 +220,20 @@ export default function AgentsPage() {
   }, []);
 
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
+  useEffect(() => {
+    fetch("/api/auth/me").then((r) => r.json()).then((d) => setUserRole(d.role ?? null)).catch(() => {});
+  }, []);
+
+  const isAdmin = userRole === "admin";
+
+  const publicDesc = (agent: Agent) => {
+    if (agent.role.includes("BaZi") || agent.name.includes("ซือฝู่")) return "อ่านสมดุลชีวิต นิสัยการตัดสินใจ และวิธีปรับตัวให้จังหวะราบรื่นขึ้น";
+    if (agent.role.includes("ยูเรเนียน") || agent.name.includes("เทพฤทธิ์")) return "เด่นเรื่องหน้าต่างเวลา สัญญาณเปลี่ยนแปลง และสิ่งที่ควรจับตา";
+    if (agent.role.includes("เลข") || agent.name.includes("ศักดา")) return "ช่วยจับจังหวะสั้น ๆ งาน เงิน ความรัก และทางเลือกที่ควรทำก่อน";
+    if (agent.role.includes("ทักษา") || agent.name.includes("นิรันดร์")) return "แปลอายุจรเป็นคำแนะนำ 7/30/90 วัน เหมาะกับคนอยากได้แผนต่อ";
+    if (agent.role.includes("ไทย") || agent.name.includes("วิมล")) return "อ่านแกนชีวิต จังหวะใหญ่ และความมั่นคงจากพื้นดวงแบบไทย";
+    return agent.role || "หมอดูประจำสภา OMNIA.AI";
+  };
 
   useEffect(() => {
     fetch("/api/team-models?provider=openrouter")
@@ -459,12 +475,13 @@ export default function AgentsPage() {
         <div className="flex items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "var(--text)" }}>
-              สภาโหราจารย์
+              หมอดูของ OMNIA.AI
             </h1>
             <p className="text-xs sm:text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-              ดูบทบาทของโหราจารย์แต่ละท่าน เปิด/ปิดสมาชิก และเพิ่มผู้เชี่ยวชาญเฉพาะทางได้เมื่อจำเป็น
+              เลือกดูบุคลิกและความถนัดของแต่ละศาสตร์ ก่อนเปิดห้องดูดวงหรือถามหมอดูเฉพาะท่าน
             </p>
           </div>
+          {isAdmin && (
           <div className="flex items-center gap-2">
             <button
               onClick={openCreate}
@@ -474,6 +491,7 @@ export default function AgentsPage() {
               + เพิ่มโหราจารย์
             </button>
           </div>
+          )}
         </div>
 
         {/* Agent List */}
@@ -498,15 +516,18 @@ export default function AgentsPage() {
                     {agent.isSystem && (
                       <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>ระบบ</span>
                     )}
-                    <span className="px-2 py-0.5 rounded text-xs border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-                      {agent.role}
-                    </span>
-                    {!agent.hasApiKey && (
+                    {isAdmin && (
+                      <span className="px-2 py-0.5 rounded text-xs border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+                        {agent.role}
+                      </span>
+                    )}
+                    {isAdmin && !agent.hasApiKey && (
                       <span className="px-2 py-0.5 rounded text-xs bg-red-500/20 text-red-400 border border-red-500/30">
                         No API Key
                       </span>
                     )}
                   </div>
+                  {isAdmin ? (
                   <div className="text-xs mt-1 flex items-center gap-2 flex-wrap" style={{ color: "var(--text-muted)" }}>
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px]" style={{ borderColor: "var(--border)" }}>
                       {agent.model.split("/").pop()}
@@ -530,8 +551,13 @@ export default function AgentsPage() {
                       </Tooltip>
                     )}
                   </div>
+                  ) : (
+                    <div className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                      {publicDesc(agent)}
+                    </div>
+                  )}
                   {/* Health indicators */}
-                  {agent.active && (!agent.useWebSearch || !agent.trustedUrls?.length) && (
+                  {isAdmin && agent.active && (!agent.useWebSearch || !agent.trustedUrls?.length) && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {!agent.useWebSearch && (
                         <span className="text-[11px] px-1.5 py-0.5 rounded border border-orange-500/30 bg-orange-500/10 text-orange-400">ค้นเว็บปิดอยู่</span>
@@ -541,7 +567,7 @@ export default function AgentsPage() {
                       )}
                     </div>
                   )}
-                  {agent.skills && agent.skills.length > 0 && (
+                  {isAdmin && agent.skills && agent.skills.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {agent.skills.map((s) => {
                         const skill = ALL_SKILLS.find((sk) => sk.id === s);
@@ -553,11 +579,20 @@ export default function AgentsPage() {
                       })}
                     </div>
                   )}
-                  <div className="text-xs mt-2 line-clamp-2" style={{ color: "var(--text-muted)" }}>
+                  {isAdmin && <div className="text-xs mt-2 line-clamp-2" style={{ color: "var(--text-muted)" }}>
                     {agent.soul}
-                  </div>
+                  </div>}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                  {!isAdmin && (
+                  <Link
+                    href={`/research?agentId=${agent.id}`}
+                    className="px-3 py-2 sm:py-1 rounded text-xs border transition-all"
+                    style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+                  >
+                    เลือกไปดูดวง
+                  </Link>
+                  )}
                   <a
                     href={`/chat/${agent.id}`}
                     className="px-3 py-2 sm:py-1 rounded text-xs border transition-all"
@@ -566,6 +601,8 @@ export default function AgentsPage() {
                   >
                     💬 ถามด่วน
                   </a>
+                  {isAdmin && (
+                  <>
                   <button
                     onClick={() => openKnowledge(agent)}
                     className="px-3 py-2 sm:py-1 rounded text-xs border transition-all"
@@ -590,7 +627,9 @@ export default function AgentsPage() {
                   >
                     Edit
                   </button>
-                  {!agent.isSystem && (
+                  </>
+                  )}
+                  {isAdmin && !agent.isSystem && (
                     deleteConfirm === agent.id ? (
                       <>
                         <button onClick={() => handleDelete(agent.id)} className="px-3 py-2 sm:py-1 rounded text-xs bg-red-500/20 text-red-400 border border-red-500/30">Confirm</button>
