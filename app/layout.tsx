@@ -8,6 +8,11 @@ import { headers } from "next/headers";
 export const metadata: Metadata = {
   title: "OMNIA.AI — ที่ปรึกษาพยากรณ์ AI",
   description: "รวมทุกศาสตร์พยากรณ์ไว้ในที่เดียว — ขับเคลื่อนด้วย Collaborative AI | OMNIA.AI",
+  icons: {
+    icon: [{ url: "/assets/logo/TITLELOGO.svg", type: "image/svg+xml" }],
+    shortcut: [{ url: "/assets/logo/TITLELOGO.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/assets/logo/TITLELOGO.png", sizes: "300x300", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {

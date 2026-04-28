@@ -67,7 +67,7 @@ function LoginForm() {
             src="/assets/logo/TITLELOGO.svg"
             alt="OMNIA.AI"
             className="w-auto object-contain drop-shadow-lg"
-            style={{ height: "clamp(72px, 16vw, 110px)" }}
+            style={{ height: "clamp(84px, 17vw, 126px)" }}
           />
           <div className="text-center">
             <div className="flex items-center justify-center gap-2">

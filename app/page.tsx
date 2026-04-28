@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Clock,
   MessageSquare,
-  Sparkles,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -132,8 +131,10 @@ export default function DashboardPage() {
       <section className="mb-6 rounded-2xl border p-5 md:p-7" style={{ borderColor: "var(--border)", background: "linear-gradient(135deg, var(--card), var(--surface))" }}>
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold mb-3" style={{ color: "var(--accent)" }}>
-              <Sparkles size={14} /> OMNIA.AI
+            <div className="inline-flex items-center gap-3 text-xs font-semibold mb-3" style={{ color: "var(--accent)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-16 h-16 object-contain drop-shadow" />
+              <span>OMNIA.AI</span>
             </div>
             <h1 className="text-2xl md:text-4xl font-bold leading-tight" style={{ color: "var(--text)" }}>
               เปิดสภาโหราจารย์ แล้วถามเรื่องชีวิตที่อยากรู้

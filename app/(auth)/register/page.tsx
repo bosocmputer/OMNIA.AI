@@ -73,7 +73,7 @@ export default function RegisterPage() {
             src="/assets/logo/TITLELOGO.svg"
             alt="OMNIA.AI"
             className="w-auto object-contain drop-shadow-lg"
-            style={{ height: "clamp(56px, 12vw, 80px)" }}
+            style={{ height: "clamp(68px, 13vw, 96px)" }}
           />
           <div className="text-center">
             <div className="flex items-center justify-center gap-1">

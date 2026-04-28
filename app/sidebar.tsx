@@ -193,9 +193,9 @@ export function Sidebar() {
             </button>
             <Link href="/" className="flex items-center gap-2 min-w-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-7 h-7 object-contain flex-shrink-0" />
+              <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-10 h-10 object-contain flex-shrink-0 drop-shadow" />
               <div className="min-w-0">
-                <div className="text-xs font-bold tracking-wide truncate" style={{ color: "var(--text)" }}>OMNIA.AI</div>
+                <div className="text-sm font-bold tracking-wide truncate" style={{ color: "var(--text)" }}>OMNIA.AI</div>
                 <div className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>
                   {mobileCurrent ? t(mobileCurrent.labelKey) : "ดูดวง AI"}
                 </div>
@@ -254,7 +254,7 @@ export function Sidebar() {
             <div className="flex flex-col items-center gap-3">
               <Link href="/">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-8 h-8 object-contain" />
+                <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-11 h-11 object-contain drop-shadow" />
               </Link>
               <button
                 onClick={() => setCollapsed(false)}
@@ -268,11 +268,11 @@ export function Sidebar() {
           ) : (
             <div>
               <div className="flex items-center justify-between">
-                <Link href="/" className="flex items-center gap-2.5">
+                <Link href="/" className="flex items-center gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-9 h-9 object-contain flex-shrink-0" />
+                  <img src="/assets/logo/TITLELOGO.svg" alt="OMNIA.AI" className="w-12 h-12 object-contain flex-shrink-0 drop-shadow" />
                   <div>
-                    <div className="text-sm font-bold tracking-wide" style={{ color: "var(--text)" }}>OMNIA.AI</div>
+                    <div className="text-base font-bold tracking-wide" style={{ color: "var(--text)" }}>OMNIA.AI</div>
                     <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>ที่ปรึกษาพยากรณ์ AI</div>
                   </div>
                 </Link>
