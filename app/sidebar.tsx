@@ -19,6 +19,7 @@ import {
   UserCog,
   UserCircle,
   MessageSquareText,
+  BarChart3,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -171,6 +172,7 @@ export function Sidebar() {
             <div className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Admin</div>
           )}
           <div className="space-y-0.5">
+            {renderNavLink("/admin/analytics", <BarChart3 size={20} strokeWidth={isActive("/admin/analytics") ? 2.2 : 1.8} style={{ color: isActive("/admin/analytics") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "Analytics", onNavigate)}
             {renderNavLink("/admin/users", <UserCog size={20} strokeWidth={isActive("/admin/users") ? 2.2 : 1.8} style={{ color: isActive("/admin/users") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "จัดการผู้ใช้", onNavigate)}
             {renderNavLink("/admin/feedback", <MessageSquareText size={20} strokeWidth={isActive("/admin/feedback") ? 2.2 : 1.8} style={{ color: isActive("/admin/feedback") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "Feedback คำทำนาย", onNavigate)}
           </div>
