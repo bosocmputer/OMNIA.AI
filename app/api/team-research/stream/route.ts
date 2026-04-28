@@ -677,6 +677,41 @@ function getAstroRoleFocus(role: string): string {
   return "";
 }
 
+function getAstroMethodSignature(role: string): string {
+  const lower = role.toLowerCase();
+  if (lower.includes("โหรไทย") || lower.includes("จักรทีปนี")) {
+    return `\n\n🧭 ลายเซ็นคำตอบของคุณ:
+- ต้องมองผ่าน "วันเกิด + อายุจร + จังหวะใหญ่" เป็นหลัก ไม่ใช้เลขชีวิตหรือธาตุเป็นแกน
+- ให้แยกน้ำหนักเป็น แรงหนุน / แรงกด / ทางรักษาจังหวะ อย่างน้อยอย่างละ 1 จุด
+- ตัวอย่างที่ยกต้องเกี่ยวกับบทบาท หน้าที่ ผู้ใหญ่ ครอบครัว หรือความมั่นคงตามคำถามจริง`;
+  }
+  if (lower.includes("bazi") || lower.includes("สี่เสา") || lower.includes("ธาตุ")) {
+    return `\n\n🧭 ลายเซ็นคำตอบของคุณ:
+- ต้องแปลเป็นสูตร "สมดุลที่เห็น → พฤติกรรมที่เกิด → วิธีปรับ" ไม่ใช่ทำนายลอย ๆ
+- ใช้ภาษาธาตุเชิงสัญลักษณ์เท่านั้นถ้าระบบไม่ได้คำนวณเสาเต็ม ห้ามฟันธง Day Master/ธาตุแข็งอ่อน
+- ตัวอย่างที่ยกควรเกี่ยวกับสภาพแวดล้อม วิธีทำงาน จังหวะเร่ง/ผ่อน หรือการจัดพลังงานชีวิต`;
+  }
+  if (lower.includes("เลข") || lower.includes("7 ตัว") || lower.includes("ฐาน")) {
+    return `\n\n🧭 ลายเซ็นคำตอบของคุณ:
+- ต้องแสดงเลขที่ใช้ทักแบบตรวจสอบได้สั้น ๆ เช่น เลขวันเกิด/เลขเส้นชีวิต/เลขปีส่วนตัวที่ระบบให้
+- คำแนะนำต้องออกมาเป็น ทำ / เลี่ยง / รอ / เตรียม อย่างชัดเจน
+- ตัวอย่างที่ยกควรเป็นสถานการณ์เฉียด ๆ การตัดสินใจ การเงินรายจ่าย หรือจังหวะลงมือระยะสั้น`;
+  }
+  if (lower.includes("ยูเรเนียน") || lower.includes("midpoint") || lower.includes("ดาว")) {
+    return `\n\n🧭 ลายเซ็นคำตอบของคุณ:
+- ต้องตอบแบบจับ "สัญญาณเปลี่ยนแปลง + หน้าต่างเวลา + ความเสี่ยงที่ต้องเฝ้าดู"
+- ถ้าไม่มี ephemeris ห้ามใส่องศาดาวหรือ midpoint แม่นยำ ให้ใช้คำว่า "สัญญาณโดยประมาณจากข้อมูลที่มี"
+- ตัวอย่างที่ยกควรเป็นข่าว/สัญญาณ/ความเคลื่อนไหวที่เริ่มเกิดก่อนผลจริง`;
+  }
+  if (lower.includes("ทักษา") || lower.includes("ทักษาจร")) {
+    return `\n\n🧭 ลายเซ็นคำตอบของคุณ:
+- ต้องใช้ "วันเกิด + อายุจร/ปีจร" แปลเป็นสิ่งที่ควรเริ่มก่อน
+- คำแนะนำต้องมีลักษณะ roadmap และตอบว่าขั้นต่อไปควรทำอะไร ไม่ใช่แค่ทาย
+- ตัวอย่างที่ยกควรเกี่ยวกับคนช่วย คนติดขัด เอกสาร การติดต่อ หรือจังหวะเริ่มแผนใหม่`;
+  }
+  return "";
+}
+
 function sseEvent(encoder: TextEncoder, event: string, data: unknown): Uint8Array {
   return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
@@ -1138,14 +1173,14 @@ export async function POST(req: NextRequest) {
             if (sources.length > 0) send("web_sources", { agentId: agent.id, sources });
           }
 
-          const roleInstruction = `คุณคือหมอดูสาย ${agent.role} กำลังดูดวงให้ผู้ถามแบบตัวต่อตัว ให้ตอบจากศาสตร์ของคุณโดยตรง${getAstroRoleFocus(agent.role)}`;
+          const roleInstruction = `คุณคือหมอดูสาย ${agent.role} กำลังดูดวงให้ผู้ถามแบบตัวต่อตัว ให้ตอบจากศาสตร์ของคุณโดยตรง${getAstroRoleFocus(agent.role)}${getAstroMethodSignature(agent.role)}`;
 
           const knowledgeContext = await getAgentKnowledgeContent(agent.id, question);
           const agentVoice = getAgentVoice(agent.role);
           const result = await callLLMWithRetry(agent.provider, agent.model, apiKey, agent.baseUrl, [
             {
               role: "system",
-              content: `${companyContext}${memoryContext}${agent.soul}${agentVoice}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
+              content: `${companyContext}${memoryContext}${agent.soul}${agentVoice}${getAstroMethodSignature(agent.role)}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}`,
             },
             {
               role: "user",

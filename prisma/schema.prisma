@@ -128,6 +128,25 @@ model ResearchMessage {
   @@map("research_messages")
 }
 
+model ReadingFeedback {
+  id            String   @id
+  userId        String?  @map("user_id")
+  username      String?
+  sessionId     String?  @map("session_id")
+  question      String?  @db.Text
+  scope         String   @db.Text
+  value         String   @db.VarChar(40)
+  profileId     String?  @map("profile_id")
+  agentIds      String?  @map("agent_ids") @db.Text
+  answerExcerpt String?  @map("answer_excerpt") @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("reading_feedback")
+}
+
 model AgentStat {
   agentId           String @id
   totalSessions     Int    @default(0)

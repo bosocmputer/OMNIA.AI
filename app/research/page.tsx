@@ -389,7 +389,21 @@ function ResultActions({
   );
 }
 
-function ReadingFeedback({ scope }: { scope: string }) {
+function ReadingFeedback({
+  scope,
+  sessionId,
+  question,
+  profileId,
+  agentIds,
+  answerExcerpt,
+}: {
+  scope: string;
+  sessionId?: string | null;
+  question?: string;
+  profileId?: string | null;
+  agentIds?: string[];
+  answerExcerpt?: string;
+}) {
   const [selected, setSelected] = useState<string | null>(null);
   const options = [
     { id: "accurate", label: "แม่น", icon: "✓" },
@@ -400,14 +414,28 @@ function ReadingFeedback({ scope }: { scope: string }) {
 
   const saveFeedback = (value: string) => {
     setSelected(value);
+    const timestamp = new Date().toISOString();
     try {
       const key = "omnia_reading_feedback";
       const prev = JSON.parse(localStorage.getItem(key) || "[]");
       localStorage.setItem(key, JSON.stringify([
         ...prev.slice(-49),
-        { scope, value, timestamp: new Date().toISOString() },
+        { scope, value, sessionId, question, timestamp },
       ]));
     } catch { /* ignore */ }
+    fetch("/api/reading-feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scope,
+        value,
+        sessionId,
+        question,
+        profileId,
+        agentIds,
+        answerExcerpt: answerExcerpt?.slice(0, 1200),
+      }),
+    }).catch(() => {});
     showToast("success", "ขอบคุณครับ รับ feedback แล้ว");
   };
 
@@ -2107,7 +2135,14 @@ export default function ResearchPage() {
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{(viewingSession.agentIds?.length ?? 0) <= 1 ? <MessageSquare size={16} /> : <Building2 size={16} />} {(viewingSession.agentIds?.length ?? 0) <= 1 ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
                       <AnswerSnapshot content={viewingSession.finalAnswer} />
                       <MessageContent content={viewingSession.finalAnswer} />
-                      <ReadingFeedback scope={`history:${viewingSession.id}`} />
+                      <ReadingFeedback
+                        scope={`history:${viewingSession.id}`}
+                        sessionId={viewingSession.id}
+                        question={viewingSession.question}
+                        profileId={selectedBirthProfileId}
+                        agentIds={viewingSession.agentIds}
+                        answerExcerpt={viewingSession.finalAnswer}
+                      />
                       <ResultActions
                         onAskMore={focusQuestionInput}
                         onNewTopic={handleConfirmClear}
@@ -2275,7 +2310,14 @@ export default function ResearchPage() {
                       <div className="mt-3 pt-3 border-t text-[11px] leading-relaxed flex items-start gap-1" style={{ borderColor: "var(--accent-20)", color: "var(--text-muted)" }}>
                         <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" /> คำทำนายจาก AI เป็นแนวทางประกอบการตัดสินใจ ควรใช้วิจารณญาณและดูบริบทชีวิตจริงร่วมด้วย
                       </div>
-                      <ReadingFeedback scope={`round:${roundIndex}:${round.question}`} />
+                      <ReadingFeedback
+                        scope={`round:${roundIndex}:${round.question}`}
+                        sessionId={meetingSessionId}
+                        question={round.question}
+                        profileId={selectedBirthProfileId}
+                        agentIds={Array.from(selectedIds)}
+                        answerExcerpt={round.finalAnswer}
+                      />
                       <ResultActions
                         onAskMore={focusQuestionInput}
                         onNewTopic={handleConfirmClear}
@@ -2442,7 +2484,14 @@ export default function ResearchPage() {
                           </div>
                         </div>
                       )}
-                      <ReadingFeedback scope={`current:${question || "reading"}`} />
+                      <ReadingFeedback
+                        scope={`current:${question || "reading"}`}
+                        sessionId={meetingSessionId}
+                        question={question || currentMessages.find((msg) => msg.role === "user_question")?.content}
+                        profileId={selectedBirthProfileId}
+                        agentIds={Array.from(selectedIds)}
+                        answerExcerpt={currentFinalAnswer}
+                      />
                       <ResultActions
                         onAskMore={focusQuestionInput}
                         onNewTopic={handleConfirmClear}

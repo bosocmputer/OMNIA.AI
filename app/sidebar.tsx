@@ -18,6 +18,7 @@ import {
   LogOut,
   UserCog,
   UserCircle,
+  MessageSquareText,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -171,6 +172,7 @@ export function Sidebar() {
           )}
           <div className="space-y-0.5">
             {renderNavLink("/admin/users", <UserCog size={20} strokeWidth={isActive("/admin/users") ? 2.2 : 1.8} style={{ color: isActive("/admin/users") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "จัดการผู้ใช้", onNavigate)}
+            {renderNavLink("/admin/feedback", <MessageSquareText size={20} strokeWidth={isActive("/admin/feedback") ? 2.2 : 1.8} style={{ color: isActive("/admin/feedback") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "Feedback คำทำนาย", onNavigate)}
           </div>
         </div>
       )}

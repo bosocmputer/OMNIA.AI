@@ -235,6 +235,15 @@ export default function AgentsPage() {
     return agent.role || "หมอดูประจำสภา OMNIA.AI";
   };
 
+  const publicUseCases = (agent: Agent) => {
+    if (agent.role.includes("BaZi") || agent.name.includes("ซือฝู่")) return ["นิสัยและสมดุลชีวิต", "งานที่ควรเร่ง/ผ่อน", "วิธีปรับตัว"];
+    if (agent.role.includes("ยูเรเนียน") || agent.name.includes("เทพฤทธิ์")) return ["ช่วงเวลาเปลี่ยนงาน", "ข่าวหรือสัญญาณที่ต้องจับตา", "คำถามใช่/ไม่ใช่"];
+    if (agent.role.includes("เลข") || agent.name.includes("ศักดา")) return ["ตัดสินใจเร็ว", "เงินระยะสั้น", "แผนทำ/เลี่ยง/รอ"];
+    if (agent.role.includes("ทักษา") || agent.name.includes("นิรันดร์")) return ["แผน 7/30/90 วัน", "คำถามกว้างที่ต้องหาทางเริ่ม", "อายุจร"];
+    if (agent.role.includes("ไทย") || agent.name.includes("วิมล")) return ["ภาพรวมชีวิต", "ความมั่นคง", "จังหวะใหญ่ของปี"];
+    return ["คำถามทั่วไป", "มุมเสริม", "ถามด่วน"];
+  };
+
   useEffect(() => {
     fetch("/api/team-models?provider=openrouter")
       .then((r) => r.json())
@@ -552,8 +561,22 @@ export default function AgentsPage() {
                     )}
                   </div>
                   ) : (
-                    <div className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                      {publicDesc(agent)}
+                    <div className="mt-1 space-y-2">
+                      <div className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                        {publicDesc(agent)}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>เหมาะกับ</span>
+                        {publicUseCases(agent).map((item) => (
+                          <span
+                            key={item}
+                            className="text-[11px] px-2 py-0.5 rounded-full border"
+                            style={{ borderColor: "var(--border)", color: "var(--text-muted)", background: "var(--card)" }}
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                   {/* Health indicators */}
