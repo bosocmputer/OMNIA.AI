@@ -5,6 +5,7 @@ import {
   createTopup,
   getCreditBalance,
   getReadingPrice,
+  isCreditBillingEnabled,
   listUserCreditTransactions,
   listUserTopups,
 } from "@/lib/billing";
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     balance,
     isAdmin: role === "admin",
+    billingEnabled: isCreditBillingEnabled(),
     packages: CREDIT_PACKAGES,
     readingPrice,
     transactions,

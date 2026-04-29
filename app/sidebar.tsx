@@ -84,6 +84,7 @@ export function Sidebar() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [pendingTopups, setPendingTopups] = useState(0);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [billingEnabled, setBillingEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((d) => setUserRole(d.role ?? null)).catch(() => {});
@@ -97,7 +98,10 @@ export function Sidebar() {
         const res = await fetch("/api/billing/wallet?agentCount=5");
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled) setWalletBalance(data.balance ?? 0);
+        if (!cancelled) {
+          setWalletBalance(data.balance ?? 0);
+          setBillingEnabled(!!data.billingEnabled);
+        }
       } catch {}
     };
     loadWallet();
@@ -189,8 +193,9 @@ export function Sidebar() {
 
   const renderCreditStatus = (compact = false, onNavigate?: () => void) => {
     const isAdmin = userRole === "admin";
-    const href = isAdmin ? "/admin/topups" : "/upgrade";
-    const title = isAdmin ? "Admin mode · ไม่หักเครดิต" : `เครดิตคงเหลือ ${walletBalance?.toLocaleString() ?? "..."} เครดิต`;
+    const isDemo = billingEnabled === false;
+    const href = isDemo ? "/research" : isAdmin ? "/admin/topups" : "/upgrade";
+    const title = isDemo ? "Demo mode · ถามฟรี ไม่หักเครดิต" : isAdmin ? "Admin mode · ไม่หักเครดิต" : `เครดิตคงเหลือ ${walletBalance?.toLocaleString() ?? "..."} เครดิต`;
 
     if (compact || collapsed) {
       return (
@@ -199,10 +204,10 @@ export function Sidebar() {
           onClick={onNavigate}
           title={title}
           className="relative flex h-10 w-10 items-center justify-center rounded-xl border transition-colors hover:bg-[var(--surface)]"
-          style={{ borderColor: "var(--border)", color: isAdmin ? "var(--accent)" : "var(--text-muted)" }}
+          style={{ borderColor: isDemo ? "var(--accent-25)" : "var(--border)", color: (isAdmin || isDemo) ? "var(--accent)" : "var(--text-muted)" }}
         >
           <Coins size={18} />
-          {!isAdmin && walletBalance != null && walletBalance < 59 ? (
+          {!isDemo && !isAdmin && walletBalance != null && walletBalance < 59 ? (
             <span className="absolute right-1 top-1 h-2 w-2 rounded-full" style={{ background: "var(--danger)" }} />
           ) : null}
         </Link>
@@ -221,10 +226,10 @@ export function Sidebar() {
         </span>
         <span className="min-w-0">
           <span className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
-            {isAdmin ? "Admin mode" : "Wallet"}
+            {isDemo ? "Demo mode" : isAdmin ? "Admin mode" : "Wallet"}
           </span>
           <span className="block truncate text-xs font-semibold" style={{ color: "var(--text)" }}>
-            {isAdmin ? "ไม่หักเครดิต" : `${walletBalance?.toLocaleString() ?? "..."} เครดิตคงเหลือ`}
+            {isDemo ? "ถามฟรีช่วงทดลอง" : isAdmin ? "ไม่หักเครดิต" : `${walletBalance?.toLocaleString() ?? "..."} เครดิตคงเหลือ`}
           </span>
         </span>
       </Link>

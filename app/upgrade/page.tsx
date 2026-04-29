@@ -33,6 +33,7 @@ interface ReadingPrice {
 interface WalletPayload {
   balance: number;
   isAdmin: boolean;
+  billingEnabled: boolean;
   packages: CreditPackage[];
   readingPrice: ReadingPrice;
   welcomeCredits: number;
@@ -141,10 +142,10 @@ export default function UpgradePage() {
             <Wallet size={21} />
           </div>
           <div>
-            <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>เครดิต OMNIA.AI</h1>
+            <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>{wallet?.billingEnabled === false ? "Demo mode OMNIA.AI" : "เครดิต OMNIA.AI"}</h1>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              เติมเครดิตก่อนถาม ใช้ตามจริง ไม่บังคับรายเดือน
-              {wallet?.welcomeCredits ? ` · สมาชิกใหม่ได้ ${wallet.welcomeCredits} เครดิตทดลอง` : ""}
+              {wallet?.billingEnabled === false ? "ช่วงทดลองเปิดให้ถามฟรี ยังไม่ต้องเติมเครดิต" : "เติมเครดิตก่อนถาม ใช้ตามจริง ไม่บังคับรายเดือน"}
+              {wallet?.billingEnabled !== false && wallet?.welcomeCredits ? ` · สมาชิกใหม่ได้ ${wallet.welcomeCredits} เครดิตทดลอง` : ""}
             </p>
           </div>
         </div>
@@ -153,6 +154,49 @@ export default function UpgradePage() {
           <ArrowRight size={15} />
         </Link>
       </div>
+
+      {wallet?.billingEnabled === false && (
+        <section className="rounded-3xl border p-8" style={{ borderColor: "var(--accent-30)", background: "linear-gradient(135deg, var(--surface), var(--card))" }}>
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-wider" style={{ borderColor: "var(--accent-30)", color: "var(--accent)", background: "var(--accent-8)" }}>
+              <Sparkles size={14} />
+              Demo access
+            </div>
+            <h2 className="mt-5 text-3xl font-black leading-tight" style={{ color: "var(--text)" }}>
+              ช่วง demo เปิดให้ทดลองถามฟรี
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              ระบบเครดิตและการเติมเงินถูกพักไว้ชั่วคราว เพื่อให้ผู้ใช้ทดสอบคุณภาพคำทำนายและส่ง feedback ได้เต็มที่ เมื่อพร้อมเปิดขายจริงจะกลับมาใช้แพ็กเครดิตและ PromptPay manual flow ได้ทันที
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                <div className="text-2xl font-black" style={{ color: "var(--accent)" }}>0</div>
+                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>เครดิตที่ถูกหักระหว่าง demo</div>
+              </div>
+              <div className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                <div className="text-2xl font-black" style={{ color: "var(--accent)" }}>5</div>
+                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>หมอดูพร้อมอ่านพร้อมสรุป</div>
+              </div>
+              <div className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                <div className="text-2xl font-black" style={{ color: "var(--accent)" }}>Feedback</div>
+                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>เน้นเก็บความแม่นและความรู้สึกผู้ใช้</div>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/research" className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+                เปิดห้องดูดวง
+                <ArrowRight size={16} />
+              </Link>
+              <Link href="/guide" className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold" style={{ borderColor: "var(--border)", color: "var(--text)" }}>
+                วิธีถามให้แม่นขึ้น
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {wallet?.billingEnabled === false ? null : (
+      <>
 
       <section className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
         <div className="rounded-3xl border p-6" style={{ borderColor: "var(--accent-30)", background: "linear-gradient(135deg, var(--surface), var(--card))" }}>
@@ -410,6 +454,8 @@ export default function UpgradePage() {
           <Link href="/privacy" className="font-semibold underline" style={{ color: "var(--accent)" }}>นโยบายความเป็นส่วนตัว</Link>
         </p>
       </div>
+      </>
+      )}
     </div>
   );
 }

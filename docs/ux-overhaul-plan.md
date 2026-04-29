@@ -82,13 +82,15 @@ OMNIA.AI
 - Admin mode state: superadmin ไม่หักเครดิต และใช้หน้านี้ทดสอบ customer flow
 
 ### Sidebar Credit Indicator
-- User เห็นเครดิตคงเหลือได้ทุกหน้า
+- Demo mode: User เห็น `ถามฟรีช่วงทดลอง`
+- Billing mode: User เห็นเครดิตคงเหลือได้ทุกหน้า
 - Low balance มีจุดเตือน
 - Admin เห็น `Admin mode · ไม่หักเครดิต`
 
 ### Research Composer
-- แสดงราคาคำถามตามจำนวนหมอดูที่เลือก
-- แสดงเครดิตคงเหลือก่อนกดส่ง
+- Demo mode: แสดงว่าไม่หักเครดิตช่วง demo
+- Billing mode: แสดงราคาคำถามตามจำนวนหมอดูที่เลือก
+- Billing mode: แสดงเครดิตคงเหลือก่อนกดส่ง
 - Admin เห็นว่าไม่ถูกหักเครดิต
 
 ---

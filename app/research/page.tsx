@@ -122,6 +122,7 @@ interface AttachedFile {
 interface WalletState {
   balance: number;
   isAdmin?: boolean;
+  billingEnabled?: boolean;
   readingPrice: { credits: number; label: string; desc: string };
 }
 
@@ -1016,7 +1017,7 @@ export default function ResearchPage() {
   };
 
   const hasFinalReading = () => rounds.some((r) => !r.isQA && (!!r.finalAnswer || r.messages.some((m) => m.role === "synthesis")));
-  const walletIsLow = wallet ? !wallet.isAdmin && wallet.balance < wallet.readingPrice.credits : false;
+  const walletIsLow = wallet ? wallet.billingEnabled !== false && !wallet.isAdmin && wallet.balance < wallet.readingPrice.credits : false;
 
   const refreshWallet = useCallback(async (): Promise<WalletState | null> => {
     try {
@@ -1027,7 +1028,7 @@ export default function ResearchPage() {
       const res = await fetch(`/api/billing/wallet?${params.toString()}`);
       if (!res.ok) return null;
       const data = await res.json();
-      const nextWallet = { balance: data.balance ?? 0, isAdmin: !!data.isAdmin, readingPrice: data.readingPrice };
+      const nextWallet = { balance: data.balance ?? 0, isAdmin: !!data.isAdmin, billingEnabled: !!data.billingEnabled, readingPrice: data.readingPrice };
       setWallet(nextWallet);
       return nextWallet;
     } catch {
@@ -2716,10 +2717,10 @@ export default function ResearchPage() {
                                 background: walletIsLow ? "var(--danger-8)" : "var(--accent-8)",
                               }}
                             >
-                              {wallet.isAdmin ? "Admin · ไม่หักเครดิต" : `เครดิต ${wallet.balance.toLocaleString()}`}
+                              {wallet.billingEnabled === false ? "Demo · ถามฟรี" : wallet.isAdmin ? "Admin · ไม่หักเครดิต" : `เครดิต ${wallet.balance.toLocaleString()}`}
                             </span>
                             <span className="inline-flex rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-                              {wallet.isAdmin ? "ทดสอบ flow ลูกค้าได้" : `${wallet.readingPrice.label} ${wallet.readingPrice.credits} cr`}
+                              {wallet.billingEnabled === false ? "ไม่หักเครดิตช่วง demo" : wallet.isAdmin ? "ทดสอบ flow ลูกค้าได้" : `${wallet.readingPrice.label} ${wallet.readingPrice.credits} cr`}
                             </span>
                           </>
                         )}
@@ -2770,7 +2771,7 @@ export default function ResearchPage() {
                         หมอดู {selectedIds.size}/{agents.length} ท่าน
                         {wallet && (
                           <span>
-                            {wallet.isAdmin ? " · Admin ไม่หักเครดิต" : ` · ใช้ ${wallet.readingPrice.credits} เครดิต`}
+                            {wallet.billingEnabled === false ? " · Demo ถามฟรี" : wallet.isAdmin ? " · Admin ไม่หักเครดิต" : ` · ใช้ ${wallet.readingPrice.credits} เครดิต`}
                           </span>
                         )}
                         {walletIsLow && (

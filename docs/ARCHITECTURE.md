@@ -141,12 +141,13 @@ POST /api/team-research/stream
 
 ```
 GET /api/billing/wallet
-  → returns balance, readingPrice, packages, topups, transactions, isAdmin
+  → returns balance, readingPrice, packages, topups, transactions, isAdmin, billingEnabled
 
 POST /api/team-research/stream
-  → if x-user-role !== "admin" and mode !== "close"
+  → if CREDIT_BILLING_ENABLED=true and x-user-role !== "admin" and mode !== "close"
       chargeCredits(userId, sessionId, agentCount)
-  → admin/superadmin bypass credit charge server-side
+  → demo default: billing disabled, all users can test without credit charge
+  → admin/superadmin always bypass credit charge server-side
 
 POST /api/billing/wallet
   → create pending PromptPay top-up
@@ -156,7 +157,7 @@ POST /api/admin/topups
   → approved top-up creates credit transaction
 ```
 
-Credit visibility is shown in the sidebar and `/research` composer so users can see remaining credits and current reading price before asking.
+When billing is disabled, UI shows `Demo mode · ถามฟรี` in the sidebar and `/research` composer. When billing is enabled, credit visibility is shown in the sidebar and `/research` composer so users can see remaining credits and current reading price before asking.
 
 ---
 

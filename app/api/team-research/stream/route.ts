@@ -19,7 +19,7 @@ import {
 import { getDomainKnowledge, isDomainQuestion } from "@/lib/domain-knowledge";
 import { rateLimit, getClientIp } from "@/lib/rate-limit-redis";
 import { buildBirthFacts } from "@/lib/astro-birth-facts";
-import { chargeCredits, getCreditBalance, getReadingPrice } from "@/lib/billing";
+import { chargeCredits, getCreditBalance, getReadingPrice, isCreditBillingEnabled } from "@/lib/billing";
 import crypto from "crypto";
 
 // Max request body size (100KB — questions + history + file contexts)
@@ -841,7 +841,8 @@ export async function POST(req: NextRequest) {
     }), { status: 400 });
   }
 
-  if (userRole !== "admin" && mode !== "close") {
+  const billingEnabled = isCreditBillingEnabled();
+  if (billingEnabled && userRole !== "admin" && mode !== "close") {
     const price = getReadingPrice(selectedAgents.length, existingSessionId);
     const charge = await chargeCredits(userId, price.credits, existingSessionId || crypto.randomUUID(), {
       question: question.slice(0, 200),
@@ -857,7 +858,7 @@ export async function POST(req: NextRequest) {
         balance: charge.balance,
       }), { status: 402 });
     }
-  } else if (userRole !== "admin" && mode === "close") {
+  } else if (billingEnabled && userRole !== "admin" && mode === "close") {
     const balance = await getCreditBalance(userId);
     if (balance < 0) {
       return new Response(JSON.stringify({ error: "เครดิตไม่พอ", code: "INSUFFICIENT_CREDITS", balance }), { status: 402 });

@@ -14,6 +14,11 @@ export const READING_PRICES = {
 } as const;
 
 export const WELCOME_CREDITS = Number(process.env.WELCOME_CREDITS || 29);
+export const CREDIT_BILLING_ENABLED = process.env.CREDIT_BILLING_ENABLED === "true";
+
+export function isCreditBillingEnabled() {
+  return CREDIT_BILLING_ENABLED;
+}
 
 export type CreditTopupStatus = "pending" | "approved" | "rejected";
 
