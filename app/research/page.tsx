@@ -119,6 +119,11 @@ interface AttachedFile {
   selectedSheets?: string[]; // sheets to inject
 }
 
+interface WalletState {
+  balance: number;
+  readingPrice: { credits: number; label: string; desc: string };
+}
+
 const SUPPORTED_EXTENSIONS = [
   ".pdf",
   ".docx", ".doc",
@@ -701,6 +706,7 @@ export default function ResearchPage() {
   const [totalSessionCount, setTotalSessionCount] = useState(0);
   const [viewingSession, setViewingSession] = useState<ServerSession | null>(null);
   const [historyTab, setHistoryTab] = useState<"current" | "history">("current");
+  const [wallet, setWallet] = useState<WalletState | null>(null);
 
   const [autoScroll, setAutoScroll] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -1003,6 +1009,24 @@ export default function ResearchPage() {
   };
 
   const hasFinalReading = () => rounds.some((r) => !r.isQA && (!!r.finalAnswer || r.messages.some((m) => m.role === "synthesis")));
+  const walletIsLow = wallet ? wallet.balance < wallet.readingPrice.credits : false;
+
+  const refreshWallet = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({
+        agentCount: String(Math.max(1, selectedIds.size)),
+      });
+      if (meetingSessionIdRef.current) params.set("sessionId", meetingSessionIdRef.current);
+      const res = await fetch(`/api/billing/wallet?${params.toString()}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setWallet({ balance: data.balance ?? 0, readingPrice: data.readingPrice });
+    } catch {
+      // Wallet is an upsell surface; reading still relies on server-side enforcement.
+    }
+  }, [selectedIds.size]);
+
+  useEffect(() => { refreshWallet(); }, [refreshWallet, meetingSessionId]);
 
   const handleRun = async (overrideQuestion?: string, closeMode = false, withClarificationAnswers?: { question: string; answer: string }[]) => {
     const q = closeMode
@@ -1099,8 +1123,18 @@ export default function ResearchPage() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        if (res.status === 402 || errorData.code === "INSUFFICIENT_CREDITS") {
+          showToast("warning", `${errorData.error || "เครดิตไม่พอ"} — เติมเครดิตก่อนถามต่อ`);
+          setRunning(false);
+          setStatus("");
+          setQuestion(q);
+          await refreshWallet();
+          window.location.href = "/upgrade";
+          return;
+        }
         throw new Error(errorData.error || `HTTP ${res.status}`);
       }
+      await refreshWallet();
       if (!res.body) throw new Error("No response body");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -2625,9 +2659,28 @@ export default function ResearchPage() {
                       </div>
                     </div>
                     {selectedIds.size > 0 && (
-                      <span className="hidden sm:inline-flex rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-                        สภา {selectedIds.size} ท่านพร้อมอ่าน
-                      </span>
+                      <div className="hidden sm:flex items-center gap-2">
+                        {wallet && (
+                          <>
+                            <span
+                              className="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                              style={{
+                                borderColor: walletIsLow ? "var(--danger-40)" : "var(--accent-30)",
+                                color: walletIsLow ? "var(--danger)" : "var(--accent)",
+                                background: walletIsLow ? "var(--danger-8)" : "var(--accent-8)",
+                              }}
+                            >
+                              เครดิต {wallet.balance.toLocaleString()}
+                            </span>
+                            <span className="inline-flex rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+                              {wallet.readingPrice.label} {wallet.readingPrice.credits} cr
+                            </span>
+                          </>
+                        )}
+                        <span className="inline-flex rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+                          สภา {selectedIds.size} ท่านพร้อมอ่าน
+                        </span>
+                      </div>
                     )}
                   </div>
                   <textarea
@@ -2669,6 +2722,12 @@ export default function ResearchPage() {
                         {meetingSessionId && effectiveMode !== "qa" && <span className="inline-flex items-center gap-1 mr-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />ดูดวงอยู่ {elapsedTime > 0 && <span className="font-mono">{Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, "0")}</span>} · </span>}
                         {rounds.length > 0 && <span style={{ color: "var(--accent)" }}>{rounds.length} คำถาม · </span>}
                         หมอดู {selectedIds.size}/{agents.length} ท่าน
+                        {wallet && <span> · ใช้ {wallet.readingPrice.credits} เครดิต</span>}
+                        {walletIsLow && (
+                          <a href="/upgrade" className="ml-1 font-semibold underline" style={{ color: "var(--danger)" }}>
+                            เติมเครดิต
+                          </a>
+                        )}
                         {attachedFiles.length > 0 && <span className="inline-flex items-center gap-0.5"> · <Paperclip size={10} /> {attachedFiles.length}</span>}
                         {(() => {
                           const totalTk = rounds.reduce((s, r) => s + Object.values(r.agentTokens).reduce((a, t) => a + t.totalTokens, 0), 0);

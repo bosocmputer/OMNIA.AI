@@ -19,6 +19,7 @@ import {
 import { getDomainKnowledge, isDomainQuestion } from "@/lib/domain-knowledge";
 import { rateLimit, getClientIp } from "@/lib/rate-limit-redis";
 import { buildBirthFacts } from "@/lib/astro-birth-facts";
+import { chargeCredits, getCreditBalance, getReadingPrice } from "@/lib/billing";
 import crypto from "crypto";
 
 // Max request body size (100KB — questions + history + file contexts)
@@ -823,10 +824,44 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = req.headers.get("x-user-id")!;
+  const userRole = req.headers.get("x-user-role") || "user";
   const allAgents = await listAgents(userId);
   const selectedAgents = allAgents.filter((a) => agentIds.includes(a.id) && a.active);
   if (!selectedAgents.length) {
     return new Response(JSON.stringify({ error: "No active agents found" }), { status: 400 });
+  }
+  const missingApiKeyAgents = [];
+  for (const agent of selectedAgents) {
+    const apiKey = await getAgentApiKey(agent.id);
+    if (!apiKey) missingApiKeyAgents.push(agent.name);
+  }
+  if (missingApiKeyAgents.length > 0) {
+    return new Response(JSON.stringify({
+      error: `ยังไม่มี API key สำหรับ ${missingApiKeyAgents.join(", ")}`,
+    }), { status: 400 });
+  }
+
+  if (userRole !== "admin" && mode !== "close") {
+    const price = getReadingPrice(selectedAgents.length, existingSessionId);
+    const charge = await chargeCredits(userId, price.credits, existingSessionId || crypto.randomUUID(), {
+      question: question.slice(0, 200),
+      agentCount: selectedAgents.length,
+      priceLabel: price.label,
+      sessionId: existingSessionId || null,
+    });
+    if (!charge.ok) {
+      return new Response(JSON.stringify({
+        error: `เครดิตไม่พอสำหรับ${price.label} (${price.credits} เครดิต)`,
+        code: "INSUFFICIENT_CREDITS",
+        requiredCredits: price.credits,
+        balance: charge.balance,
+      }), { status: 402 });
+    }
+  } else if (userRole !== "admin" && mode === "close") {
+    const balance = await getCreditBalance(userId);
+    if (balance < 0) {
+      return new Response(JSON.stringify({ error: "เครดิตไม่พอ", code: "INSUFFICIENT_CREDITS", balance }), { status: 402 });
+    }
   }
 
   // Load web search keys from settings

@@ -1,0 +1,35 @@
+import { NextRequest, NextResponse } from "next/server";
+import { CREDIT_PACKAGES, createTopup, getCreditBalance, getReadingPrice } from "@/lib/billing";
+
+export async function GET(req: NextRequest) {
+  const userId = req.headers.get("x-user-id");
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const balance = await getCreditBalance(userId);
+  const url = new URL(req.url);
+  const agentCount = Number(url.searchParams.get("agentCount") ?? "5");
+  const sessionId = url.searchParams.get("sessionId");
+  const readingPrice = getReadingPrice(Number.isFinite(agentCount) ? agentCount : 5, sessionId);
+  return NextResponse.json({
+    balance,
+    packages: CREDIT_PACKAGES,
+    readingPrice,
+    promptPay: {
+      name: process.env.PROMPTPAY_NAME || "OMNIA.AI",
+      id: process.env.PROMPTPAY_ID || "",
+    },
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const userId = req.headers.get("x-user-id");
+  const username = req.headers.get("x-username");
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const body = await req.json().catch(() => ({}));
+  try {
+    const topup = await createTopup(userId, username, String(body.packageId || ""), String(body.transferNote || ""));
+    return NextResponse.json({ topup });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Cannot create top-up" }, { status: 400 });
+  }
+}
+
