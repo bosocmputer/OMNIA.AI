@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CREDIT_PACKAGES, createTopup, getCreditBalance, getReadingPrice } from "@/lib/billing";
+import {
+  CREDIT_PACKAGES,
+  createTopup,
+  getCreditBalance,
+  getReadingPrice,
+  listUserCreditTransactions,
+  listUserTopups,
+} from "@/lib/billing";
 
 export async function GET(req: NextRequest) {
   const userId = req.headers.get("x-user-id");
@@ -9,10 +16,16 @@ export async function GET(req: NextRequest) {
   const agentCount = Number(url.searchParams.get("agentCount") ?? "5");
   const sessionId = url.searchParams.get("sessionId");
   const readingPrice = getReadingPrice(Number.isFinite(agentCount) ? agentCount : 5, sessionId);
+  const [transactions, topups] = await Promise.all([
+    listUserCreditTransactions(userId),
+    listUserTopups(userId),
+  ]);
   return NextResponse.json({
     balance,
     packages: CREDIT_PACKAGES,
     readingPrice,
+    transactions,
+    topups,
     promptPay: {
       name: process.env.PROMPTPAY_NAME || "OMNIA.AI",
       id: process.env.PROMPTPAY_ID || "",
@@ -32,4 +45,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Cannot create top-up" }, { status: 400 });
   }
 }
-

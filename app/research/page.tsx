@@ -124,6 +124,11 @@ interface WalletState {
   readingPrice: { credits: number; label: string; desc: string };
 }
 
+interface CreditUsageState {
+  credits: number;
+  balance: number;
+}
+
 const SUPPORTED_EXTENSIONS = [
   ".pdf",
   ".docx", ".doc",
@@ -707,6 +712,7 @@ export default function ResearchPage() {
   const [viewingSession, setViewingSession] = useState<ServerSession | null>(null);
   const [historyTab, setHistoryTab] = useState<"current" | "history">("current");
   const [wallet, setWallet] = useState<WalletState | null>(null);
+  const [lastCreditUsage, setLastCreditUsage] = useState<CreditUsageState | null>(null);
 
   const [autoScroll, setAutoScroll] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -1011,18 +1017,21 @@ export default function ResearchPage() {
   const hasFinalReading = () => rounds.some((r) => !r.isQA && (!!r.finalAnswer || r.messages.some((m) => m.role === "synthesis")));
   const walletIsLow = wallet ? wallet.balance < wallet.readingPrice.credits : false;
 
-  const refreshWallet = useCallback(async () => {
+  const refreshWallet = useCallback(async (): Promise<WalletState | null> => {
     try {
       const params = new URLSearchParams({
         agentCount: String(Math.max(1, selectedIds.size)),
       });
       if (meetingSessionIdRef.current) params.set("sessionId", meetingSessionIdRef.current);
       const res = await fetch(`/api/billing/wallet?${params.toString()}`);
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const data = await res.json();
-      setWallet({ balance: data.balance ?? 0, readingPrice: data.readingPrice });
+      const nextWallet = { balance: data.balance ?? 0, readingPrice: data.readingPrice };
+      setWallet(nextWallet);
+      return nextWallet;
     } catch {
       // Wallet is an upsell surface; reading still relies on server-side enforcement.
+      return null;
     }
   }, [selectedIds.size]);
 
@@ -1050,6 +1059,8 @@ export default function ResearchPage() {
       showToast("info", "มีสรุปคำทำนายรวมแล้ว — ถามต่อได้เลยโดยไม่ต้องสรุปซ้ำ");
       return;
     }
+    setLastCreditUsage(null);
+    const balanceBeforeRun = wallet?.balance;
 
     const isQA = !closeMode && effectiveMode === "qa";
     const effectiveClarificationAnswers = withClarificationAnswers ?? buildBirthProfileAnswers(q);
@@ -1134,7 +1145,13 @@ export default function ResearchPage() {
         }
         throw new Error(errorData.error || `HTTP ${res.status}`);
       }
-      await refreshWallet();
+      const nextWallet = await refreshWallet();
+      if (balanceBeforeRun != null && nextWallet && nextWallet.balance < balanceBeforeRun) {
+        setLastCreditUsage({
+          credits: balanceBeforeRun - nextWallet.balance,
+          balance: nextWallet.balance,
+        });
+      }
       if (!res.body) throw new Error("No response body");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -2399,6 +2416,20 @@ export default function ResearchPage() {
                       <ReadingTimeline content={round.finalAnswer} />
                       <MessageContent content={round.finalAnswer} />
                       {round.chartData && <SimpleBarChart data={round.chartData} />}
+                      {roundIndex === displayRounds.length - 1 && lastCreditUsage && (
+                        <div className="mt-3 rounded-xl border p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--accent-25)", background: "var(--surface)" }}>
+                          <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            ใช้ไป <strong style={{ color: "var(--accent)" }}>{lastCreditUsage.credits.toLocaleString()} เครดิต</strong> · คงเหลือ <strong style={{ color: "var(--text)" }}>{lastCreditUsage.balance.toLocaleString()} เครดิต</strong>
+                          </div>
+                          <button
+                            onClick={focusQuestionInput}
+                            className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-bold"
+                            style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
+                          >
+                            ถามต่อ 19 เครดิต
+                          </button>
+                        </div>
+                      )}
 
                       {/* Web Sources */}
                       {round.webSources && round.webSources.length > 0 && (
@@ -2578,6 +2609,20 @@ export default function ResearchPage() {
                       <ReadingTimeline content={currentFinalAnswer} />
                       <MessageContent content={currentFinalAnswer} />
                       {currentChartData && <SimpleBarChart data={currentChartData} />}
+                      {lastCreditUsage && (
+                        <div className="mt-3 rounded-xl border p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--accent-25)", background: "var(--surface)" }}>
+                          <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            ใช้ไป <strong style={{ color: "var(--accent)" }}>{lastCreditUsage.credits.toLocaleString()} เครดิต</strong> · คงเหลือ <strong style={{ color: "var(--text)" }}>{lastCreditUsage.balance.toLocaleString()} เครดิต</strong>
+                          </div>
+                          <button
+                            onClick={focusQuestionInput}
+                            className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-bold"
+                            style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
+                          >
+                            ถามต่อ 19 เครดิต
+                          </button>
+                        </div>
+                      )}
 
                       {/* Web Sources for current round */}
                       {currentWebSources.length > 0 && (

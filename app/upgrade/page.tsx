@@ -34,6 +34,28 @@ interface WalletPayload {
   packages: CreditPackage[];
   readingPrice: ReadingPrice;
   promptPay: { name: string; id: string };
+  transactions: CreditTransaction[];
+  topups: CreditTopup[];
+}
+
+interface CreditTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  reference: string | null;
+  metadata: { question?: string; priceLabel?: string } | null;
+  created_at: string;
+}
+
+interface CreditTopup {
+  id: string;
+  package_id: string;
+  amount_thb: number;
+  credits: number;
+  status: "pending" | "approved" | "rejected";
+  transfer_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
 }
 
 const READING_TIERS = [
@@ -93,6 +115,7 @@ export default function UpgradePage() {
       if (!res.ok) throw new Error(data.error || "แจ้งเติมเครดิตไม่สำเร็จ");
       setMessage(`ส่งรายการเติม ${selected.credits.toLocaleString()} เครดิตแล้ว รอผู้ดูแลตรวจสอบยอดโอน`);
       setTransferNote("");
+      await loadWallet();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "แจ้งเติมเครดิตไม่สำเร็จ");
     } finally {
@@ -218,6 +241,67 @@ export default function UpgradePage() {
             <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>{item.desc}</p>
           </div>
         ))}
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2 mt-6">
+        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+            <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>ประวัติเครดิต</h2>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>{wallet?.transactions?.length ?? 0} รายการ</span>
+          </div>
+          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+            {wallet?.transactions?.length ? wallet.transactions.slice(0, 8).map((item) => (
+              <div key={item.id} className="px-5 py-3 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                    {item.type === "reading" ? item.metadata?.priceLabel || "ใช้ถามดวง" : "เติมเครดิต"}
+                  </div>
+                  <div className="text-xs truncate max-w-[360px]" style={{ color: "var(--text-muted)" }}>
+                    {item.metadata?.question || new Date(item.created_at).toLocaleString("th-TH")}
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-sm font-black" style={{ color: item.amount < 0 ? "var(--danger)" : "var(--accent)" }}>
+                    {item.amount > 0 ? "+" : ""}{item.amount.toLocaleString()}
+                  </div>
+                  <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>เครดิต</div>
+                </div>
+              </div>
+            )) : (
+              <div className="px-5 py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>ยังไม่มีประวัติเครดิต</div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+            <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>รายการเติมเครดิต</h2>
+            <button onClick={loadWallet} className="text-xs font-semibold" style={{ color: "var(--accent)" }}>รีเฟรช</button>
+          </div>
+          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+            {wallet?.topups?.length ? wallet.topups.slice(0, 8).map((item) => {
+              const statusText = item.status === "pending" ? "รอตรวจ" : item.status === "approved" ? "อนุมัติแล้ว" : "ปฏิเสธ";
+              const statusColor = item.status === "pending" ? "var(--accent)" : item.status === "approved" ? "var(--green)" : "var(--danger)";
+              return (
+                <div key={item.id} className="px-5 py-3 flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                      {item.amount_thb.toLocaleString()} บาท · {item.credits.toLocaleString()} เครดิต
+                    </div>
+                    <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      {new Date(item.created_at).toLocaleString("th-TH")} · {item.transfer_note || "ไม่มีหมายเหตุ"}
+                    </div>
+                  </div>
+                  <span className="rounded-full border px-2.5 py-1 text-xs font-semibold flex-shrink-0" style={{ borderColor: statusColor, color: statusColor }}>
+                    {statusText}
+                  </span>
+                </div>
+              );
+            }) : (
+              <div className="px-5 py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>ยังไม่มีรายการเติมเครดิต</div>
+            )}
+          </div>
+        </div>
       </section>
 
       <div className="mt-6 rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>

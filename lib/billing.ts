@@ -113,6 +113,50 @@ export async function listTopups(status?: CreditTopupStatus | "all") {
   );
 }
 
+export async function listUserTopups(userId: string) {
+  await ensureBillingTables();
+  return db.$queryRawUnsafe<
+    {
+      id: string;
+      package_id: string;
+      amount_thb: number;
+      credits: number;
+      status: CreditTopupStatus;
+      transfer_note: string | null;
+      reviewed_at: Date | null;
+      created_at: Date;
+    }[]
+  >(
+    `SELECT id, package_id, amount_thb, credits, status, transfer_note, reviewed_at, created_at
+     FROM credit_topups
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT 20`,
+    userId,
+  );
+}
+
+export async function listUserCreditTransactions(userId: string) {
+  await ensureBillingTables();
+  return db.$queryRawUnsafe<
+    {
+      id: string;
+      type: string;
+      amount: number;
+      reference: string | null;
+      metadata: Record<string, unknown> | null;
+      created_at: Date;
+    }[]
+  >(
+    `SELECT id, type, amount, reference, metadata, created_at
+     FROM credit_transactions
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT 50`,
+    userId,
+  );
+}
+
 export async function reviewTopup(id: string, status: "approved" | "rejected", reviewer: string) {
   await ensureBillingTables();
   const rows = await db.$queryRawUnsafe<{ id: string; user_id: string; credits: number; status: string }[]>(
