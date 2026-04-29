@@ -32,6 +32,7 @@ interface ReadingPrice {
 
 interface WalletPayload {
   balance: number;
+  isAdmin: boolean;
   packages: CreditPackage[];
   readingPrice: ReadingPrice;
   welcomeCredits: number;
@@ -159,13 +160,21 @@ export default function UpgradePage() {
             <div>
               <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "var(--accent)" }}>Wallet Balance</div>
               <div className="text-4xl font-black" style={{ color: "var(--text)" }}>
-                {loading ? "..." : (wallet?.balance ?? 0).toLocaleString()}
+                {loading ? "..." : wallet?.isAdmin ? "ไม่จำกัด" : (wallet?.balance ?? 0).toLocaleString()}
                 <span className="ml-2 text-base font-semibold" style={{ color: "var(--text-muted)" }}>เครดิต</span>
               </div>
               <p className="mt-2 text-sm leading-relaxed max-w-xl" style={{ color: "var(--text-muted)" }}>
-                หนึ่งคำถามจะหักเครดิตตามจำนวนหมอดูที่เลือก ระบบจะตรวจเครดิตบน server ก่อนเริ่มอ่านดวงทุกครั้ง
+                {wallet?.isAdmin
+                  ? "บัญชีผู้ดูแลระบบไม่ถูกหักเครดิต หน้านี้ใช้ตรวจ flow การเติมเงินของลูกค้าและทดสอบแพ็กเกจได้"
+                  : "หนึ่งคำถามจะหักเครดิตตามจำนวนหมอดูที่เลือก ระบบจะตรวจเครดิตบน server ก่อนเริ่มอ่านดวงทุกครั้ง"}
               </p>
-              {wallet?.welcomeCredits ? (
+              {wallet?.isAdmin ? (
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--accent-30)", color: "var(--accent)", background: "var(--accent-8)" }}>
+                  <ShieldCheck size={14} />
+                  Admin mode · superadmin ได้รับการยกเว้นการหักเครดิต
+                </div>
+              ) : null}
+              {wallet?.welcomeCredits && !wallet?.isAdmin ? (
                 <div className="mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--accent-30)", color: "var(--accent)", background: "var(--accent-8)" }}>
                   <Sparkles size={14} />
                   user ใหม่ได้เครดิตฟรี {wallet.welcomeCredits.toLocaleString()} เครดิต สำหรับทดลองถามเร็ว 1 ครั้ง

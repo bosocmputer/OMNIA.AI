@@ -121,6 +121,7 @@ interface AttachedFile {
 
 interface WalletState {
   balance: number;
+  isAdmin?: boolean;
   readingPrice: { credits: number; label: string; desc: string };
 }
 
@@ -1015,7 +1016,7 @@ export default function ResearchPage() {
   };
 
   const hasFinalReading = () => rounds.some((r) => !r.isQA && (!!r.finalAnswer || r.messages.some((m) => m.role === "synthesis")));
-  const walletIsLow = wallet ? wallet.balance < wallet.readingPrice.credits : false;
+  const walletIsLow = wallet ? !wallet.isAdmin && wallet.balance < wallet.readingPrice.credits : false;
 
   const refreshWallet = useCallback(async (): Promise<WalletState | null> => {
     try {
@@ -1026,7 +1027,7 @@ export default function ResearchPage() {
       const res = await fetch(`/api/billing/wallet?${params.toString()}`);
       if (!res.ok) return null;
       const data = await res.json();
-      const nextWallet = { balance: data.balance ?? 0, readingPrice: data.readingPrice };
+      const nextWallet = { balance: data.balance ?? 0, isAdmin: !!data.isAdmin, readingPrice: data.readingPrice };
       setWallet(nextWallet);
       return nextWallet;
     } catch {
@@ -2715,10 +2716,10 @@ export default function ResearchPage() {
                                 background: walletIsLow ? "var(--danger-8)" : "var(--accent-8)",
                               }}
                             >
-                              เครดิต {wallet.balance.toLocaleString()}
+                              {wallet.isAdmin ? "Admin · ไม่หักเครดิต" : `เครดิต ${wallet.balance.toLocaleString()}`}
                             </span>
                             <span className="inline-flex rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-                              {wallet.readingPrice.label} {wallet.readingPrice.credits} cr
+                              {wallet.isAdmin ? "ทดสอบ flow ลูกค้าได้" : `${wallet.readingPrice.label} ${wallet.readingPrice.credits} cr`}
                             </span>
                           </>
                         )}
@@ -2767,7 +2768,11 @@ export default function ResearchPage() {
                         {meetingSessionId && effectiveMode !== "qa" && <span className="inline-flex items-center gap-1 mr-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />ดูดวงอยู่ {elapsedTime > 0 && <span className="font-mono">{Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, "0")}</span>} · </span>}
                         {rounds.length > 0 && <span style={{ color: "var(--accent)" }}>{rounds.length} คำถาม · </span>}
                         หมอดู {selectedIds.size}/{agents.length} ท่าน
-                        {wallet && <span> · ใช้ {wallet.readingPrice.credits} เครดิต</span>}
+                        {wallet && (
+                          <span>
+                            {wallet.isAdmin ? " · Admin ไม่หักเครดิต" : ` · ใช้ ${wallet.readingPrice.credits} เครดิต`}
+                          </span>
+                        )}
                         {walletIsLow && (
                           <a href="/upgrade" className="ml-1 font-semibold underline" style={{ color: "var(--danger)" }}>
                             เติมเครดิต

@@ -11,6 +11,7 @@ import {
 
 export async function GET(req: NextRequest) {
   const userId = req.headers.get("x-user-id");
+  const role = req.headers.get("x-user-role") || "user";
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const balance = await getCreditBalance(userId);
   const url = new URL(req.url);
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
   ]);
   return NextResponse.json({
     balance,
+    isAdmin: role === "admin",
     packages: CREDIT_PACKAGES,
     readingPrice,
     transactions,

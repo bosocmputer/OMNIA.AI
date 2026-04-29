@@ -21,6 +21,7 @@ import {
   MessageSquareText,
   BarChart3,
   CreditCard,
+  Coins,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -82,10 +83,30 @@ export function Sidebar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [pendingTopups, setPendingTopups] = useState(0);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((d) => setUserRole(d.role ?? null)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (userRole === null) return;
+    let cancelled = false;
+    const loadWallet = async () => {
+      try {
+        const res = await fetch("/api/billing/wallet?agentCount=5");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setWalletBalance(data.balance ?? 0);
+      } catch {}
+    };
+    loadWallet();
+    const timer = window.setInterval(loadWallet, 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [userRole]);
 
   useEffect(() => {
     if (userRole !== "admin") return;
@@ -162,6 +183,50 @@ export function Sidebar() {
             {badge > 9 ? "9+" : badge}
           </span>
         ) : null}
+      </Link>
+    );
+  };
+
+  const renderCreditStatus = (compact = false, onNavigate?: () => void) => {
+    const isAdmin = userRole === "admin";
+    const href = isAdmin ? "/admin/topups" : "/upgrade";
+    const title = isAdmin ? "Admin mode · ไม่หักเครดิต" : `เครดิตคงเหลือ ${walletBalance?.toLocaleString() ?? "..."} เครดิต`;
+
+    if (compact || collapsed) {
+      return (
+        <Link
+          href={href}
+          onClick={onNavigate}
+          title={title}
+          className="relative flex h-10 w-10 items-center justify-center rounded-xl border transition-colors hover:bg-[var(--surface)]"
+          style={{ borderColor: "var(--border)", color: isAdmin ? "var(--accent)" : "var(--text-muted)" }}
+        >
+          <Coins size={18} />
+          {!isAdmin && walletBalance != null && walletBalance < 59 ? (
+            <span className="absolute right-1 top-1 h-2 w-2 rounded-full" style={{ background: "var(--danger)" }} />
+          ) : null}
+        </Link>
+      );
+    }
+
+    return (
+      <Link
+        href={href}
+        onClick={onNavigate}
+        className="mt-3 flex items-center gap-3 rounded-2xl border px-3 py-2.5 transition-colors hover:bg-[var(--surface)]"
+        style={{ borderColor: "var(--accent-25)", background: "var(--accent-8)" }}
+      >
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>
+          <Coins size={17} />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+            {isAdmin ? "Admin mode" : "Wallet"}
+          </span>
+          <span className="block truncate text-xs font-semibold" style={{ color: "var(--text)" }}>
+            {isAdmin ? "ไม่หักเครดิต" : `${walletBalance?.toLocaleString() ?? "..."} เครดิตคงเหลือ`}
+          </span>
+        </span>
       </Link>
     );
   };
@@ -248,7 +313,8 @@ export function Sidebar() {
                 </div>
               </div>
             </Link>
-            <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1">
+              {renderCreditStatus(true, () => setMobileMenuOpen(false))}
               <LanguageSwitcher />
               <ThemeSwitcher />
             </div>
@@ -276,6 +342,8 @@ export function Sidebar() {
                 </button>
               </div>
               <nav className="flex-1 overflow-y-auto p-3">
+                {renderCreditStatus(false, () => setMobileMenuOpen(false))}
+                <div className="h-3" />
                 {renderNavItems(() => setMobileMenuOpen(false))}
               </nav>
               <div className="sidebar-footer">
@@ -311,6 +379,7 @@ export function Sidebar() {
               >
                 <ChevronRight size={16} />
               </button>
+              {renderCreditStatus(true)}
             </div>
           ) : (
             <div>
@@ -336,6 +405,7 @@ export function Sidebar() {
                 <LanguageSwitcher />
                 <ThemeSwitcher />
               </div>
+              {renderCreditStatus()}
             </div>
           )}
         </div>
