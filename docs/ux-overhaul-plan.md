@@ -1,6 +1,6 @@
 # OMNIA.AI — UX Design Spec
 
-> **Status:** Phase 1-5 เสร็จสมบูรณ์ — deploy รอบแรกพร้อม
+> **Status:** Phase 1-7 เสร็จสมบูรณ์ — demo/soft launch พร้อม
 
 ---
 
@@ -75,9 +75,21 @@ OMNIA.AI
 - Auto-save feedback
 
 ### Upgrade (`/upgrade`)
-- "กำลังจะมาเร็วๆ นี้" banner
-- Features list: 6 items
-- CTA: กลับไปดูดวง
+- Credit wallet balance
+- PromptPay QR/manual top-up
+- Package selector: Starter, Focus, Pro
+- Top-up history + credit transaction history
+- Admin mode state: superadmin ไม่หักเครดิต และใช้หน้านี้ทดสอบ customer flow
+
+### Sidebar Credit Indicator
+- User เห็นเครดิตคงเหลือได้ทุกหน้า
+- Low balance มีจุดเตือน
+- Admin เห็น `Admin mode · ไม่หักเครดิต`
+
+### Research Composer
+- แสดงราคาคำถามตามจำนวนหมอดูที่เลือก
+- แสดงเครดิตคงเหลือก่อนกดส่ง
+- Admin เห็นว่าไม่ถูกหักเครดิต
 
 ---
 

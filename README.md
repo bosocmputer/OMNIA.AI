@@ -2,7 +2,7 @@
 
 > **สภาโหราจารย์ AI 5 ศาสตร์** — โหราศาสตร์ไทย · BaZi จีน · เลข 7 ตัว · ยูเรเนียน · ทักษามหาพยากรณ์
 
-**สถานะล่าสุด:** Soft launch MVP พร้อมให้ลูกค้าทดลองกลุ่มแรก ระบบดูดวง, เครดิต, PromptPay manual, admin review, analytics และ feedback พร้อมใช้งาน
+**สถานะล่าสุด (29 เม.ย. 2569):** Soft launch/demo พร้อมใช้งาน ระบบดูดวง, เครดิต, PromptPay manual, admin review, privacy/terms/contact, analytics, feedback และ credit visibility ใน sidebar พร้อมแล้ว
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org)
@@ -42,6 +42,22 @@ OMNIA.AI คือแพลตฟอร์ม B2C สำหรับการด
 | Pro | 499 บาท / 800 เครดิต | เหมาะกับใช้บ่อย |
 
 การเติมเครดิตใช้ PromptPay manual ในหน้า `/upgrade` แล้วให้ admin ตรวจและอนุมัติที่ `/admin/topups`
+
+บัญชี `admin/superadmin` ได้รับการยกเว้นการหักเครดิตที่ server-side และ UI จะแสดง `Admin mode · ไม่หักเครดิต` เพื่อแยกจาก flow ลูกค้าจริง
+
+---
+
+## 🌐 Demo URL
+
+Local server ปัจจุบัน:
+
+- `http://192.168.2.109:3005`
+
+Cloudflare quick tunnel สำหรับ demo รอบล่าสุด:
+
+- `https://tires-soon-join-stop.trycloudflare.com`
+
+หมายเหตุ: URL แบบ `trycloudflare.com` เป็น quick tunnel ฟรีแบบ account-less ไม่มี uptime guarantee และ URL จะเปลี่ยนเมื่อ process/tunnel restart หรือ server reboot หากต้องใช้กับลูกค้าจริงระยะยาวควรเปลี่ยนเป็น Cloudflare named tunnel ผูกโดเมนถาวร
 
 ---
 
@@ -139,6 +155,8 @@ Dark/Gold — สีพื้นหลัง `#1A1A1A` · Accent `#C9A84C` (Bron
 5. Admin อนุมัติรายการเติมเครดิต
 6. User เห็นเครดิตเข้าและถามต่อได้
 7. เก็บ feedback เรื่องความแม่น ความยาว ความอ่านง่าย และราคา
+8. ตรวจว่า user เห็นเครดิตคงเหลือใน sidebar และเห็นราคาเครดิตก่อนกดถาม
+9. ตรวจว่า `superadmin` แสดง Admin mode และไม่ถูกหักเครดิต
 
 ## ⚠️ ข้อกำหนด
 

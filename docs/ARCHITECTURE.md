@@ -10,6 +10,7 @@ Browser
         ├── App Router Pages      (React Server + Client Components)
         ├── API Routes            (Edge/Node.js handlers)
         ├── Proxy                 (Edge JWT auth, Next.js 16)
+        ├── Billing               (credit wallet, PromptPay manual top-up)
         └── Prisma ORM
               └── PostgreSQL 16
         └── ioredis
@@ -37,7 +38,10 @@ Browser
 │   ├── profile/             # birth profile form
 │   ├── agents/              # manage agents
 │   ├── teams/               # manage teams
-│   ├── upgrade/             # premium upsell
+│   ├── upgrade/             # credit wallet + PromptPay manual top-up
+│   ├── admin/topups/        # admin review top-up requests
+│   ├── admin/analytics/     # usage analytics
+│   ├── admin/feedback/      # reading feedback
 │   └── settings/            # app settings
 │
 ├── lib/
@@ -133,6 +137,27 @@ POST /api/team-research/stream
   → อาจารย์นิรันดร์ (seniority 100) สรุปมติสุดท้าย
 ```
 
+## Billing Flow
+
+```
+GET /api/billing/wallet
+  → returns balance, readingPrice, packages, topups, transactions, isAdmin
+
+POST /api/team-research/stream
+  → if x-user-role !== "admin" and mode !== "close"
+      chargeCredits(userId, sessionId, agentCount)
+  → admin/superadmin bypass credit charge server-side
+
+POST /api/billing/wallet
+  → create pending PromptPay top-up
+
+POST /api/admin/topups
+  → admin approves/rejects
+  → approved top-up creates credit transaction
+```
+
+Credit visibility is shown in the sidebar and `/research` composer so users can see remaining credits and current reading price before asking.
+
 ---
 
 ## Security
@@ -159,4 +184,8 @@ docker run -d --name omnia-ai --restart unless-stopped --network host \
   omnia-ai
 ```
 
-Server: `192.168.2.109:<free-port>` โดยเลือก port ว่างก่อน deploy เพื่อไม่ชนโปรเจคอื่น
+Server ปัจจุบัน: `192.168.2.109:3005`
+
+Demo quick tunnel ล่าสุด: `https://tires-soon-join-stop.trycloudflare.com`
+
+Cloudflare quick tunnel นี้เป็น process แยกสำหรับ port `3005` เท่านั้น ไม่ควร kill process `cloudflared` อื่นที่ชี้ port อื่นอยู่แล้ว
