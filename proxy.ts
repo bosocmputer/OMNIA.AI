@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
 // Public routes — no auth required
-const PUBLIC_ROUTES = new Set(["/login", "/register", "/privacy"]);
+const PUBLIC_ROUTES = new Set(["/login", "/register", "/privacy", "/terms", "/contact"]);
 const PUBLIC_PREFIX = ["/api/auth/", "/api/health", "/_next/", "/assets/", "/favicon"];
 
 export async function proxy(req: NextRequest) {

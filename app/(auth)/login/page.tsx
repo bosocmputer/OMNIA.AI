@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { Eye, EyeOff } from "lucide-react";
@@ -182,6 +183,11 @@ function LoginForm() {
         <p className="mt-4 text-[11px]" style={{ color: "var(--text-muted)", opacity: 0.5 }}>
           © {new Date().getFullYear()} OMNIA.AI · เพื่อความบันเทิงและสร้างแรงบันดาลใจเท่านั้น
         </p>
+        <div className="mt-2 flex flex-wrap justify-center gap-3 text-[11px]" style={{ color: "var(--text-muted)" }}>
+          <Link href="/privacy" className="hover:underline">Privacy</Link>
+          <Link href="/terms" className="hover:underline">Terms</Link>
+          <Link href="/contact" className="hover:underline">Contact</Link>
+        </div>
       </div>
     </div>
   );

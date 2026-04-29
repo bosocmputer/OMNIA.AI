@@ -24,6 +24,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const headersList = await headers();
   const pathname = headersList.get("x-invoke-path") ?? headersList.get("x-pathname") ?? "";
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
+  const isPublicStandalonePage = isAuthPage || pathname.startsWith("/privacy") || pathname.startsWith("/terms") || pathname.startsWith("/contact");
 
   return (
     <html lang="th">
@@ -36,11 +37,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </a>
         <Providers>
           <div className="min-h-screen md:flex">
-            {!isAuthPage && <Sidebar />}
-            <main id="main-content" tabIndex={-1} className={`flex-1 overflow-auto ${isAuthPage ? "" : "pt-14 md:pt-0"}`}>
+            {!isPublicStandalonePage && <Sidebar />}
+            <main id="main-content" tabIndex={-1} className={`flex-1 overflow-auto ${isPublicStandalonePage ? "" : "pt-14 md:pt-0"}`}>
               {children}
             </main>
-            {!isAuthPage && <ToastContainer />}
+            {!isPublicStandalonePage && <ToastContainer />}
           </div>
         </Providers>
       </body>

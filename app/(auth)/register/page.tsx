@@ -20,7 +20,7 @@ export default function RegisterPage() {
       return;
     }
     if (!consentPdpa) {
-      setError("กรุณายอมรับนโยบายความเป็นส่วนตัวก่อน");
+      setError("กรุณายอมรับนโยบายความเป็นส่วนตัวและเงื่อนไขการใช้งานก่อน");
       return;
     }
     setLoading(true);
@@ -198,6 +198,10 @@ export default function RegisterPage() {
                 <Link href="/privacy" target="_blank" style={{ color: "var(--accent)" }} className="underline">
                   นโยบายความเป็นส่วนตัว
                 </Link>{" "}
+                และ{" "}
+                <Link href="/terms" target="_blank" style={{ color: "var(--accent)" }} className="underline">
+                  เงื่อนไขการใช้งาน
+                </Link>{" "}
                 และยินยอมให้ประมวลผลข้อมูลเพื่อการดูดวง
               </label>
             </div>
@@ -241,6 +245,11 @@ export default function RegisterPage() {
         <p className="mt-3 text-[11px]" style={{ color: "var(--text-muted)", opacity: 0.5 }}>
           © {new Date().getFullYear()} OMNIA.AI
         </p>
+        <div className="mt-2 flex flex-wrap justify-center gap-3 text-[11px]" style={{ color: "var(--text-muted)" }}>
+          <Link href="/privacy" className="hover:underline">Privacy</Link>
+          <Link href="/terms" className="hover:underline">Terms</Link>
+          <Link href="/contact" className="hover:underline">Contact</Link>
+        </div>
       </div>
     </div>
   );

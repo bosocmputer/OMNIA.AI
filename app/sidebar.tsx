@@ -81,10 +81,30 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [pendingTopups, setPendingTopups] = useState(0);
 
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((d) => setUserRole(d.role ?? null)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (userRole !== "admin") return;
+    let cancelled = false;
+    const loadPendingTopups = async () => {
+      try {
+        const res = await fetch("/api/admin/topups?status=pending");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setPendingTopups((data.topups ?? []).length);
+      } catch {}
+    };
+    loadPendingTopups();
+    const timer = window.setInterval(loadPendingTopups, 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [userRole]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -108,7 +128,7 @@ export function Sidebar() {
     return () => { document.body.style.overflow = prev; };
   }, [mobileMenuOpen]);
 
-  const renderNavLink = (href: string, icon: React.ReactNode, label: string, onNavigate?: () => void) => {
+  const renderNavLink = (href: string, icon: React.ReactNode, label: string, onNavigate?: () => void, badge?: number) => {
     const active = isActive(href);
     return (
       <Link
@@ -132,6 +152,16 @@ export function Sidebar() {
         {active && !collapsed && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full" style={{ background: "var(--accent)" }} />}
         {icon}
         {!collapsed && label}
+        {!collapsed && badge ? (
+          <span className="ml-auto min-w-5 h-5 rounded-full px-1.5 text-[11px] font-black inline-flex items-center justify-center" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+            {badge > 99 ? "99+" : badge}
+          </span>
+        ) : null}
+        {collapsed && badge ? (
+          <span className="absolute right-1 top-1 min-w-4 h-4 rounded-full px-1 text-[9px] font-black inline-flex items-center justify-center" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+            {badge > 9 ? "9+" : badge}
+          </span>
+        ) : null}
       </Link>
     );
   };
@@ -185,7 +215,7 @@ export function Sidebar() {
           )}
           <div className="space-y-0.5">
             {renderNavLink("/admin/analytics", <BarChart3 size={20} strokeWidth={isActive("/admin/analytics") ? 2.2 : 1.8} style={{ color: isActive("/admin/analytics") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "Analytics", onNavigate)}
-            {renderNavLink("/admin/topups", <CreditCard size={20} strokeWidth={isActive("/admin/topups") ? 2.2 : 1.8} style={{ color: isActive("/admin/topups") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "เติมเครดิต", onNavigate)}
+            {renderNavLink("/admin/topups", <CreditCard size={20} strokeWidth={isActive("/admin/topups") ? 2.2 : 1.8} style={{ color: isActive("/admin/topups") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "เติมเครดิต", onNavigate, pendingTopups)}
             {renderNavLink("/admin/users", <UserCog size={20} strokeWidth={isActive("/admin/users") ? 2.2 : 1.8} style={{ color: isActive("/admin/users") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "จัดการผู้ใช้", onNavigate)}
             {renderNavLink("/admin/feedback", <MessageSquareText size={20} strokeWidth={isActive("/admin/feedback") ? 2.2 : 1.8} style={{ color: isActive("/admin/feedback") ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }} />, "Feedback คำทำนาย", onNavigate)}
           </div>

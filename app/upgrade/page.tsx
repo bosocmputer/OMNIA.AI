@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Clock3,
   CreditCard,
+  FileText,
   History,
   Loader2,
   QrCode,
@@ -82,6 +83,10 @@ export default function UpgradePage() {
   const selected = useMemo(
     () => wallet?.packages.find((item) => item.id === selectedPackage) ?? wallet?.packages[0],
     [selectedPackage, wallet?.packages],
+  );
+  const pendingTopups = useMemo(
+    () => wallet?.topups.filter((item) => item.status === "pending") ?? [],
+    [wallet?.topups],
   );
 
   async function loadWallet() {
@@ -181,12 +186,51 @@ export default function UpgradePage() {
               </div>
             ))}
           </div>
+
+          <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--border)" }}>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>Step 1</div>
+                <h2 className="text-base font-bold" style={{ color: "var(--text)" }}>เลือกแพ็กเครดิต</h2>
+              </div>
+              {selected && (
+                <div className="text-right">
+                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>เลือกอยู่</div>
+                  <div className="font-black" style={{ color: "var(--accent)" }}>{selected.amountTHB.toLocaleString()} บาท</div>
+                </div>
+              )}
+            </div>
+            <div className="grid gap-2">
+              {wallet?.packages.map((pack) => (
+                <button
+                  key={pack.id}
+                  onClick={() => setSelectedPackage(pack.id)}
+                  className="rounded-2xl border p-4 text-left transition-all"
+                  style={{
+                    borderColor: selectedPackage === pack.id ? "var(--accent)" : "var(--border)",
+                    background: selectedPackage === pack.id ? "var(--accent-8)" : "var(--bg)",
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-bold" style={{ color: "var(--text)" }}>{pack.label}</div>
+                      <div className="text-xs" style={{ color: "var(--text-muted)" }}>{pack.desc}</div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-lg font-black" style={{ color: "var(--accent)" }}>{pack.amountTHB.toLocaleString()} บาท</div>
+                      <div className="text-xs" style={{ color: "var(--text-muted)" }}>{pack.credits.toLocaleString()} เครดิต</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="rounded-3xl border p-6" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
           <div className="flex items-center gap-2 mb-4">
             <QrCode size={18} style={{ color: "var(--accent)" }} />
-            <h2 className="text-base font-bold" style={{ color: "var(--text)" }}>เติมเครดิตผ่าน PromptPay</h2>
+            <h2 className="text-base font-bold" style={{ color: "var(--text)" }}>Step 2-3: โอนแล้วแจ้งตรวจยอด</h2>
           </div>
           <div className="rounded-2xl border p-4 mb-4" style={{ borderColor: "var(--accent-25)", background: "var(--accent-8)" }}>
             <div className="text-xs" style={{ color: "var(--text-muted)" }}>ชื่อบัญชี</div>
@@ -232,32 +276,7 @@ export default function UpgradePage() {
             </div>
           </div>
 
-          <div className="grid gap-2">
-            {wallet?.packages.map((pack) => (
-              <button
-                key={pack.id}
-                onClick={() => setSelectedPackage(pack.id)}
-                className="rounded-2xl border p-4 text-left transition-all"
-                style={{
-                  borderColor: selectedPackage === pack.id ? "var(--accent)" : "var(--border)",
-                  background: selectedPackage === pack.id ? "var(--accent-8)" : "var(--surface)",
-                }}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-bold" style={{ color: "var(--text)" }}>{pack.label}</div>
-                    <div className="text-xs" style={{ color: "var(--text-muted)" }}>{pack.desc}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-black" style={{ color: "var(--accent)" }}>{pack.amountTHB.toLocaleString()} บาท</div>
-                    <div className="text-xs" style={{ color: "var(--text-muted)" }}>{pack.credits.toLocaleString()} เครดิต</div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <label className="block mt-4 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>หมายเหตุโอนเงินสำหรับตรวจยอด</label>
+          <label className="block text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Step 3: หมายเหตุโอนเงินสำหรับตรวจยอด</label>
           <input
             value={transferNote}
             onChange={(e) => setTransferNote(e.target.value)}
@@ -275,6 +294,23 @@ export default function UpgradePage() {
             แจ้งเติมเครดิต
           </button>
           {message && <p className="mt-3 text-xs leading-relaxed" style={{ color: message.includes("ไม่สำเร็จ") ? "var(--danger)" : "var(--accent)" }}>{message}</p>}
+          {pendingTopups.length > 0 && (
+            <div className="mt-4 rounded-2xl border p-3 text-xs leading-relaxed" style={{ borderColor: "var(--accent-30)", background: "var(--accent-8)", color: "var(--text-muted)" }}>
+              มีรายการรอตรวจยอด {pendingTopups.length} รายการ หากโอนแล้วรอสักครู่ ปกติ admin จะตรวจและเติมเครดิตให้ภายใน 5-15 นาที
+            </div>
+          )}
+          <div className="mt-4 flex flex-wrap gap-3 text-xs">
+            <Link href="/terms" target="_blank" className="inline-flex items-center gap-1 font-semibold" style={{ color: "var(--accent)" }}>
+              <FileText size={13} />
+              เงื่อนไขเครดิต/คืนเครดิต
+            </Link>
+            <Link href="/privacy" target="_blank" className="font-semibold" style={{ color: "var(--accent)" }}>
+              นโยบายข้อมูลส่วนบุคคล
+            </Link>
+            <Link href="/contact" target="_blank" className="font-semibold" style={{ color: "var(--accent)" }}>
+              ติดต่อเมื่อโอนผิดยอด
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -359,7 +395,10 @@ export default function UpgradePage() {
       <div className="mt-6 rounded-2xl border p-4 flex items-start gap-3" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         <CheckCircle size={18} className="mt-0.5 flex-shrink-0" style={{ color: "var(--accent)" }} />
         <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          MVP นี้ใช้การตรวจยอดโอนแบบ manual ก่อน เมื่อยอดใช้งานนิ่งแล้วค่อยต่อ QR/Payment gateway อัตโนมัติ เพื่อไม่ให้ระบบเก็บเงินซับซ้อนเกินจำเป็นตั้งแต่วันแรก
+          Step 4 คือรอผู้ดูแลตรวจยอด PromptPay แบบ manual ก่อน เครดิตจะเข้าเมื่อรายการได้รับอนุมัติ อ่านรายละเอียดเพิ่มเติมได้ที่{" "}
+          <Link href="/terms" className="font-semibold underline" style={{ color: "var(--accent)" }}>เงื่อนไขการใช้งาน</Link>
+          {" "}และ{" "}
+          <Link href="/privacy" className="font-semibold underline" style={{ color: "var(--accent)" }}>นโยบายความเป็นส่วนตัว</Link>
         </p>
       </div>
     </div>
