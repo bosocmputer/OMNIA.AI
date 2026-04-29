@@ -185,6 +185,33 @@ export default function UpgradePage() {
             <div className="font-mono text-sm" style={{ color: "var(--accent)" }}>{wallet?.promptPay?.id || "ติดต่อทีมงานเพื่อรับ QR"}</div>
           </div>
 
+          <div className="rounded-2xl border p-4 mb-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <div className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>ยอดที่ต้องโอน</div>
+                <div className="text-2xl font-black" style={{ color: "var(--accent)" }}>
+                  {selected ? `${selected.amountTHB.toLocaleString()} บาท` : "เลือกแพ็กเกจ"}
+                </div>
+              </div>
+              {selected && (
+                <div className="rounded-full border px-3 py-1 text-xs font-bold" style={{ borderColor: "var(--accent-30)", color: "var(--text)" }}>
+                  {selected.credits.toLocaleString()} เครดิต
+                </div>
+              )}
+            </div>
+            <div className="rounded-2xl border p-3" style={{ borderColor: "var(--border)", background: "#fff" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/payments/promptpay-qr.jpg"
+                alt="PromptPay QR สำหรับเติมเครดิต OMNIA.AI"
+                className="mx-auto w-full max-w-[260px] rounded-xl object-contain"
+              />
+            </div>
+            <p className="mt-3 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              สแกน QR แล้วกรอกยอดให้ตรงกับแพ็กที่เลือก จากนั้นใส่เวลาโอนหรือชื่อผู้โอนในช่องหมายเหตุเพื่อให้ตรวจยอดได้เร็วขึ้น
+            </p>
+          </div>
+
           <div className="grid gap-2">
             {wallet?.packages.map((pack) => (
               <button
@@ -210,11 +237,11 @@ export default function UpgradePage() {
             ))}
           </div>
 
-          <label className="block mt-4 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>หมายเหตุโอนเงิน</label>
+          <label className="block mt-4 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>หมายเหตุโอนเงินสำหรับตรวจยอด</label>
           <input
             value={transferNote}
             onChange={(e) => setTransferNote(e.target.value)}
-            placeholder="เช่น เวลาโอน / 4 ตัวท้ายบัญชี / ชื่อผู้โอน"
+            placeholder="เช่น โอน 14:32 / ชื่อผู้โอน / 4 ตัวท้ายบัญชี"
             className="mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none"
             style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--text)" }}
           />
