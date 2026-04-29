@@ -13,6 +13,8 @@ export const READING_PRICES = {
   followup: { credits: 19, label: "ถามต่อ", desc: "ต่อจากคำทำนายเดิม" },
 } as const;
 
+export const WELCOME_CREDITS = Number(process.env.WELCOME_CREDITS || 29);
+
 export type CreditTopupStatus = "pending" | "approved" | "rejected";
 
 let ensured = false;
@@ -68,6 +70,30 @@ export async function getCreditBalance(userId: string): Promise<number> {
     userId,
   );
   return Number(rows[0]?.balance ?? 0);
+}
+
+export async function grantWelcomeCredits(userId: string) {
+  await ensureBillingTables();
+  if (!WELCOME_CREDITS || WELCOME_CREDITS <= 0) return { granted: false, credits: 0 };
+
+  const reference = `welcome:${userId}`;
+  const existing = await db.$queryRawUnsafe<{ id: string }[]>(
+    `SELECT id FROM credit_transactions WHERE user_id = $1 AND reference = $2 LIMIT 1`,
+    userId,
+    reference,
+  );
+  if (existing.length > 0) return { granted: false, credits: WELCOME_CREDITS };
+
+  await db.$executeRawUnsafe(
+    `INSERT INTO credit_transactions (id, user_id, type, amount, reference, metadata)
+     VALUES ($1, $2, 'welcome', $3, $4, $5::jsonb)`,
+    crypto.randomUUID(),
+    userId,
+    WELCOME_CREDITS,
+    reference,
+    JSON.stringify({ source: "new_user_trial", label: "เครดิตฟรีสำหรับทดลองถาม" }),
+  );
+  return { granted: true, credits: WELCOME_CREDITS };
 }
 
 export async function createTopup(userId: string, username: string | null, packageId: string, transferNote = "") {

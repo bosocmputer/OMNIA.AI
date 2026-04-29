@@ -33,6 +33,7 @@ interface WalletPayload {
   balance: number;
   packages: CreditPackage[];
   readingPrice: ReadingPrice;
+  welcomeCredits: number;
   promptPay: { name: string; id: string };
   transactions: CreditTransaction[];
   topups: CreditTopup[];
@@ -135,7 +136,10 @@ export default function UpgradePage() {
           </div>
           <div>
             <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>เครดิต OMNIA.AI</h1>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>เติมเครดิตก่อนถาม ใช้ตามจริง ไม่บังคับรายเดือน</p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              เติมเครดิตก่อนถาม ใช้ตามจริง ไม่บังคับรายเดือน
+              {wallet?.welcomeCredits ? ` · สมาชิกใหม่ได้ ${wallet.welcomeCredits} เครดิตทดลอง` : ""}
+            </p>
           </div>
         </div>
         <Link href="/research" className="hidden sm:inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold" style={{ borderColor: "var(--border)", color: "var(--text)" }}>
@@ -156,6 +160,12 @@ export default function UpgradePage() {
               <p className="mt-2 text-sm leading-relaxed max-w-xl" style={{ color: "var(--text-muted)" }}>
                 หนึ่งคำถามจะหักเครดิตตามจำนวนหมอดูที่เลือก ระบบจะตรวจเครดิตบน server ก่อนเริ่มอ่านดวงทุกครั้ง
               </p>
+              {wallet?.welcomeCredits ? (
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--accent-30)", color: "var(--accent)", background: "var(--accent-8)" }}>
+                  <Sparkles size={14} />
+                  user ใหม่ได้เครดิตฟรี {wallet.welcomeCredits.toLocaleString()} เครดิต สำหรับทดลองถามเร็ว 1 ครั้ง
+                </div>
+              ) : null}
             </div>
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>
               <CreditCard size={22} />
@@ -210,6 +220,16 @@ export default function UpgradePage() {
             <p className="mt-3 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
               สแกน QR แล้วกรอกยอดให้ตรงกับแพ็กที่เลือก จากนั้นใส่เวลาโอนหรือชื่อผู้โอนในช่องหมายเหตุเพื่อให้ตรวจยอดได้เร็วขึ้น
             </p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl border p-2" style={{ borderColor: "var(--border)", background: "var(--bg)", color: "var(--text-muted)" }}>
+                ตรวจยอดแบบ manual
+                <div className="font-bold mt-0.5" style={{ color: "var(--text)" }}>ปกติ 5-15 นาที</div>
+              </div>
+              <div className="rounded-xl border p-2" style={{ borderColor: "var(--border)", background: "var(--bg)", color: "var(--text-muted)" }}>
+                เครดิตเข้าเมื่อ
+                <div className="font-bold mt-0.5" style={{ color: "var(--text)" }}>admin อนุมัติ</div>
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-2">
@@ -281,7 +301,7 @@ export default function UpgradePage() {
               <div key={item.id} className="px-5 py-3 flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                    {item.type === "reading" ? item.metadata?.priceLabel || "ใช้ถามดวง" : "เติมเครดิต"}
+                    {item.type === "reading" ? item.metadata?.priceLabel || "ใช้ถามดวง" : item.type === "welcome" ? "เครดิตฟรีทดลองใช้" : "เติมเครดิต"}
                   </div>
                   <div className="text-xs truncate max-w-[360px]" style={{ color: "var(--text-muted)" }}>
                     {item.metadata?.question || new Date(item.created_at).toLocaleString("th-TH")}
@@ -307,7 +327,7 @@ export default function UpgradePage() {
           </div>
           <div className="divide-y" style={{ borderColor: "var(--border)" }}>
             {wallet?.topups?.length ? wallet.topups.slice(0, 8).map((item) => {
-              const statusText = item.status === "pending" ? "รอตรวจ" : item.status === "approved" ? "อนุมัติแล้ว" : "ปฏิเสธ";
+              const statusText = item.status === "pending" ? "รอตรวจยอด" : item.status === "approved" ? "เครดิตเข้าแล้ว" : "ปฏิเสธ";
               const statusColor = item.status === "pending" ? "var(--accent)" : item.status === "approved" ? "var(--green)" : "var(--danger)";
               return (
                 <div key={item.id} className="px-5 py-3 flex items-start justify-between gap-4">
@@ -318,6 +338,11 @@ export default function UpgradePage() {
                     <div className="text-xs" style={{ color: "var(--text-muted)" }}>
                       {new Date(item.created_at).toLocaleString("th-TH")} · {item.transfer_note || "ไม่มีหมายเหตุ"}
                     </div>
+                    {item.status === "pending" && (
+                      <div className="mt-1 text-[11px]" style={{ color: "var(--accent)" }}>
+                        ส่งรายการแล้ว รอผู้ดูแลตรวจยอดโอนและเติมเครดิตให้บัญชีนี้
+                      </div>
+                    )}
                   </div>
                   <span className="rounded-full border px-2.5 py-1 text-xs font-semibold flex-shrink-0" style={{ borderColor: statusColor, color: statusColor }}>
                     {statusText}

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { signToken, COOKIE_NAME, COOKIE_MAX_AGE } from "@/lib/auth";
 import { seedAstrologyAgentsForUser } from "@/lib/seed-astro-for-user";
+import { grantWelcomeCredits } from "@/lib/billing";
 
 // Rate limit: max 5 registrations per IP per hour (simple in-memory for now)
 const regAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -71,6 +72,9 @@ export async function POST(req: NextRequest) {
   // Auto-seed 5 astrology agents for this user
   await seedAstrologyAgentsForUser(user.id).catch((e) =>
     console.error("[register] seed error:", e)
+  );
+  await grantWelcomeCredits(user.id).catch((e) =>
+    console.error("[register] welcome credit error:", e)
   );
 
   const token = await signToken({ sub: user.id, username: user.username, role: user.role });

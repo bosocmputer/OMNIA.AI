@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   CREDIT_PACKAGES,
+  WELCOME_CREDITS,
   createTopup,
   getCreditBalance,
   getReadingPrice,
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
     readingPrice,
     transactions,
     topups,
+    welcomeCredits: WELCOME_CREDITS,
     promptPay: {
       name: process.env.PROMPTPAY_NAME || "OMNIA.AI",
       id: process.env.PROMPTPAY_ID || "",
