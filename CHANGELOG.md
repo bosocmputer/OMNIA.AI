@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-04-29 — v1.15.0: Soft Launch Monetization + PromptPay Credits
+
+### Monetization
+- **Credit wallet MVP:** เพิ่มระบบเครดิตแบบใช้ตามจริง แพ็ก Starter 99 บาท, Focus 199 บาท, Pro 499 บาท
+- **Reading prices:** ถามเร็ว 29 เครดิต, สภา OMNIA 59 เครดิต, ถามต่อ 19 เครดิต
+- **Welcome credits:** สมาชิกใหม่ได้เครดิตฟรี 29 เครดิตอัตโนมัติ เพื่อทดลองถามเร็ว 1 ครั้งก่อนจ่ายเงินจริง
+- **PromptPay manual top-up:** หน้าเติมเครดิตแสดง QR PromptPay จริง, ยอดที่ต้องโอนตามแพ็ก, หมายเหตุโอนเงิน และสถานะรายการเติมเครดิต
+- **Admin top-up review:** เพิ่มหน้า admin ตรวจรายการเติมเครดิตและอนุมัติ/ปฏิเสธ ก่อนเครดิตเข้ากระเป๋า
+- **Server-side credit guard:** Streaming API ตรวจเครดิตบน server ก่อนเริ่มอ่านดวง และหักเครดิตเมื่อเริ่ม session สำเร็จ
+
+### Product & UX
+- **Theme refresh:** ปรับทั้ง app จากม่วงดำเป็นโทน dark green / antique gold ให้ดู mature และเป็น product มากขึ้น
+- **Guide / Premium / Agents polish:** ปรับหน้าใช้งานหลักให้ professional ขึ้น ลดความรู้สึกเหมือน mockup หรือ AI-generated UI
+- **Quick summary UI:** ปรับ block สรุปจาก OMNIA.AI ให้อ่านเร็วขึ้นและใช้พื้นที่น้อยลง
+- **Astrology prompt tuning:** ปรับ prompt ของทุก agents ให้ตอบตรงขึ้น กล้าทักเรื่องที่ไม่ดี และลดคำตอบกว้าง/หวานเกินไป
+- **Feedback + Analytics:** เพิ่ม dashboard เล็ก ๆ สำหรับจำนวนคำทำนาย, หมอดูที่ถูกเลือกบ่อย, topic ที่ถามเยอะ และ feedback รวม
+
+### Current Status
+- พร้อม soft launch ให้ลูกค้าทดลองกลุ่มแรก 10-30 คน
+- สิ่งที่ต้องทดสอบต่อ: register →เครดิตฟรี→ถามดวง→เครดิตหมด→เติม PromptPay→admin อนุมัติ→ถามต่อ
+- สิ่งที่ยังไม่ทำ: Dynamic PromptPay QR ตามยอดแพ็ก, slip OCR/payment gateway, terms/refund/privacy สำหรับเก็บเงินจริง
+
 ## 2026-04-27 — v1.14.3: User Isolation Hardening + Safe Deploy Docs
 
 ### Bug Fixes

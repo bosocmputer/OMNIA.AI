@@ -1,6 +1,6 @@
 # OMNIA.AI — Roadmap
 
-> **สถานะปัจจุบัน:** Phase 1-5 เสร็จสมบูรณ์ — พร้อม deploy รอบแรก
+> **สถานะปัจจุบัน (2026-04-29):** พร้อม soft launch ให้ลูกค้าทดลองกลุ่มแรก ระบบหลักพร้อมใช้งานจริงแบบ MVP พร้อมเครดิต/PromptPay manual
 
 ---
 
@@ -38,43 +38,65 @@
 - [x] `lib/seed-astro-for-user.ts` — seed 5 โหราจารย์ + 1 ทีม ต่อ user ใหม่
 - [x] `app/api/birth-profile/route.ts` — GET/PUT birth profile
 - [x] `app/profile/page.tsx` — ฟอร์มข้อมูลวันเกิด
-- [x] `app/upgrade/page.tsx` — Premium placeholder
+- [x] `app/upgrade/page.tsx` — หน้าเครดิต/แพ็กเกจ/PromptPay manual
 - [x] `public/assets/logo/TITLELOGO.svg` — Geometric Yantra logo (Bronze Gold / Dark)
 
 ---
 
-## 🚀 Phase 6 — Deploy รอบแรก (กำลังดำเนินการ)
+## ✅ Phase 6 — Deploy รอบแรก (เสร็จแล้ว)
 
 - [x] สร้าง DB `omniadb` บน server (`ledgioai-db` port 5436)
 - [x] `prisma migrate deploy` บน server (4 migrations applied)
-- [ ] Docker build + run บน `192.168.2.109:<free-port>` โดยไม่ชนโปรเจคอื่น
-- [ ] ทดสอบ register → seed agents → ดูดวง end-to-end
+- [x] Docker build + run บน `192.168.2.109:3005`
+- [x] Deploy ผ่าน `scripts/deploy-git.sh`
+- [x] Health check ผ่าน `/api/health`
 
-## 🔜 Phase 7 — PWA
+## ✅ Phase 7 — Soft Launch Monetization (เสร็จแล้ว)
+
+- [x] ระบบเครดิต: Starter 99 บาท / Focus 199 บาท / Pro 499 บาท
+- [x] ราคาอ่านดวง: ถามเร็ว 29 เครดิต / สภา OMNIA 59 เครดิต / ถามต่อ 19 เครดิต
+- [x] เครดิตฟรี user ใหม่ 29 เครดิต สำหรับทดลองถามเร็ว 1 ครั้ง
+- [x] PromptPay QR manual ในหน้า `/upgrade`
+- [x] Admin review รายการเติมเครดิตที่ `/admin/topups`
+- [x] Server-side credit guard ก่อนเริ่มอ่านดวง
+- [x] Credit usage summary หลังจบคำทำนาย
+
+## 🧪 Phase 8 — Customer Trial Checklist (กำลังรอทดสอบจริง)
+
+- [ ] ทดสอบ user ใหม่สมัครแล้วได้ 29 เครดิต
+- [ ] ทดสอบถามเร็ว 1-2 หมอดูแล้วเครดิตถูกหัก 29
+- [ ] ทดสอบเครดิตไม่พอแล้วถูกพาไปหน้าเติมเครดิต
+- [ ] ทดสอบเลือกแพ็ก โอน PromptPay และแจ้งหมายเหตุ
+- [ ] ทดสอบ admin อนุมัติแล้วเครดิตเข้า
+- [ ] เก็บ feedback จากลูกค้า 10-30 คน: แม่นไหม, ยาวไหม, อ่านง่ายไหม, ยอมจ่ายไหม, ราคาโอเคไหม
+
+## 🔜 Phase 9 — Payment Automation
+
+- [ ] Dynamic PromptPay QR ตามยอดแพ็ก เพื่อลดการกรอกยอดผิด
+- [ ] Slip OCR หรือ payment gateway เพื่อยืนยันยอดอัตโนมัติ
+- [ ] Terms / Refund / Privacy สำหรับเก็บเงินจริง
+- [ ] Admin revenue summary
+
+## 🔜 Phase 10 — PWA
 
 - [ ] `next-pwa` หรือ `@ducanh2912/next-pwa`
 - [ ] manifest.json: name OMNIA.AI, theme_color `#C9A84C`
 - [ ] Service worker offline cache
 - [ ] iOS install prompt
 
-## 🔜 Phase 8 — Google OAuth
+## 🔜 Phase 11 — Google OAuth
 
 - [ ] `app/api/auth/google/route.ts` — OAuth callback
 - [ ] Merge account ถ้า email ซ้ำ
 - [ ] "เข้าสู่ระบบด้วย Google" button บน login/register
 
-## 🔜 Phase 9 — Freemium Quota
+## 🔜 Phase 12 — Subscription / Premium
 
-- [ ] Middleware ตรวจ `monthlySessionsUsed` vs quota (FREE: 10/เดือน)
-- [ ] Auto-reset `quotaResetAt` ทุกต้นเดือน
-- [ ] Quota bar บน sidebar
-
-## 🔜 Phase 10 — Stripe Premium
-
-- [ ] Stripe Checkout Session
-- [ ] Webhook: `checkout.session.completed` → plan = "PREMIUM"
-- [ ] `app/upgrade/page.tsx` → Stripe checkout flow จริง
-- [ ] Portal จัดการ subscription
+- [ ] Daily Insight ส่วนตัว
+- [ ] Life Timeline / Archive
+- [ ] Export PDF รายงานคำทำนาย
+- [ ] Follow-up reading จากคำทำนายเดิม
+- [ ] Subscription หรือแพ็กเครดิตรายเดือน
 
 ## 🔮 Future
 

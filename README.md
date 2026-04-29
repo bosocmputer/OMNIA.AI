@@ -2,6 +2,8 @@
 
 > **สภาโหราจารย์ AI 5 ศาสตร์** — โหราศาสตร์ไทย · BaZi จีน · เลข 7 ตัว · ยูเรเนียน · ทักษามหาพยากรณ์
 
+**สถานะล่าสุด:** Soft launch MVP พร้อมให้ลูกค้าทดลองกลุ่มแรก ระบบดูดวง, เครดิต, PromptPay manual, admin review, analytics และ feedback พร้อมใช้งาน
+
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org)
 [![Prisma](https://img.shields.io/badge/Prisma-5.x-2D3748)](https://prisma.io)
@@ -22,6 +24,24 @@ OMNIA.AI คือแพลตฟอร์ม B2C สำหรับการด
 | 🔢 | อาจารย์ศักดา | เลข 7 ตัว 9 ฐาน | เลขเด่น เลขขาด โชคชะตา |
 | 🔭 | ดร.เทพฤทธิ์ | ยูเรเนียนโหราศาสตร์ | Midpoint Symmetry Personal Points |
 | 🧭 | อาจารย์นิรันดร์ | ทักษามหาพยากรณ์ | **ผู้สรุปมติ** Consensus Score |
+
+---
+
+## 💳 ระบบเครดิตและรายได้
+
+ระบบ monetization ปัจจุบันเป็นเครดิตแบบเติมเงิน:
+
+| รายการ | เครดิต / ราคา | หมายเหตุ |
+|--------|---------------|----------|
+| เครดิตฟรีสมาชิกใหม่ | 29 เครดิต | ทดลองถามเร็ว 1 ครั้ง |
+| ถามเร็ว | 29 เครดิต | หมอดู 1-2 ท่าน |
+| สภา OMNIA | 59 เครดิต | หมอดู 3-5 ท่าน พร้อมสรุปรวม |
+| ถามต่อ | 19 เครดิต | ต่อจากคำทำนายเดิม |
+| Starter | 99 บาท / 120 เครดิต | เหมาะกับเริ่มลอง |
+| Focus | 199 บาท / 280 เครดิต | แพ็กแนะนำ |
+| Pro | 499 บาท / 800 เครดิต | เหมาะกับใช้บ่อย |
+
+การเติมเครดิตใช้ PromptPay manual ในหน้า `/upgrade` แล้วให้ admin ตรวจและอนุมัติที่ `/admin/topups`
 
 ---
 
@@ -79,11 +99,15 @@ app/
 ├── profile/          # โปรไฟล์วันเกิด
 ├── agents/           # จัดการโหราจารย์ AI
 ├── teams/            # จัดการทีม
-├── upgrade/          # Premium (coming soon)
+├── upgrade/          # Credit wallet + PromptPay top-up
+├── admin/topups/     # ตรวจรายการเติมเครดิต
+├── admin/analytics/  # Analytics dashboard
+├── admin/feedback/   # Feedback คำทำนาย
 └── settings/         # ตั้งค่า
 
 lib/
 ├── auth.ts           # JWT sign/verify
+├── billing.ts        # credit packages, wallet, top-up, welcome credits
 ├── db.ts             # Prisma client
 ├── seed-astro-for-user.ts  # seed 5 agents per user
 └── rate-limit.ts     # Redis rate limiter
@@ -103,6 +127,18 @@ Dark/Gold — สีพื้นหลัง `#1A1A1A` · Accent `#C9A84C` (Bron
 ## 🔐 Data Isolation
 
 ข้อมูลหลักที่ผู้ใช้สร้างเองถูกผูกกับ `userId`: agents, teams, birth profile, research sessions และ client memory. ระบบ auth อยู่ใน `proxy.ts` ตาม convention ของ Next.js 16 และส่ง `x-user-id` / `x-user-role` ให้ API routes หลัง verify JWT แล้ว
+
+## 🧪 Soft Launch Checklist
+
+ก่อนขยายกลุ่มลูกค้าจริง ควรทดสอบ flow นี้:
+
+1. สมัคร user ใหม่และตรวจว่าได้เครดิตฟรี 29 เครดิต
+2. ถามเร็ว 1 ครั้งและตรวจว่าเครดิตถูกหัก 29
+3. ลองถามอีกครั้งตอนเครดิตไม่พอ แล้วตรวจว่า app พาไปเติมเครดิต
+4. เลือกแพ็ก โอน PromptPay และแจ้งหมายเหตุ
+5. Admin อนุมัติรายการเติมเครดิต
+6. User เห็นเครดิตเข้าและถามต่อได้
+7. เก็บ feedback เรื่องความแม่น ความยาว ความอ่านง่าย และราคา
 
 ## ⚠️ ข้อกำหนด
 
