@@ -498,6 +498,8 @@ function ReadingFeedback({
   const [selected, setSelected] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [readyToPrompt, setReadyToPrompt] = useState(false);
+  const promptRef = useRef<HTMLDivElement | null>(null);
   const options = [
     { id: "accurate", label: "แม่น", icon: "✓" },
     { id: "easy", label: "อ่านง่าย", icon: "✦" },
@@ -509,14 +511,45 @@ function ReadingFeedback({
   useEffect(() => {
     setSelected(null);
     setDismissed(false);
+    setReadyToPrompt(false);
     if (!answerExcerpt || !autoPrompt) return;
     try {
       const alreadyDone = localStorage.getItem(feedbackKey) === "done";
       if (alreadyDone) return;
     } catch { /* ignore */ }
-    const timer = window.setTimeout(() => setOpen(true), 900);
+    const timer = window.setTimeout(() => setReadyToPrompt(true), 12000);
     return () => window.clearTimeout(timer);
   }, [answerExcerpt, autoPrompt, feedbackKey]);
+
+  useEffect(() => {
+    if (!answerExcerpt || !autoPrompt || !readyToPrompt || selected || dismissed) return;
+    try {
+      const alreadyDone = localStorage.getItem(feedbackKey) === "done";
+      if (alreadyDone) return;
+    } catch { /* ignore */ }
+
+    const node = promptRef.current;
+    if (!node) return;
+
+    let openTimer: number | undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          openTimer = window.setTimeout(() => setOpen(true), 1600);
+        } else if (openTimer) {
+          window.clearTimeout(openTimer);
+          openTimer = undefined;
+        }
+      },
+      { threshold: 0.65 },
+    );
+
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      if (openTimer) window.clearTimeout(openTimer);
+    };
+  }, [answerExcerpt, autoPrompt, dismissed, feedbackKey, readyToPrompt, selected]);
 
   const saveFeedback = (value: string) => {
     setSelected(value);
@@ -558,7 +591,7 @@ function ReadingFeedback({
 
   return (
     <>
-      <div className="mt-3 pt-3 border-t flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--accent-20)" }}>
+      <div ref={promptRef} className="mt-3 pt-3 border-t flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--accent-20)" }}>
         <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
           {selected ? "ขอบคุณสำหรับ feedback ครับ" : dismissed ? "ข้าม feedback แล้ว" : "ช่วยให้ OMNIA แม่นขึ้นอีกนิด"}
         </div>
