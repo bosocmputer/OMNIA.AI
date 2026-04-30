@@ -13,6 +13,7 @@ type FeedbackRow = {
   profile_id: string | null;
   agent_ids: string | null;
   answer_excerpt: string | null;
+  note: string | null;
   created_at: Date;
 };
 
@@ -34,6 +35,7 @@ async function ensureFeedbackTable() {
             profile_id TEXT,
             agent_ids TEXT,
             answer_excerpt TEXT,
+            note TEXT,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           )
         `);
@@ -41,6 +43,7 @@ async function ensureFeedbackTable() {
         const message = error instanceof Error ? error.message : String(error);
         if (!message.includes("already exists") && !message.includes("23505")) throw error;
       }
+      await db.$executeRawUnsafe(`ALTER TABLE reading_feedback ADD COLUMN IF NOT EXISTS note TEXT`);
       await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS reading_feedback_user_idx ON reading_feedback (user_id)`);
       await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS reading_feedback_session_idx ON reading_feedback (session_id)`);
       await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS reading_feedback_created_idx ON reading_feedback (created_at DESC)`);
@@ -60,17 +63,17 @@ function cleanText(value: unknown, max = 2000): string | null {
 
 export async function POST(req: NextRequest) {
   try {
-    await ensureFeedbackTable();
     const body = await req.json().catch(() => null);
     const rawValues = Array.isArray(body?.values)
       ? body.values
       : typeof body?.value === "string"
         ? body.value.split(",")
         : [];
-    const allowed = new Set(["accurate", "easy", "too_broad", "too_long"]);
+    const allowed = new Set(["accurate", "inaccurate", "too_broad", "too_long"]);
     const values = Array.from(new Set(rawValues.filter((item: unknown) => typeof item === "string").map((item: string) => item.trim()).filter((item: string) => allowed.has(item)))).slice(0, 4);
     const value = values.join(",");
     const scope = cleanText(body?.scope, 240);
+    const note = cleanText(body?.note, 1200);
     if (!value || !scope) {
       return NextResponse.json({ error: "Missing feedback value or scope" }, { status: 400 });
     }
@@ -78,6 +81,12 @@ export async function POST(req: NextRequest) {
     if (values.length === 0) {
       return NextResponse.json({ error: "Invalid feedback value" }, { status: 400 });
     }
+
+    if (values.includes("inaccurate") && !note) {
+      return NextResponse.json({ error: "Please explain what was inaccurate" }, { status: 400 });
+    }
+
+    await ensureFeedbackTable();
 
     const id = crypto.randomUUID();
     const userId = req.headers.get("x-user-id");
@@ -88,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     await db.$executeRaw`
       INSERT INTO reading_feedback (
-        id, user_id, username, session_id, question, scope, value, profile_id, agent_ids, answer_excerpt
+        id, user_id, username, session_id, question, scope, value, profile_id, agent_ids, answer_excerpt, note
       ) VALUES (
         ${id},
         ${userId},
@@ -99,7 +108,8 @@ export async function POST(req: NextRequest) {
         ${value},
         ${cleanText(body?.profileId, 120)},
         ${agentIds.length ? JSON.stringify(agentIds) : null},
-        ${cleanText(body?.answerExcerpt, 1200)}
+        ${cleanText(body?.answerExcerpt, 1200)},
+        ${note}
       )
     `;
 
@@ -119,7 +129,7 @@ export async function GET(req: NextRequest) {
     const limitParam = Number(new URL(req.url).searchParams.get("limit") ?? "100");
     const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 300) : 100;
     const rows = await db.$queryRaw<FeedbackRow[]>`
-      SELECT id, user_id, username, session_id, question, scope, value, profile_id, agent_ids, answer_excerpt, created_at
+      SELECT id, user_id, username, session_id, question, scope, value, profile_id, agent_ids, answer_excerpt, note, created_at
       FROM reading_feedback
       ORDER BY created_at DESC
       LIMIT ${limit}
@@ -140,6 +150,7 @@ export async function GET(req: NextRequest) {
         profileId: row.profile_id,
         agentIds,
         answerExcerpt: row.answer_excerpt,
+        note: row.note,
         createdAt: new Date(row.created_at).toISOString(),
       };
     });

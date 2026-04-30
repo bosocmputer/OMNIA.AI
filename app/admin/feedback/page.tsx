@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { MessageSquareText, RefreshCw, ThumbsUp, BookOpenCheck, Gauge, AlignLeft } from "lucide-react";
+import { MessageSquareText, RefreshCw, ThumbsUp, Gauge, AlignLeft, XCircle } from "lucide-react";
 
 interface FeedbackRow {
   id: string;
@@ -13,14 +13,15 @@ interface FeedbackRow {
   scope: string;
   agentIds: string[];
   answerExcerpt: string | null;
+  note: string | null;
   createdAt: string;
 }
 
 const VALUE_META: Record<string, { label: string; icon: ReactNode; color: string }> = {
   accurate: { label: "แม่น", icon: <ThumbsUp size={13} />, color: "var(--success)" },
-  easy: { label: "อ่านง่าย", icon: <BookOpenCheck size={13} />, color: "var(--accent)" },
+  inaccurate: { label: "ไม่ตรง", icon: <XCircle size={13} />, color: "var(--danger)" },
   too_broad: { label: "กว้างไป", icon: <Gauge size={13} />, color: "var(--orange)" },
-  too_long: { label: "ยาวไป", icon: <AlignLeft size={13} />, color: "var(--danger)" },
+  too_long: { label: "ยาวไป", icon: <AlignLeft size={13} />, color: "var(--text-muted)" },
 };
 
 export default function AdminFeedbackPage() {
@@ -68,7 +69,7 @@ export default function AdminFeedbackPage() {
           <div>
             <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>Feedback คำทำนาย</h1>
             <p className="text-sm mt-1 max-w-2xl" style={{ color: "var(--text-muted)" }}>
-              ดูว่าผู้ใช้รู้สึกว่าคำตอบแม่น อ่านง่าย กว้างไป หรือยาวไป เพื่อปรับ prompt ต่อได้ตรงจุด
+              ดูว่าผู้ใช้รู้สึกว่าคำตอบแม่น ไม่ตรง กว้างไป หรือยาวไป พร้อมเหตุผลเพื่อปรับ prompt ต่อได้ตรงจุด
             </p>
           </div>
         </div>
@@ -139,6 +140,12 @@ export default function AdminFeedbackPage() {
                   {row.answerExcerpt && (
                     <div className="text-xs leading-relaxed line-clamp-3" style={{ color: "var(--text-muted)" }}>
                       {row.answerExcerpt}
+                    </div>
+                  )}
+                  {row.note && (
+                    <div className="rounded-xl border px-3 py-2 text-xs leading-relaxed" style={{ borderColor: "var(--danger)", background: "var(--surface)", color: "var(--text)" }}>
+                      <span className="font-bold" style={{ color: "var(--danger)" }}>เหตุผลที่ไม่ตรง: </span>
+                      {row.note}
                     </div>
                   )}
                 </div>

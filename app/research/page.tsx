@@ -496,11 +496,12 @@ function ReadingFeedback({
   autoPrompt?: boolean;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [note, setNote] = useState("");
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const options = [
     { id: "accurate", label: "แม่น", icon: "✓" },
-    { id: "easy", label: "อ่านง่าย", icon: "✦" },
+    { id: "inaccurate", label: "ไม่ตรง", icon: "×" },
     { id: "too_broad", label: "กว้างไป", icon: "?" },
     { id: "too_long", label: "ยาวไป", icon: "!" },
   ];
@@ -508,6 +509,7 @@ function ReadingFeedback({
 
   useEffect(() => {
     setSelected(new Set());
+    setNote("");
     setDismissed(false);
     void autoPrompt;
   }, [answerExcerpt, autoPrompt]);
@@ -523,6 +525,11 @@ function ReadingFeedback({
 
   const saveFeedback = () => {
     if (selected.size === 0) return;
+    const trimmedNote = note.trim();
+    if (selected.has("inaccurate") && !trimmedNote) {
+      showToast("error", "ช่วยพิมพ์สั้น ๆ ว่าตรงไหนไม่ตรง");
+      return;
+    }
     const values = Array.from(selected);
     const value = values.join(",");
     setOpen(false);
@@ -533,7 +540,7 @@ function ReadingFeedback({
       const prev = JSON.parse(localStorage.getItem(key) || "[]");
       localStorage.setItem(key, JSON.stringify([
         ...prev.slice(-49),
-        { scope, values, sessionId, question, timestamp },
+        { scope, values, sessionId, question, note: trimmedNote, timestamp },
       ]));
       localStorage.setItem(feedbackKey, "done");
     } catch { /* ignore */ }
@@ -549,6 +556,7 @@ function ReadingFeedback({
         profileId,
         agentIds,
         answerExcerpt: answerExcerpt?.slice(0, 1200),
+        note: trimmedNote || undefined,
       }),
     }).catch(() => {});
     showToast("success", "ขอบคุณครับ รับ feedback แล้ว");
@@ -617,6 +625,25 @@ function ReadingFeedback({
               );
             })}
           </div>
+          <div className="space-y-2">
+            <label htmlFor="reading-feedback-note" className="block text-xs font-bold" style={{ color: "var(--text)" }}>
+              ถ้าไม่ตรง ช่วยบอกเหตุผลสั้น ๆ
+            </label>
+            <textarea
+              id="reading-feedback-note"
+              value={note}
+              onChange={(event) => setNote(event.target.value.slice(0, 1200))}
+              placeholder="เช่น ทักเรื่องงานไม่ตรง เพราะตอนนี้ไม่ได้มีหัวหน้า/เอกสารเข้ามาเกี่ยว หรือช่วงเวลาที่ทักไม่ใช่ช่วงที่เกิดจริง"
+              rows={3}
+              className="w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--accent)]"
+              style={{ borderColor: selected.has("inaccurate") && !note.trim() ? "var(--danger)" : "var(--border)", background: "var(--surface)", color: "var(--text)" }}
+            />
+            {selected.has("inaccurate") && !note.trim() && (
+              <p className="text-[11px]" style={{ color: "var(--danger)" }}>
+                เลือก “ไม่ตรง” แล้วต้องใส่เหตุผล เพื่อให้ทีมรู้ว่าควรปรับ prompt หรือข้อมูลตั้งต้นตรงไหน
+              </p>
+            )}
+          </div>
           <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)" }}>
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               เลือกแล้ว {selected.size} ข้อ · Feedback จะถูกใช้ปรับ prompt และคุณภาพคำตอบเท่านั้น
@@ -633,7 +660,7 @@ function ReadingFeedback({
               <button
                 type="button"
                 onClick={saveFeedback}
-                disabled={selected.size === 0}
+                disabled={selected.size === 0 || (selected.has("inaccurate") && !note.trim())}
                 className="rounded-lg px-3 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                 style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
               >

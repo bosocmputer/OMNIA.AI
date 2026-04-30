@@ -23,7 +23,7 @@ interface AnalyticsData {
 
 const FEEDBACK_LABELS: Record<string, string> = {
   accurate: "แม่น",
-  easy: "อ่านง่าย",
+  inaccurate: "ไม่ตรง",
   too_broad: "กว้างไป",
   too_long: "ยาวไป",
 };

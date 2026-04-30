@@ -26,6 +26,7 @@ async function ensureFeedbackTable() {
         profile_id TEXT,
         agent_ids TEXT,
         answer_excerpt TEXT,
+        note TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
@@ -33,6 +34,7 @@ async function ensureFeedbackTable() {
     const message = error instanceof Error ? error.message : String(error);
     if (!message.includes("already exists") && !message.includes("23505")) throw error;
   }
+  await db.$executeRawUnsafe(`ALTER TABLE reading_feedback ADD COLUMN IF NOT EXISTS note TEXT`);
 }
 
 function classifyTopic(question: string) {
