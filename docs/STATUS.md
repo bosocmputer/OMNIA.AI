@@ -24,6 +24,7 @@
 - ระหว่าง demo ทุก user เห็น `Demo mode · ถามฟรี`
 - ทุก user ไม่ถูกหักเครดิตเมื่อถามระหว่าง demo
 - Admin/superadmin ยังคงถูกยกเว้นการหักเครดิตจริงที่ server-side
+- User สมัครใหม่ไม่ต้องใส่ API key เอง ระบบใช้ API key กลางจาก superadmin/global/env เฉพาะฝั่ง server
 - Analytics dashboard และ feedback dashboard พร้อมดูภาพรวม
 - Feedback หลังคำทำนายเปลี่ยนเป็น dialog เพื่อให้ user กดง่ายและเก็บข้อมูลช่วง demo ได้จริง
 - Theme dark green/gold ปรับเข้าชุดทั้ง app

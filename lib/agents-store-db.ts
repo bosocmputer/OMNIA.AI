@@ -88,6 +88,64 @@ function decrypt(text: string): string {
   }
 }
 
+function getProviderEnvApiKey(provider: string): string {
+  const normalized = provider.toLowerCase();
+  if (normalized === "openrouter") return process.env.OPENROUTER_API_KEY || "";
+  if (normalized === "gemini") return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
+  if (normalized === "openai") return process.env.OPENAI_API_KEY || "";
+  if (normalized === "anthropic") return process.env.ANTHROPIC_API_KEY || "";
+  return "";
+}
+
+async function getSharedApiKeyForAgent(agent: {
+  id: string;
+  name: string;
+  provider: string;
+  apiKeyEncrypted: string;
+  userId?: string | null;
+}): Promise<string> {
+  const ownKey = decrypt(agent.apiKeyEncrypted);
+  if (ownKey) return ownKey;
+
+  const superadminAgent = await db.agent.findFirst({
+    where: {
+      id: { not: agent.id },
+      name: agent.name,
+      provider: agent.provider,
+      apiKeyEncrypted: { not: "" },
+      user: { username: "superadmin" },
+    },
+    select: { apiKeyEncrypted: true },
+  });
+  const superadminKey = superadminAgent ? decrypt(superadminAgent.apiKeyEncrypted) : "";
+  if (superadminKey) return superadminKey;
+
+  const globalAgent = await db.agent.findFirst({
+    where: {
+      id: { not: agent.id },
+      name: agent.name,
+      provider: agent.provider,
+      userId: null,
+      apiKeyEncrypted: { not: "" },
+    },
+    select: { apiKeyEncrypted: true },
+  });
+  const globalKey = globalAgent ? decrypt(globalAgent.apiKeyEncrypted) : "";
+  if (globalKey) return globalKey;
+
+  return getProviderEnvApiKey(agent.provider);
+}
+
+async function agentHasEffectiveApiKey(agent: {
+  id: string;
+  name: string;
+  provider: string;
+  apiKeyEncrypted: string;
+  userId?: string | null;
+}): Promise<boolean> {
+  return !!(await getSharedApiKeyForAgent(agent));
+}
+
 // ─── Knowledge files (filesystem, same as original) ──────────────────────────
 
 function knowledgeFilePath(agentId: string, knowledgeId: string): string {
@@ -232,13 +290,19 @@ export async function listAgents(userId?: string): Promise<AgentPublic[]> {
     include: { knowledge: true },
     orderBy: { createdAt: "asc" },
   });
-  return agents.map(dbAgentToPublic);
+  return Promise.all(agents.map(async (agent) => {
+    const publicAgent = dbAgentToPublic(agent);
+    return { ...publicAgent, hasApiKey: await agentHasEffectiveApiKey(agent) };
+  }));
 }
 
 export async function getAgentApiKey(id: string): Promise<string> {
-  const agent = await db.agent.findUnique({ where: { id }, select: { apiKeyEncrypted: true } });
+  const agent = await db.agent.findUnique({
+    where: { id },
+    select: { id: true, name: true, provider: true, apiKeyEncrypted: true, userId: true },
+  });
   if (!agent) return "";
-  return decrypt(agent.apiKeyEncrypted);
+  return getSharedApiKeyForAgent(agent);
 }
 
 export async function createAgent(data: {

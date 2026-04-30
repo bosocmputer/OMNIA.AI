@@ -148,6 +148,8 @@ POST /api/team-research/stream
       chargeCredits(userId, sessionId, agentCount)
   → demo default: billing disabled, all users can test without credit charge
   → admin/superadmin always bypass credit charge server-side
+  → agent API keys resolve server-side only:
+      user agent key → matching superadmin agent key → global agent key → provider env key
 
 POST /api/billing/wallet
   → create pending PromptPay top-up
