@@ -608,16 +608,14 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("th");
 
   useEffect(() => {
-    const saved = localStorage.getItem("locale") as Locale;
-    if (saved && (saved === "th" || saved === "en")) {
-      setLocaleState(saved);
-    }
+    localStorage.setItem("locale", "th");
+    setLocaleState("th");
   }, []);
 
-  const setLocale = useCallback((l: Locale) => {
-    setLocaleState(l);
+  const setLocale = useCallback((_l: Locale) => {
+    setLocaleState("th");
     if (typeof window !== "undefined") {
-      localStorage.setItem("locale", l);
+      localStorage.setItem("locale", "th");
     }
   }, []);
 
@@ -638,15 +636,5 @@ export function useI18n() {
 }
 
 export function LanguageSwitcher() {
-  const { locale, setLocale } = useI18n();
-  return (
-    <select
-      value={locale}
-      onChange={(e) => setLocale(e.target.value as Locale)}
-      className="px-3 py-1.5 rounded-lg bg-[var(--card)] border border-[var(--border)] text-xs font-medium hover:border-[var(--accent)] transition cursor-pointer text-[var(--text)]"
-    >
-      <option value="th">ภาษาไทย</option>
-      <option value="en">English</option>
-    </select>
-  );
+  return null;
 }

@@ -120,6 +120,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ── Global ambient background ── */

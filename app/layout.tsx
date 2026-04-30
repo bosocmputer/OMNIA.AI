@@ -27,7 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const isPublicStandalonePage = isAuthPage || pathname.startsWith("/privacy") || pathname.startsWith("/terms") || pathname.startsWith("/contact");
 
   return (
-    <html lang="th">
+    <html lang="th" data-theme="dark">
       <body>
         <a
           href="#main-content"
@@ -36,7 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           ข้ามไปที่เนื้อหาหลัก
         </a>
         <Providers>
-          <div className="min-h-screen md:flex">
+          <div className="min-h-dvh md:flex">
             {!isPublicStandalonePage && <Sidebar />}
             <main id="main-content" tabIndex={-1} className={`flex-1 overflow-auto ${isPublicStandalonePage ? "" : "pt-14 md:pt-0"}`}>
               {children}

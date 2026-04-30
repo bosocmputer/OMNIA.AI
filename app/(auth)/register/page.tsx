@@ -43,9 +43,9 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
+    <div className="relative min-h-dvh overflow-x-hidden overflow-y-auto" style={{ background: "var(--bg)" }}>
       {/* Ambient blobs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div
           className="absolute -top-40 -left-40 w-[480px] h-[480px] rounded-full blur-3xl"
           style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)", opacity: 0.12 }}
@@ -65,7 +65,7 @@ export default function RegisterPage() {
         />
       </div>
 
-      <div className="relative flex-1 flex flex-col items-center justify-center px-5 py-10">
+      <div className="relative flex min-h-dvh flex-col items-center justify-start px-4 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:justify-center sm:px-5 sm:py-10">
         {/* Logo */}
         <div className="mb-6 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -73,7 +73,7 @@ export default function RegisterPage() {
             src="/assets/logo/TITLELOGO.svg"
             alt="OMNIA.AI"
             className="w-auto object-contain drop-shadow-lg"
-            style={{ height: "clamp(68px, 13vw, 96px)" }}
+            style={{ height: "clamp(52px, 16vw, 88px)" }}
           />
           <div className="text-center">
             <div className="flex items-center justify-center gap-1">
@@ -88,14 +88,14 @@ export default function RegisterPage() {
 
         {/* Card */}
         <div
-          className="w-full max-w-sm rounded-2xl p-7 shadow-2xl"
+          className="w-full max-w-sm rounded-2xl p-5 shadow-2xl sm:p-7"
           style={{ background: "var(--card)", border: "1px solid var(--border)" }}
         >
           <h2 className="text-center text-base font-semibold mb-5" style={{ color: "var(--text)" }}>
             สร้างบัญชีใหม่
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-3.5">
             {/* Username */}
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
@@ -109,7 +109,7 @@ export default function RegisterPage() {
                 autoFocus
                 autoComplete="username"
                 placeholder="a-z, 0-9, _ (3-30 ตัว)"
-                className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all"
+                className="w-full rounded-xl px-4 py-2.5 text-base outline-none transition-all sm:text-sm"
                 style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
                 onFocus={(e) => { e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 3px var(--accent-8)"; }}
                 onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}
@@ -127,7 +127,7 @@ export default function RegisterPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
                 placeholder="your@email.com"
-                className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all"
+                className="w-full rounded-xl px-4 py-2.5 text-base outline-none transition-all sm:text-sm"
                 style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
                 onFocus={(e) => { e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 3px var(--accent-8)"; }}
                 onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}
@@ -147,7 +147,7 @@ export default function RegisterPage() {
                   required
                   autoComplete="new-password"
                   placeholder="อย่างน้อย 8 ตัวอักษร"
-                  className="w-full rounded-xl px-4 py-2.5 pr-11 text-sm outline-none transition-all"
+                  className="w-full rounded-xl px-4 py-2.5 pr-11 text-base outline-none transition-all sm:text-sm"
                   style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
                   onFocus={(e) => { e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 3px var(--accent-8)"; }}
                   onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}
@@ -176,7 +176,7 @@ export default function RegisterPage() {
                 required
                 autoComplete="new-password"
                 placeholder="กรอกรหัสผ่านอีกครั้ง"
-                className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all"
+                className="w-full rounded-xl px-4 py-2.5 text-base outline-none transition-all sm:text-sm"
                 style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
                 onFocus={(e) => { e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 3px var(--accent-8)"; }}
                 onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}
@@ -218,7 +218,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading || !consentPdpa}
-              className="w-full rounded-xl py-3 text-sm font-semibold transition-all disabled:opacity-50 cursor-pointer mt-1"
+              className="w-full rounded-xl py-3 text-base font-semibold transition-all disabled:opacity-50 cursor-pointer mt-1 sm:text-sm"
               style={{
                 background: "var(--accent)",
                 color: "var(--bg)",

@@ -36,9 +36,9 @@ function LoginForm() {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
+    <div className="relative min-h-dvh overflow-x-hidden overflow-y-auto" style={{ background: "var(--bg)" }}>
       {/* Ambient blobs — use brand accent via CSS variable */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div
           className="absolute -top-40 -left-40 w-[480px] h-[480px] rounded-full blur-3xl"
           style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)", opacity: 0.12 }}
@@ -59,16 +59,16 @@ function LoginForm() {
       </div>
 
       {/* Content */}
-      <div className="relative flex-1 flex flex-col items-center justify-center px-5 py-10">
+      <div className="relative flex min-h-dvh flex-col items-center justify-start px-4 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:justify-center sm:px-5 sm:py-10">
 
         {/* Logo + wordmark */}
-        <div className="mb-8 flex flex-col items-center gap-3">
+        <div className="mb-6 flex flex-col items-center gap-3 sm:mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/assets/logo/TITLELOGO.svg"
             alt="OMNIA.AI"
             className="w-auto object-contain drop-shadow-lg"
-            style={{ height: "clamp(84px, 17vw, 126px)" }}
+            style={{ height: "clamp(60px, 18vw, 110px)" }}
           />
           <div className="text-center">
             <div className="flex items-center justify-center gap-2">
@@ -83,7 +83,7 @@ function LoginForm() {
 
         {/* Card */}
         <div
-          className="w-full max-w-sm rounded-2xl p-7 shadow-2xl"
+          className="w-full max-w-sm rounded-2xl p-5 shadow-2xl sm:p-7"
           style={{
             background: "var(--card)",
             border: "1px solid var(--border)",
@@ -93,7 +93,7 @@ function LoginForm() {
             เข้าสู่ระบบ
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
                 ชื่อผู้ใช้
@@ -106,7 +106,7 @@ function LoginForm() {
                 autoFocus
                 autoComplete="username"
                 placeholder="กรอกชื่อผู้ใช้"
-                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
+                className="w-full rounded-xl px-4 py-3 text-base outline-none transition-all sm:text-sm"
                 style={{
                   background: "var(--surface)",
                   border: "1px solid var(--border)",
@@ -129,7 +129,7 @@ function LoginForm() {
                   required
                   autoComplete="current-password"
                   placeholder="กรอกรหัสผ่าน"
-                  className="w-full rounded-xl px-4 py-3 pr-11 text-sm outline-none transition-all"
+                  className="w-full rounded-xl px-4 py-3 pr-11 text-base outline-none transition-all sm:text-sm"
                   style={{
                     background: "var(--surface)",
                     border: "1px solid var(--border)",
@@ -159,7 +159,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl py-3 text-sm font-semibold transition-all disabled:opacity-50 cursor-pointer mt-2"
+              className="w-full rounded-xl py-3 text-base font-semibold transition-all disabled:opacity-50 cursor-pointer mt-2 sm:text-sm"
               style={{
                 background: "var(--accent)",
                 color: "var(--bg)",

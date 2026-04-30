@@ -1931,7 +1931,7 @@ export default function ResearchPage() {
   );
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: "transparent" }}>
+    <div className="h-[100dvh] flex flex-col overflow-hidden" style={{ background: "transparent" }}>
       <div className="max-w-6xl mx-auto w-full h-full flex flex-col p-3 sm:p-6 gap-3 sm:gap-4 min-h-0">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">

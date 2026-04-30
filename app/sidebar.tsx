@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useI18n, LanguageSwitcher } from "@/lib/i18n";
-import { ThemeSwitcher } from "@/lib/theme";
+import { useI18n } from "@/lib/i18n";
 import {
   Home,
   MessageSquare,
@@ -318,10 +317,8 @@ export function Sidebar() {
                 </div>
               </div>
             </Link>
-              <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1">
               {renderCreditStatus(true, () => setMobileMenuOpen(false))}
-              <LanguageSwitcher />
-              <ThemeSwitcher />
             </div>
           </div>
         </header>
@@ -405,10 +402,6 @@ export function Sidebar() {
                 >
                   <ChevronLeft size={16} />
                 </button>
-              </div>
-              <div className="flex items-center gap-2 mt-3 pl-0">
-                <LanguageSwitcher />
-                <ThemeSwitcher />
               </div>
               {renderCreditStatus()}
             </div>
