@@ -498,8 +498,6 @@ function ReadingFeedback({
   const [selected, setSelected] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [readyToPrompt, setReadyToPrompt] = useState(false);
-  const promptRef = useRef<HTMLDivElement | null>(null);
   const options = [
     { id: "accurate", label: "แม่น", icon: "✓" },
     { id: "easy", label: "อ่านง่าย", icon: "✦" },
@@ -511,45 +509,8 @@ function ReadingFeedback({
   useEffect(() => {
     setSelected(null);
     setDismissed(false);
-    setReadyToPrompt(false);
-    if (!answerExcerpt || !autoPrompt) return;
-    try {
-      const alreadyDone = localStorage.getItem(feedbackKey) === "done";
-      if (alreadyDone) return;
-    } catch { /* ignore */ }
-    const timer = window.setTimeout(() => setReadyToPrompt(true), 12000);
-    return () => window.clearTimeout(timer);
-  }, [answerExcerpt, autoPrompt, feedbackKey]);
-
-  useEffect(() => {
-    if (!answerExcerpt || !autoPrompt || !readyToPrompt || selected || dismissed) return;
-    try {
-      const alreadyDone = localStorage.getItem(feedbackKey) === "done";
-      if (alreadyDone) return;
-    } catch { /* ignore */ }
-
-    const node = promptRef.current;
-    if (!node) return;
-
-    let openTimer: number | undefined;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          openTimer = window.setTimeout(() => setOpen(true), 1600);
-        } else if (openTimer) {
-          window.clearTimeout(openTimer);
-          openTimer = undefined;
-        }
-      },
-      { threshold: 0.65 },
-    );
-
-    observer.observe(node);
-    return () => {
-      observer.disconnect();
-      if (openTimer) window.clearTimeout(openTimer);
-    };
-  }, [answerExcerpt, autoPrompt, dismissed, feedbackKey, readyToPrompt, selected]);
+    void autoPrompt;
+  }, [answerExcerpt, autoPrompt]);
 
   const saveFeedback = (value: string) => {
     setSelected(value);
@@ -591,9 +552,9 @@ function ReadingFeedback({
 
   return (
     <>
-      <div ref={promptRef} className="mt-3 pt-3 border-t flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--accent-20)" }}>
+      <div className="mt-3 pt-3 border-t flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--accent-20)" }}>
         <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-          {selected ? "ขอบคุณสำหรับ feedback ครับ" : dismissed ? "ข้าม feedback แล้ว" : "ช่วยให้ OMNIA แม่นขึ้นอีกนิด"}
+          {selected ? "ขอบคุณสำหรับ feedback ครับ" : dismissed ? "ข้าม feedback แล้ว" : "อ่านจบแล้วช่วยบอกได้ว่าคำตอบนี้เป็นยังไง"}
         </div>
         <button
           type="button"
@@ -881,7 +842,6 @@ export default function ResearchPage() {
     const data = await res.json();
     const activeAgents = (data.agents ?? []).filter((a: Agent) => a.active && !a.isSystem);
     setAgents(activeAgents);
-    setSelectedIds((prev) => prev.size > 0 ? prev : new Set(activeAgents.map((agent: Agent) => agent.id)));
   }, []);
 
   const fetchServerHistory = useCallback(async () => {
@@ -1002,6 +962,16 @@ export default function ResearchPage() {
       else next.add(id);
       return next;
     });
+  };
+
+  const selectRecommendedAgent = () => {
+    const recommended = agents.find((agent) => agent.hasApiKey) ?? agents[0];
+    if (!recommended) return;
+    setSelectedIds(new Set([recommended.id]));
+  };
+
+  const selectAllAgents = () => {
+    setSelectedIds(new Set(agents.map((agent) => agent.id)));
   };
 
   const uploadFile = async (file: File) => {
@@ -1151,7 +1121,7 @@ export default function ResearchPage() {
       ? (rounds[0]?.question ?? "สรุปคำทำนายรวม")
       : (overrideQuestion ?? question).trim();
     if (!closeMode && selectedIds.size === 0) {
-      showToast("warning", "กำลังเตรียมห้องหมอดู กรุณาเลือกหมอดูอย่างน้อย 1 ท่าน");
+      showToast("warning", "กรุณาเลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม เพื่อควบคุม token และให้คำตอบตรงเรื่อง");
       return;
     }
     // Warn if any selected agent has no API key
@@ -1648,19 +1618,40 @@ export default function ResearchPage() {
           <div className="text-xs mb-2 font-bold" style={{ color: "var(--text-muted)" }}>
             หมอดูในห้อง ({selectedIds.size}/{agents.length})
           </div>
-          {agents.length > 0 && (
-            <button
-              onClick={() => {
-                if (selectedIds.size === agents.length) setSelectedIds(new Set());
-                else setSelectedIds(new Set(agents.map(a => a.id)));
-              }}
-              className="text-[11px] px-2 py-0.5 rounded border transition-all mb-2"
-              style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
-            >
-              {selectedIds.size === agents.length ? "ยกเลิกทั้งหมด" : "เลือกทั้งหมด"}
-            </button>
-          )}
         </div>
+        {agents.length > 0 && (
+          <div className="mb-3 space-y-2">
+            <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              เลือกอย่างน้อย 1 ท่านก่อนถาม · 1 ท่านประหยัด token และตอบเร็ว, 3-5 ท่านเหมาะกับคำถามสำคัญที่อยากได้หลายมุม
+            </p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={selectRecommendedAgent}
+                className="rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-all hover:opacity-85"
+                style={{ borderColor: "var(--accent)", color: "var(--accent)", background: selectedIds.size === 1 ? "var(--accent-10)" : "transparent" }}
+              >
+                แนะนำ 1 ท่าน
+              </button>
+              <button
+                type="button"
+                onClick={selectAllAgents}
+                className="rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-all hover:opacity-85"
+                style={{ borderColor: "var(--border)", color: "var(--text)" }}
+              >
+                เลือกทั้งหมด
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-all hover:opacity-85"
+                style={{ borderColor: selectedIds.size === 0 ? "var(--accent)" : "var(--border)", color: selectedIds.size === 0 ? "var(--accent)" : "var(--text-muted)", background: selectedIds.size === 0 ? "var(--accent-8)" : "transparent" }}
+              >
+                ล้าง
+              </button>
+            </div>
+          </div>
+        )}
         {agents.length === 0 ? (
           <div className="text-center py-6 px-3">
                   <div className="text-2xl mb-2"><Building2 size={28} style={{ color: "var(--accent)" }} /></div>
@@ -1947,7 +1938,7 @@ export default function ResearchPage() {
           <div className="min-w-0">
             <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2" style={{ color: "var(--text)" }}><Building2 size={22} style={{ color: "var(--accent)" }} /><span>ห้องอ่านดวง OMNIA.AI</span></h1>
             <p className="text-xs sm:text-sm mt-1 hidden sm:block" style={{ color: "var(--text-muted)" }}>
-              พิมพ์คำถามได้ทันที ระบบเลือกสภาโหราจารย์ให้พร้อมแล้ว และยังปรับหมอดูได้จากแผงตั้งค่า
+              เลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม เลือกน้อยตอบเร็วและช่วยประหยัด token
             </p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
@@ -1973,7 +1964,7 @@ export default function ResearchPage() {
           </button>
           {useFileContext && attachedFiles.length > 0 && <span className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "var(--accent-10)", color: "var(--accent)" }}><Paperclip size={10} /> {attachedFiles.length} ไฟล์</span>}
           {(!useFileContext || attachedFiles.length === 0) && selectedIds.size > 0 && <span className="opacity-60">พร้อมถามคำถามแรก</span>}
-          {selectedIds.size === 0 && <span className="opacity-60">กำลังเตรียมสภาโหราจารย์</span>}
+          {selectedIds.size === 0 && <span className="opacity-60">เลือกหมอดูอย่างน้อย 1 ท่าน</span>}
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
@@ -2235,9 +2226,11 @@ export default function ResearchPage() {
                     <div className="mx-auto mb-3 w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>
                       <MessageSquare size={22} />
                     </div>
-                    <div className="text-base font-bold" style={{ color: "var(--text)" }}>พิมพ์เรื่องที่อยากดูได้เลย</div>
+                    <div className="text-base font-bold" style={{ color: "var(--text)" }}>
+                      {selectedIds.size === 0 ? "เลือกหมอดูก่อนเริ่มถาม" : "พิมพ์เรื่องที่อยากดูได้เลย"}
+                    </div>
                     <div className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                      {birthProfile ? <>กำลังใช้ข้อมูลของ <strong style={{ color: "var(--text)" }}>{birthProfile.name}</strong></> : "เพิ่มเจ้าชะตาเพื่อให้คำทำนายละเอียดขึ้น"} · หมอดู {selectedIds.size} ท่านพร้อมอ่าน
+                      {birthProfile ? <>กำลังใช้ข้อมูลของ <strong style={{ color: "var(--text)" }}>{birthProfile.name}</strong></> : "เพิ่มเจ้าชะตาเพื่อให้คำทำนายละเอียดขึ้น"} · {selectedIds.size === 0 ? "เลือก 1 ท่านเพื่อประหยัด token หรือเลือกหลายท่านเพื่อหลายมุมมอง" : `หมอดู ${selectedIds.size} ท่านพร้อมอ่าน`}
                     </div>
                   </div>
 
@@ -2574,7 +2567,7 @@ export default function ResearchPage() {
                         profileId={selectedBirthProfileId}
                         agentIds={Array.from(selectedIds)}
                         answerExcerpt={round.finalAnswer}
-                        autoPrompt={roundIndex === displayRounds.length - 1 && !running}
+                        autoPrompt={false}
                       />
                       <ResultActions
                         onAskMore={focusQuestionInput}
@@ -2764,7 +2757,7 @@ export default function ResearchPage() {
                         profileId={selectedBirthProfileId}
                         agentIds={Array.from(selectedIds)}
                         answerExcerpt={currentFinalAnswer}
-                        autoPrompt={!running}
+                        autoPrompt={false}
                       />
                       <ResultActions
                         onAskMore={focusQuestionInput}
@@ -2852,7 +2845,7 @@ export default function ResearchPage() {
                     onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleRun(); } }}
                     disabled={running}
                     rows={1}
-                    placeholder={meetingSessionId && !hasFinalReading() ? "ถามต่อได้เลย หรือกด 'สรุปรวม' เมื่อพร้อม..." : rounds.length > 0 ? "พิมพ์คำถามต่อไป..." : "พิมพ์เรื่องที่อยากดูดวง..."}
+                    placeholder={selectedIds.size === 0 ? "เลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม..." : meetingSessionId && !hasFinalReading() ? "ถามต่อได้เลย หรือกด 'สรุปรวม' เมื่อพร้อม..." : rounds.length > 0 ? "พิมพ์คำถามต่อไป..." : "พิมพ์เรื่องที่อยากดูดวง..."}
                     className="w-full bg-transparent text-sm resize-none outline-none px-4 pt-3 pb-1"
                     style={{ color: "var(--text)", minHeight: 36, maxHeight: 160 }}
                   />
@@ -2938,7 +2931,7 @@ export default function ResearchPage() {
                           disabled={!question.trim() || selectedIds.size === 0}
                           className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-xs font-bold disabled:opacity-30 transition-all"
                           style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
-                          title="ส่งคำถาม (⌘+Enter)"
+                          title={selectedIds.size === 0 ? "เลือกหมอดูอย่างน้อย 1 ท่านก่อนส่ง" : "ส่งคำถาม (⌘+Enter)"}
                         >
                           <Send size={14} /> ส่ง
                         </button>
