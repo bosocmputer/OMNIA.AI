@@ -26,7 +26,9 @@ export default function Modal({ open, onClose, title, children, maxWidth = "max-
     const focusable = panel?.querySelectorAll<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
     );
-    focusable?.[0]?.focus();
+    if (!panel?.contains(document.activeElement)) {
+      focusable?.[0]?.focus();
+    }
 
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {

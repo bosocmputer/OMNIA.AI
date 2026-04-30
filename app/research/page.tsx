@@ -86,6 +86,11 @@ interface WebSource {
   snippet: string;
 }
 
+interface AstroFocusPayload {
+  focus: string;
+  context?: string;
+}
+
 interface BirthProfile {
   id?: string;
   label?: string | null;
@@ -336,7 +341,18 @@ function confidenceLabel(content: string) {
   }
   if (/โอกาสสูง|แนวโน้มสูง|เอนเอียงไปทางดี|มีแนวโน้มที่ดี/.test(content)) return "โอกาสค่อนข้างดี";
   if (/โอกาสต่ำ|แนวโน้มต่ำ|ยังไม่เห็นชัด|ยังไม่เด่น/.test(content)) return "ยังไม่เด่นชัด";
-  return "น้ำหนักกลาง";
+  return "";
+}
+
+const ASTRO_FOCUS_OPTIONS = ["งาน", "เงิน", "ความรัก", "สุขภาพ", "ภาพรวม", "ข้าม"];
+
+function isBroadAstrologyQuestion(text: string) {
+  const q = text.toLowerCase().replace(/\s+/g, "");
+  if (!q) return false;
+  const hasAstroIntent = /ดูดวง|ดวง|โหร|ทำนาย|พยากรณ์|ชะตา|bazi|ไพ่|ราศี/.test(q);
+  const hasBroadFrame = /วันนี้|พรุ่งนี้|ช่วงนี้|สัปดาห์หน้า|อาทิตย์หน้า|เดือนหน้า|ปีหน้า|ภาพรวม|มีเรื่องไหน|ควรระวัง|ควรเตรียมตัว/.test(q);
+  const hasConcreteDomain = /งาน|อาชีพ|ธุรกิจ|เงิน|ลงทุน|หนี้|รายได้|ความรัก|แฟน|คู่|ครอบครัว|สุขภาพ|สอบ|สัมภาษณ์|ขาย|ย้าย|ลาออก|เดินทาง|บ้าน|รถ|คดี|เอกสาร/.test(q);
+  return hasAstroIntent && hasBroadFrame && !hasConcreteDomain;
 }
 
 function buildReadingTimeline(content: string) {
@@ -421,11 +437,12 @@ function AnswerSnapshot({ content }: { content: string }) {
     <div className="mb-3 overflow-hidden rounded-xl border" style={{ borderColor: "var(--accent-30)", background: "linear-gradient(135deg, var(--surface), var(--card))" }}>
       <div className="grid gap-0 lg:grid-cols-[170px_1fr]">
         <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r" style={{ borderColor: "var(--border)" }}>
-          <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>อ่านเร็ว</div>
-          <div className="mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-black" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
-            {confidenceLabel(content)}
-          </div>
-          <div className="mt-2 text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>น้ำหนักรวมจาก OMNIA.AI</div>
+          <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>สรุปจาก OMNIA.AI</div>
+          {confidenceLabel(content) && (
+            <div className="mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-black" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+              {confidenceLabel(content)}
+            </div>
+          )}
         </div>
         <div className="p-3 sm:p-4">
           <div className="text-base sm:text-lg font-extrabold leading-relaxed" style={{ color: "var(--text)" }}>{direct}</div>
@@ -499,6 +516,7 @@ function ReadingFeedback({
   const [note, setNote] = useState("");
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const options = [
     { id: "accurate", label: "แม่น", icon: "✓" },
     { id: "inaccurate", label: "ไม่ตรง", icon: "×" },
@@ -506,6 +524,12 @@ function ReadingFeedback({
     { id: "too_long", label: "ยาวไป", icon: "!" },
   ];
   const feedbackKey = `omnia_feedback:${sessionId || scope}`;
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => noteRef.current?.focus(), 50);
+    return () => window.clearTimeout(timer);
+  }, [open]);
 
   useEffect(() => {
     setSelected(new Set());
@@ -630,6 +654,7 @@ function ReadingFeedback({
               ถ้าไม่ตรง ช่วยบอกเหตุผลสั้น ๆ
             </label>
             <textarea
+              ref={noteRef}
               id="reading-feedback-note"
               value={note}
               onChange={(event) => setNote(event.target.value.slice(0, 1200))}
@@ -805,6 +830,10 @@ export default function ResearchPage() {
   const [clarificationMode, setClarificationMode] = useState<"chat" | "birth">("chat");
   const pendingClarificationQuestionRef = useRef<string>("");
   const lastClarificationAnswersRef = useRef<{ question: string; answer: string }[] | undefined>(undefined);
+  const [astroFocusOpen, setAstroFocusOpen] = useState(false);
+  const [pendingAstroQuestion, setPendingAstroQuestion] = useState("");
+  const [astroFocus, setAstroFocus] = useState("งาน");
+  const [astroContext, setAstroContext] = useState("");
 
   // Web sources state
   const [currentWebSources, setCurrentWebSources] = useState<WebSource[]>([]);
@@ -1149,6 +1178,29 @@ export default function ResearchPage() {
     ];
   };
 
+  const buildAstroFocusAnswers = (payload?: AstroFocusPayload): { question: string; answer: string }[] => {
+    if (!payload) return [];
+    const answers = [
+      { question: "โฟกัสที่ผู้ใช้เลือกก่อนดูดวง", answer: payload.focus },
+    ];
+    const context = payload.context?.trim();
+    if (context) {
+      answers.push({ question: "บริบทหรือเหตุการณ์สำคัญที่ผู้ใช้เล่าเพิ่ม", answer: context });
+    } else {
+      answers.push({ question: "บริบทเพิ่มเติม", answer: payload.focus === "ข้าม" ? "ผู้ใช้เลือกข้าม ให้ดูภาพรวมจากข้อมูลเกิดเท่าที่มี" : "ผู้ใช้ไม่ได้เล่าเหตุการณ์เฉพาะเพิ่ม" });
+    }
+    return answers;
+  };
+
+  const maybeAskAstroFocus = (text: string, focusPayload?: AstroFocusPayload) => {
+    if (focusPayload || !isAstrologyPrompt(text) || !isBroadAstrologyQuestion(text)) return false;
+    setPendingAstroQuestion(text);
+    setAstroFocus("งาน");
+    setAstroContext("");
+    setAstroFocusOpen(true);
+    return true;
+  };
+
   const hasFinalReading = () => rounds.some((r) => !r.isQA && (!!r.finalAnswer || r.messages.some((m) => m.role === "synthesis")));
   const walletIsLow = wallet ? wallet.billingEnabled !== false && !wallet.isAdmin && wallet.balance < wallet.readingPrice.credits : false;
 
@@ -1172,7 +1224,7 @@ export default function ResearchPage() {
 
   useEffect(() => { refreshWallet(); }, [refreshWallet, meetingSessionId]);
 
-  const handleRun = async (overrideQuestion?: string, closeMode = false, withClarificationAnswers?: { question: string; answer: string }[]) => {
+  const handleRun = async (overrideQuestion?: string, closeMode = false, withClarificationAnswers?: { question: string; answer: string }[], focusPayload?: AstroFocusPayload) => {
     const q = closeMode
       ? (rounds[0]?.question ?? "คำตอบรวม")
       : (overrideQuestion ?? question).trim();
@@ -1194,11 +1246,14 @@ export default function ResearchPage() {
       showToast("info", "มีคำตอบรวมแล้ว — ถามต่อได้เลย");
       return;
     }
+    if (!closeMode && effectiveMode !== "qa" && maybeAskAstroFocus(q, focusPayload)) return;
     setLastCreditUsage(null);
     const balanceBeforeRun = wallet?.balance;
 
     const isQA = !closeMode && effectiveMode === "qa";
-    const effectiveClarificationAnswers = withClarificationAnswers ?? buildBirthProfileAnswers(q);
+    const focusAnswers = buildAstroFocusAnswers(focusPayload);
+    const baseClarificationAnswers = withClarificationAnswers ?? buildBirthProfileAnswers(q) ?? [];
+    const effectiveClarificationAnswers = [...baseClarificationAnswers, ...focusAnswers];
 
     setViewingSession(null);
     setHistoryTab("current");
@@ -1227,7 +1282,7 @@ export default function ResearchPage() {
     setCurrentPhase(0);
     setPhase1DoneCount(new Set());
     setIsSynthesizing(false);
-    if (!overrideQuestion && !closeMode) setQuestion("");
+    if (!closeMode) setQuestion("");
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
 
     abortRef.current = new AbortController();
@@ -1245,6 +1300,8 @@ export default function ResearchPage() {
         disableMcp: true,
         includeCompanyInfo: false,
         clarificationAnswers: effectiveClarificationAnswers || undefined,
+        astroFocus: focusPayload?.focus,
+        astroContext: focusPayload?.context?.trim() || undefined,
       };
 
       if (closeMode) {
@@ -2976,6 +3033,72 @@ export default function ResearchPage() {
           </div>
         </div>
       </div>
+
+      {/* Lightweight focus picker for broad astrology questions */}
+      <Modal open={astroFocusOpen} onClose={() => setAstroFocusOpen(false)} title="อยากให้หมอดูจับเรื่องไหนก่อน?" maxWidth="max-w-md">
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            คำถามนี้ยังค่อนข้างกว้าง เลือกโฟกัสสั้น ๆ ได้เลย หรือข้ามเพื่อดูภาพรวม
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {ASTRO_FOCUS_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setAstroFocus(option)}
+                className="rounded-lg border px-3 py-2 text-sm font-semibold transition-all"
+                style={{
+                  borderColor: astroFocus === option ? "var(--accent)" : "var(--border)",
+                  background: astroFocus === option ? "var(--accent-12)" : "var(--surface)",
+                  color: astroFocus === option ? "var(--accent)" : "var(--text)",
+                }}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
+              มีเหตุการณ์สำคัญเร็ว ๆ นี้ไหม? (ข้ามได้)
+            </label>
+            <textarea
+              value={astroContext}
+              onChange={(e) => setAstroContext(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2"
+              style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}
+              placeholder="เช่น พรุ่งนี้มีประชุม, รอคำตอบเรื่องงาน, เพิ่งมีเรื่องกับคนรัก"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const q = pendingAstroQuestion;
+                setAstroFocusOpen(false);
+                handleRun(q, false, undefined, { focus: "ข้าม" });
+              }}
+              className="rounded-lg border px-3 py-2 text-sm font-semibold"
+              style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+            >
+              ข้าม
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const q = pendingAstroQuestion;
+                const payload = { focus: astroFocus, context: astroContext.trim() };
+                setAstroFocusOpen(false);
+                handleRun(q, false, undefined, payload);
+              }}
+              className="rounded-lg px-3 py-2 text-sm font-bold"
+              style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
+            >
+              เริ่มดู
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Confirm clear session modal */}
       <Modal open={showClearConfirm} onClose={() => setShowClearConfirm(false)} title="เริ่มดูดวงใหม่?" maxWidth="max-w-sm">
