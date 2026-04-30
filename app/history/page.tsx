@@ -100,11 +100,16 @@ function buildExportText(session: ServerSession) {
   return lines.join("\n");
 }
 
+function questionLabel(index: number) {
+  return index === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${index + 1}`;
+}
+
 export default function HistoryPage() {
   const [sessions, setSessions] = useState<ServerSession[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
 
   const selected = sessions.find((session) => session.id === selectedId) ?? sessions[0] ?? null;
   const filtered = useMemo(() => {
@@ -167,7 +172,10 @@ export default function HistoryPage() {
       </header>
 
       <div className="grid flex-1 gap-4 lg:grid-cols-[360px_1fr] lg:min-h-0">
-        <aside className="rounded-2xl border p-3 lg:min-h-0" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <aside className={`rounded-2xl border p-3 lg:min-h-0 ${mobileDetailOpen ? "hidden lg:block" : ""}`} style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <div className="mb-3 rounded-xl border px-3 py-2 text-xs leading-relaxed lg:hidden" style={{ borderColor: "var(--accent-20)", background: "var(--accent-5)", color: "var(--text-muted)" }}>
+            แตะประวัติหนึ่งรายการเพื่อเปิดอ่านเต็มหน้า
+          </div>
           <div className="mb-3 flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
             <Search size={14} style={{ color: "var(--text-muted)" }} />
             <input
@@ -191,7 +199,11 @@ export default function HistoryPage() {
                   <button
                     key={session.id}
                     type="button"
-                    onClick={() => setSelectedId(session.id)}
+                    onClick={() => {
+                      setSelectedId(session.id);
+                      setMobileDetailOpen(true);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
                     className="w-full rounded-xl border p-3 text-left transition-all"
                     style={{
                       borderColor: active ? "var(--accent)" : "var(--border)",
@@ -201,7 +213,7 @@ export default function HistoryPage() {
                     <div className="line-clamp-2 text-sm font-bold" style={{ color: "var(--text)" }}>{session.question}</div>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]" style={{ color: "var(--text-muted)" }}>
                       <span className="inline-flex items-center gap-1"><CalendarDays size={11} /> {new Date(session.startedAt).toLocaleDateString("th-TH")}</span>
-                      <span className="inline-flex items-center gap-1"><MessageSquare size={11} /> {groupSessionHistory(session).length} คำถาม</span>
+                    <span className="inline-flex items-center gap-1"><MessageSquare size={11} /> {groupSessionHistory(session).length} ช่วงคำถาม</span>
                       {session.ownerUsername && <span className="inline-flex items-center gap-1"><User size={11} /> {session.ownerUsername}</span>}
                     </div>
                   </button>
@@ -211,7 +223,7 @@ export default function HistoryPage() {
           )}
         </aside>
 
-        <main className="rounded-2xl border lg:min-h-0" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <main className={`rounded-2xl border lg:min-h-0 ${mobileDetailOpen ? "" : "hidden lg:block"}`} style={{ borderColor: "var(--border)", background: "var(--card)" }}>
           {!selected ? (
             <div className="flex min-h-[320px] items-center justify-center p-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
               เลือกประวัติทางซ้ายเพื่ออ่านรายละเอียด
@@ -219,6 +231,14 @@ export default function HistoryPage() {
           ) : (
             <div className="flex h-full flex-col">
               <div className="border-b p-4" style={{ borderColor: "var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={() => setMobileDetailOpen(false)}
+                  className="mb-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold lg:hidden"
+                  style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}
+                >
+                  ← กลับไปเลือกรายการประวัติ
+                </button>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -249,7 +269,7 @@ export default function HistoryPage() {
 
                 {groupSessionHistory(selected).map((group, index) => (
                   <section key={`${selected.id}-${index}`} className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-                    <div className="mb-3 text-sm font-bold" style={{ color: "var(--text)" }}>คำถามที่ {index + 1}: {group.question}</div>
+                    <div className="mb-3 text-sm font-bold" style={{ color: "var(--text)" }}>{questionLabel(index)}: {group.question}</div>
                     <div className="space-y-3">
                       {group.messages.length === 0 ? (
                         <div className="text-sm" style={{ color: "var(--text-muted)" }}>ไม่มีรายละเอียดเพิ่มเติม</div>

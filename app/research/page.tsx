@@ -814,6 +814,7 @@ export default function ResearchPage() {
   const [autoScroll, setAutoScroll] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const roundRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const abortRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const currentFinalAnswerRef = useRef("");
@@ -980,6 +981,16 @@ export default function ResearchPage() {
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     setAutoScroll(true);
+  };
+
+  const getRoundAnchor = (index: number) => `round-${index}`;
+  const scrollToRound = (index: number, onNavigate?: () => void) => {
+    onNavigate?.();
+    setViewingSession(null);
+    setHistoryTab("current");
+    window.setTimeout(() => {
+      roundRefs.current[getRoundAnchor(index)]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
   };
 
   const toggleAgent = (id: string) => {
@@ -1857,17 +1868,31 @@ export default function ResearchPage() {
             {rounds.length === 0 ? (
               <div className="text-xs text-center py-4" style={{ color: "var(--text-muted)" }}>ยังยังไม่มีคำถาม</div>
             ) : (
+              <>
+              <div className="mb-2 rounded-lg border px-2.5 py-2 text-[11px] leading-relaxed" style={{ borderColor: "var(--accent-20)", background: "var(--accent-5)", color: "var(--text-muted)" }}>
+                <span className="font-bold" style={{ color: "var(--text)" }}>คำถามในรอบนี้</span> กดรายการเพื่อเลื่อนไปอ่านคำตอบด้านขวา
+              </div>
               <div className="space-y-2">
                 {rounds.map((r, i) => (
-                  <div key={i} className="text-xs p-2 rounded-lg border" style={{ borderColor: "var(--border)" }}>
-                    <div className="font-bold mb-0.5" style={{ color: "var(--text)" }}>คำถามที่ {i + 1}</div>
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => scrollToRound(i, onNavigate)}
+                    className="w-full text-left text-xs p-2 rounded-lg border transition-all hover:opacity-80"
+                    style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+                  >
+                    <div className="font-bold mb-0.5 flex items-center justify-between gap-2" style={{ color: "var(--text)" }}>
+                      <span>{r.isSynthesis ? "สรุปรวม" : i === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${i + 1}`}</span>
+                      <span className="text-[10px] font-medium" style={{ color: "var(--accent)" }}>ไปอ่าน</span>
+                    </div>
                     <div className="line-clamp-2" style={{ color: "var(--text-muted)" }}>{r.question}</div>
-                  </div>
+                  </button>
                 ))}
                 <button onClick={confirmClearSession} className="w-full text-xs px-2 py-1.5 rounded-lg border mt-1 flex items-center justify-center gap-1" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
                   <Trash2 size={12} /> เริ่มดูดวงใหม่
                 </button>
               </div>
+              </>
             )}
           </div>
         ) : (
@@ -2434,7 +2459,11 @@ export default function ResearchPage() {
 
               {/* Current session rounds */}
               {!viewingSession && displayRounds.map((round, roundIndex) => (
-                <div key={roundIndex} className="space-y-3">
+                <div
+                  key={roundIndex}
+                  ref={(node) => { roundRefs.current[getRoundAnchor(roundIndex)] = node; }}
+                  className="scroll-mt-4 space-y-3"
+                >
                   {(round.isSynthesis || displayRounds.filter(r => !r.isSynthesis).length > 1) && (
                   <div className="flex items-center gap-3">
                     <div className="flex-1 border-t" style={{ borderColor: round.isSynthesis ? "var(--accent)" : "var(--border)" }} />
@@ -2444,7 +2473,7 @@ export default function ResearchPage() {
                       background: round.isSynthesis ? "var(--accent)" : "var(--accent-8)",
                       fontWeight: round.isSynthesis ? 700 : 400,
                     }}>
-                      {round.isSynthesis ? "สรุปคำทำนายรวม" : round.isQA ? `คำถามที่ ${roundIndex + 1}` : `คำถามที่ ${roundIndex + 1}`}
+                      {round.isSynthesis ? "สรุปคำทำนายรวม" : roundIndex === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${roundIndex + 1}`}
                     </div>
                     <div className="flex-1 border-t" style={{ borderColor: round.isSynthesis ? "var(--accent)" : "var(--border)" }} />
                   </div>
@@ -2602,7 +2631,7 @@ export default function ResearchPage() {
                         background: isCurrentClosing ? "var(--accent)" : "var(--accent-8)",
                         fontWeight: isCurrentClosing ? 700 : 400,
                       }}>
-                        {isCurrentClosing ? "สรุปคำทำนายรวม" : `คำถามที่ ${displayRounds.filter(r => !r.isSynthesis).length + 1}`}
+                        {isCurrentClosing ? "สรุปคำทำนายรวม" : displayRounds.filter(r => !r.isSynthesis).length === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${displayRounds.filter(r => !r.isSynthesis).length + 1}`}
                       </div>
                       <div className="flex-1 border-t" style={{ borderColor: isCurrentClosing ? "var(--accent)" : "var(--border)" }} />
                     </div>
