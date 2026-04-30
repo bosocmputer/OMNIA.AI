@@ -5,27 +5,34 @@ import { signToken, COOKIE_NAME, COOKIE_MAX_AGE } from "@/lib/auth";
 import { seedAstrologyAgentsForUser } from "@/lib/seed-astro-for-user";
 import { grantWelcomeCredits, isCreditBillingEnabled } from "@/lib/billing";
 
-// Rate limit: max 5 registrations per IP per hour (simple in-memory for now)
+// Demo-friendly guard: limit only valid registration attempts, not normal form mistakes.
+// Cloudflare tunnel can make many testers share the same upstream IP, so keep this lenient.
 const regAttempts = new Map<string, { count: number; resetAt: number }>();
+const REGISTER_RATE_LIMIT_MAX = Number(process.env.REGISTER_RATE_LIMIT_MAX ?? 60);
+const REGISTER_RATE_LIMIT_WINDOW_MS = Number(process.env.REGISTER_RATE_LIMIT_WINDOW_MS ?? 60 * 60 * 1000);
 
 function checkRegRateLimit(ip: string): boolean {
   const now = Date.now();
   const entry = regAttempts.get(ip);
   if (!entry || now > entry.resetAt) {
-    regAttempts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    regAttempts.set(ip, { count: 1, resetAt: now + REGISTER_RATE_LIMIT_WINDOW_MS });
     return true;
   }
-  if (entry.count >= 5) return false;
+  if (entry.count >= REGISTER_RATE_LIMIT_MAX) return false;
   entry.count++;
   return true;
 }
 
-export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (!checkRegRateLimit(ip)) {
-    return NextResponse.json({ error: "ลองใหม่ในภายหลัง (rate limit)" }, { status: 429 });
-  }
+function getRegisterIp(req: NextRequest): string {
+  return (
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-real-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown"
+  );
+}
 
+export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body?.username || !body?.password || !body?.consentPdpa) {
     return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบและยอมรับนโยบาย PDPA" }, { status: 400 });
@@ -42,6 +49,11 @@ export async function POST(req: NextRequest) {
   }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "รูปแบบอีเมลไม่ถูกต้อง" }, { status: 400 });
+  }
+
+  const ip = getRegisterIp(req);
+  if (!checkRegRateLimit(ip)) {
+    return NextResponse.json({ error: "มีการสมัครจากเครือข่ายนี้หลายครั้ง กรุณารอสักครู่แล้วลองใหม่" }, { status: 429 });
   }
 
   // Check duplicate
