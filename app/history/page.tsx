@@ -148,8 +148,8 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col gap-4 px-4 py-5 md:min-h-[100dvh] md:py-8">
-      <header className="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+    <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col gap-3 px-3 py-4 md:min-h-[100dvh] md:gap-4 md:px-4 md:py-8">
+      <header className="flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between md:rounded-2xl md:p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border" style={{ borderColor: "var(--accent-30)", background: "var(--accent-10)", color: "var(--accent)" }}>
             <History size={20} />
@@ -171,8 +171,8 @@ export default function HistoryPage() {
         </div>
       </header>
 
-      <div className="grid flex-1 gap-4 lg:grid-cols-[360px_1fr] lg:min-h-0">
-        <aside className={`rounded-2xl border p-3 lg:min-h-0 ${mobileDetailOpen ? "hidden lg:block" : ""}`} style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+      <div className="grid flex-1 gap-3 lg:grid-cols-[360px_1fr] lg:min-h-0 lg:gap-4">
+        <aside className={`rounded-xl border p-2.5 lg:min-h-0 lg:rounded-2xl lg:p-3 ${mobileDetailOpen ? "hidden lg:block" : ""}`} style={{ borderColor: "var(--border)", background: "var(--card)" }}>
           <div className="mb-3 rounded-xl border px-3 py-2 text-xs leading-relaxed lg:hidden" style={{ borderColor: "var(--accent-20)", background: "var(--accent-5)", color: "var(--text-muted)" }}>
             แตะประวัติหนึ่งรายการเพื่อเปิดอ่านเต็มหน้า
           </div>
@@ -223,14 +223,14 @@ export default function HistoryPage() {
           )}
         </aside>
 
-        <main className={`rounded-2xl border lg:min-h-0 ${mobileDetailOpen ? "" : "hidden lg:block"}`} style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <main className={`rounded-xl border lg:min-h-0 lg:rounded-2xl ${mobileDetailOpen ? "" : "hidden lg:block"}`} style={{ borderColor: "var(--border)", background: "var(--card)" }}>
           {!selected ? (
             <div className="flex min-h-[320px] items-center justify-center p-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
               เลือกประวัติทางซ้ายเพื่ออ่านรายละเอียด
             </div>
           ) : (
             <div className="flex h-full flex-col">
-              <div className="border-b p-4" style={{ borderColor: "var(--border)" }}>
+              <div className="border-b p-3 md:p-4" style={{ borderColor: "var(--border)" }}>
                 <button
                   type="button"
                   onClick={() => setMobileDetailOpen(false)}
@@ -250,7 +250,7 @@ export default function HistoryPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Link href={`/research?sessionId=${selected.id}`} className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
-                      เปิดในห้องดูดวง <ArrowRight size={14} />
+                      ถามต่อจากคำทำนายนี้ <ArrowRight size={14} />
                     </Link>
                     <button onClick={exportSelected} className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold" style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}>
                       <Download size={14} /> บันทึก
@@ -259,16 +259,16 @@ export default function HistoryPage() {
                 </div>
               </div>
 
-              <div className="flex-1 space-y-4 overflow-y-auto p-4 lg:max-h-[calc(100dvh-15rem)]">
+              <div className="flex-1 space-y-3 overflow-y-auto p-3 md:space-y-4 md:p-4 lg:max-h-[calc(100dvh-15rem)]">
                 {selected.finalAnswer && (
-                  <section className="rounded-2xl border p-4" style={{ borderColor: "var(--accent-30)", background: "var(--accent-5)" }}>
+                  <section className="rounded-xl border p-3 md:rounded-2xl md:p-4" style={{ borderColor: "var(--accent-30)", background: "var(--accent-5)" }}>
                     <div className="mb-3 text-xs font-black uppercase tracking-wider" style={{ color: "var(--accent)" }}>สรุปจาก OMNIA.AI</div>
                     <MarkdownBlock content={selected.finalAnswer} />
                   </section>
                 )}
 
                 {groupSessionHistory(selected).map((group, index) => (
-                  <section key={`${selected.id}-${index}`} className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+                  <section key={`${selected.id}-${index}`} className="rounded-xl border p-3 md:rounded-2xl md:p-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
                     <div className="mb-3 text-sm font-bold" style={{ color: "var(--text)" }}>{questionLabel(index)}: {group.question}</div>
                     <div className="space-y-3">
                       {group.messages.length === 0 ? (

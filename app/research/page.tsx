@@ -9,7 +9,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   Building2, Settings, Users, FileText, MessageSquare, History,
-  Brain, Paperclip, Lightbulb, Send, Square, SkipForward,
+  Brain, Paperclip, Lightbulb, Send, Square,
   ChevronDown, ChevronRight, X, Download, Search, Check,
   AlertTriangle, Coins,
   BarChart3, File, Trash2, RefreshCw, UserCircle, Plus,
@@ -151,7 +151,7 @@ const ROLE_LABEL: Record<string, string> = {
   thinking: "กำลังคิด",
   finding: "คำทำนาย",
   analysis: "วิเคราะห์",
-  synthesis: "สรุปรวม",
+  synthesis: "คำตอบรวม",
   chat: "มุมมองเพิ่มเติม",
 };
 
@@ -232,11 +232,11 @@ function SimpleBarChart({ data }: { data: ChartData }) {
 // Render message content — Markdown with collapsible long content
 const COLLAPSE_LINE_LIMIT = 8;
 
-function MessageContent({ content }: { content: string }) {
+function MessageContent({ content, defaultExpanded = true }: { content: string; defaultExpanded?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const stripped = content.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim();
   const lines = stripped.split("\n");
-  const isLong = lines.length > COLLAPSE_LINE_LIMIT;
+  const isLong = !defaultExpanded && lines.length > COLLAPSE_LINE_LIMIT;
   const displayText = !expanded && isLong ? lines.slice(0, COLLAPSE_LINE_LIMIT).join("\n") : stripped;
 
   return (
@@ -700,7 +700,7 @@ function buildMinutesMarkdown(rounds: ConversationRound[], agents: Agent[]): str
 
     // Phase 3 — synthesis/resolution
     if (round.finalAnswer) {
-      lines.push(round.isQA ? "### คำตอบ" : "### สรุปคำทำนายรวม", round.finalAnswer.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim(), "");
+      lines.push(round.isQA ? "### คำตอบ" : "### คำตอบจาก OMNIA.AI", round.finalAnswer.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim(), "");
     }
 
     // Web Sources
@@ -827,9 +827,6 @@ export default function ResearchPage() {
 
   // Smart mode (auto-detect QA vs meeting based on agent count)
   const [forceMode, setForceMode] = useState<"auto" | "meeting" | "qa">("auto");
-  const skipToSummaryRef = useRef(false);
-  const [pendingSkipToSummary, setPendingSkipToSummary] = useState(false);
-  const handleCloseRef = useRef<() => void>(() => {});
 
   useEffect(() => { currentFinalAnswerRef.current = currentFinalAnswer; }, [currentFinalAnswer]);
   useEffect(() => { currentMessagesRef.current = currentMessages; }, [currentMessages]);
@@ -848,6 +845,9 @@ export default function ResearchPage() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.rounds) setRounds(parsed.rounds);
+        if (Array.isArray(parsed.selectedIds) && parsed.selectedIds.length > 0) {
+          setSelectedIds(new Set(parsed.selectedIds));
+        }
         if (parsed.meetingSessionId) {
           setMeetingSessionId(parsed.meetingSessionId);
           meetingSessionIdRef.current = parsed.meetingSessionId;
@@ -861,9 +861,9 @@ export default function ResearchPage() {
     if (!currentUserId) return;
     const storageKey = `${STORAGE_KEY_PREFIX}_${currentUserId}`;
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ rounds, meetingSessionId }));
+      localStorage.setItem(storageKey, JSON.stringify({ rounds, meetingSessionId, selectedIds: Array.from(selectedIds) }));
     } catch { /* ignore */ }
-  }, [rounds, meetingSessionId, currentUserId]);
+  }, [rounds, meetingSessionId, selectedIds, currentUserId]);
 
   const fetchAgents = useCallback(async () => {
     const res = await fetch("/api/team-agents");
@@ -1146,7 +1146,7 @@ export default function ResearchPage() {
 
   const handleRun = async (overrideQuestion?: string, closeMode = false, withClarificationAnswers?: { question: string; answer: string }[]) => {
     const q = closeMode
-      ? (rounds[0]?.question ?? "สรุปคำทำนายรวม")
+      ? (rounds[0]?.question ?? "คำตอบรวม")
       : (overrideQuestion ?? question).trim();
     if (!closeMode && selectedIds.size === 0) {
       showToast("warning", "กรุณาเลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม เพื่อควบคุม token และให้คำตอบตรงเรื่อง");
@@ -1163,7 +1163,7 @@ export default function ResearchPage() {
     if (!closeMode && (!q || running)) return;
     if (closeMode && (rounds.length === 0 || running)) return;
     if (closeMode && hasFinalReading()) {
-      showToast("info", "มีสรุปคำทำนายรวมแล้ว — ถามต่อได้เลยโดยไม่ต้องสรุปซ้ำ");
+      showToast("info", "มีคำตอบรวมแล้ว — ถามต่อได้เลย");
       return;
     }
     setLastCreditUsage(null);
@@ -1417,7 +1417,7 @@ export default function ResearchPage() {
         setRounds((prev) => [
           ...prev,
           {
-            question: closeMode ? "🏛️ สรุปคำทำนายรวม" : q,
+            question: closeMode ? "🏛️ คำตอบรวม" : q,
             messages: visibleMessages,
             finalAnswer: currentFinalAnswerRef.current,
             agentTokens: roundTokens,
@@ -1431,17 +1431,13 @@ export default function ResearchPage() {
           },
         ]);
       }
-      if (skipToSummaryRef.current && !closeMode) {
-        skipToSummaryRef.current = false;
-        setTimeout(() => handleCloseRef.current(), 300);
-      }
       if (closeMode) {
         // Meeting closed — clear session
         setMeetingSessionId(null);
         meetingSessionIdRef.current = null;
         setMeetingStartTime(null);
         setElapsedTime(0);
-        showToast("success", "ปิดดูดวงแล้ว — บันทึกสรุปรวมแล้ว ✓");
+        showToast("success", "ปิดดูดวงแล้ว — บันทึกคำตอบรวมแล้ว ✓");
       }
       setCurrentMessages([]);
       setCurrentFinalAnswer("");
@@ -1480,34 +1476,10 @@ export default function ResearchPage() {
     handleRun(pendingClarificationQuestionRef.current || undefined, false, buildBirthProfileAnswers(pendingClarificationQuestionRef.current) ?? []);
   };
 
-  const handleCloseMeeting = () => handleRun(undefined, true);
-  handleCloseRef.current = handleCloseMeeting;
-
-  const handleSkipToSummary = () => {
-    const hasData = currentMessagesRef.current.some(m =>
-      m.role === "finding" || m.role === "chat" || m.role === "analysis" || m.role === "synthesis"
-    );
-    if (!hasData && rounds.length === 0) {
-      showToast("warning", "ยังไม่มีข้อมูลเพียงพอ — รอให้ agent นำเสนอก่อน");
-      return;
-    }
-    skipToSummaryRef.current = true;
-    abortRef.current?.abort();
-  };
-
-  // Auto-trigger close meeting after skip-to-summary abort settles
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (pendingSkipToSummary && !running && rounds.length > 0) {
-      setPendingSkipToSummary(false);
-      handleCloseMeeting();
-    }
-  }, [pendingSkipToSummary, running, rounds]);
-
   const handleStop = () => {
     abortRef.current?.abort();
     setRunning(false);
-    setStatus("หยุดแล้ว — พิมพ์คำถามใหม่ หรือกดสรุปรวม");
+    setStatus("หยุดแล้ว — พิมพ์คำถามใหม่ได้เลย");
     // Force-complete session on the server
     const sid = meetingSessionIdRef.current;
     if (sid) {
@@ -1882,7 +1854,7 @@ export default function ResearchPage() {
                     style={{ borderColor: "var(--border)", background: "var(--surface)" }}
                   >
                     <div className="font-bold mb-0.5 flex items-center justify-between gap-2" style={{ color: "var(--text)" }}>
-                      <span>{r.isSynthesis ? "สรุปรวม" : i === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${i + 1}`}</span>
+                      <span>{r.isSynthesis ? "คำตอบรวม" : i === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${i + 1}`}</span>
                       <span className="text-[10px] font-medium" style={{ color: "var(--accent)" }}>ไปอ่าน</span>
                     </div>
                     <div className="line-clamp-2" style={{ color: "var(--text-muted)" }}>{r.question}</div>
@@ -1958,7 +1930,7 @@ export default function ResearchPage() {
               className="md:hidden px-3 py-2 rounded-lg text-xs border flex items-center gap-1.5"
               style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--accent-8)" }}
             >
-              <Settings size={14} /> สภา ({selectedIds.size})
+              <Settings size={14} /> หมอดู ({selectedIds.size})
             </button>
             <a
               href="/history"
@@ -2000,7 +1972,7 @@ export default function ResearchPage() {
               />
               <aside className="absolute top-0 left-0 bottom-0 w-[360px] max-w-[96vw] border-r flex flex-col" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
                 <div className="h-14 px-3 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "var(--border)" }}>
-                  <div className="font-semibold text-sm flex items-center gap-1.5" style={{ color: "var(--text)" }}><Settings size={14} /> ตั้งค่าสภา</div>
+                  <div className="font-semibold text-sm flex items-center gap-1.5" style={{ color: "var(--text)" }}><Settings size={14} /> เลือกหมอดู</div>
                   <button
                     onClick={() => setMobileSidebarOpen(false)}
                     className="w-8 h-8 rounded-lg border text-base" style={{ borderColor: "var(--border)", background: "var(--bg)", color: "var(--text)" }}
@@ -2046,15 +2018,15 @@ export default function ResearchPage() {
               {!running && (rounds.length > 0 || meetingSessionId) && (
                 <div className="sticky top-0 z-10 mx-1">
                   <div className="rounded-lg px-3 py-2 border flex items-center gap-2" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
-                    {meetingSessionId && !hasFinalReading() ? (
+                    {meetingSessionId ? (
                       <>
                         <span className="inline-block w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>ถามต่อได้เลย หรือกด <strong style={{ color: "var(--accent)" }}>สรุปรวม</strong> เมื่ออยากปิดคำทำนายนี้</span>
+                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>ถามต่อได้เลย ระบบจะสรุปคำตอบให้ในแต่ละคำถามอัตโนมัติ</span>
                       </>
                     ) : hasFinalReading() ? (
                       <>
                         <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--green)" }} />
-                        <span className="text-xs font-medium" style={{ color: "var(--green)" }}>✅ ดูดวงเสร็จสิ้น — มีสรุปคำทำนายรวมแล้ว</span>
+                        <span className="text-xs font-medium" style={{ color: "var(--green)" }}>✅ ดูดวงเสร็จสิ้น — ถามต่อจากคำทำนายนี้ได้</span>
                       </>
                     ) : (
                       <>
@@ -2084,7 +2056,7 @@ export default function ResearchPage() {
                           {[
                             { phase: 1 as const, label: "เปิดคำทำนาย", icon: "🔮" },
                             { phase: 2 as const, label: "อ่านหลายศาสตร์", icon: "✦" },
-                            { phase: 3 as const, label: "สรุปรวม", icon: "🏛️" },
+                            { phase: 3 as const, label: "จัดคำตอบ", icon: "🏛️" },
                           ].map((step) => {
                             const isDone = currentPhase > step.phase;
                             const isActive = currentPhase === step.phase;
@@ -2130,7 +2102,7 @@ export default function ResearchPage() {
                 <div className="mx-1 rounded-xl border-2 p-4 flex items-center gap-3" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                   <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin flex-shrink-0" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
                   <div>
-                    <div className="text-sm font-bold" style={{ color: "var(--accent)" }}>✨ OMNIA.AI กำลังสรุปรวม...</div>
+                    <div className="text-sm font-bold" style={{ color: "var(--accent)" }}>✨ OMNIA.AI กำลังจัดคำตอบ...</div>
                     <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>กรุณารอสักครู่ ประมาณ 15–30 วินาที</div>
                   </div>
                 </div>
@@ -2298,25 +2270,37 @@ export default function ResearchPage() {
                           {group.question}
                         </div>
                       </div>
-                      {group.messages.map((msg) => (
-                        <div
-                          key={msg.id}
-                          className={`border rounded-xl p-3 sm:p-4 ${ROLE_COLOR[msg.role] ?? ""}`}
-                          style={msg.role === "finding" ? { background: "var(--card)", borderColor: "var(--border)" } : undefined}
-                        >
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <span className="text-lg">{msg.agentEmoji}</span>
-                            <span className="font-bold text-sm" style={{ color: "var(--text)" }}>{msg.agentName}</span>
-                            {msg.role === "finding" && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "var(--surface)", color: "var(--accent)", border: "1px solid var(--accent-30)" }}>คำทำนายจากหมอดู</span>
-                            )}
-                            <span className="text-xs px-2 py-0.5 rounded border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-                              {ROLE_LABEL[msg.role] ?? msg.role}
-                            </span>
+                      <details
+                        open={!viewingSession.finalAnswer}
+                        className="rounded-xl border p-2 sm:p-3"
+                        style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+                      >
+                        <summary className="cursor-pointer list-none text-xs font-bold" style={{ color: "var(--accent)" }}>
+                          ดูคำตอบจากหมอดูแต่ละท่าน
+                          <span className="ml-2 font-normal" style={{ color: "var(--text-muted)" }}>{group.messages.length} รายการ</span>
+                        </summary>
+                        <div className="mt-3 space-y-3">
+                        {group.messages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`border rounded-xl p-3 sm:p-4 ${ROLE_COLOR[msg.role] ?? ""}`}
+                            style={msg.role === "finding" ? { background: "var(--card)", borderColor: "var(--border)" } : undefined}
+                          >
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="text-lg">{msg.agentEmoji}</span>
+                              <span className="font-bold text-sm" style={{ color: "var(--text)" }}>{msg.agentName}</span>
+                              {msg.role === "finding" && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "var(--surface)", color: "var(--accent)", border: "1px solid var(--accent-30)" }}>คำทำนายจากหมอดู</span>
+                              )}
+                              <span className="text-xs px-2 py-0.5 rounded border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+                                {ROLE_LABEL[msg.role] ?? msg.role}
+                              </span>
+                            </div>
+                            <MessageContent content={msg.content} />
                           </div>
-                          <MessageContent content={msg.content} />
+                        ))}
                         </div>
-                      ))}
+                      </details>
                     </div>
                   ))}
                   {/* Stuck running session — show force-close / resume buttons */}
@@ -2473,7 +2457,7 @@ export default function ResearchPage() {
                       background: round.isSynthesis ? "var(--accent)" : "var(--accent-8)",
                       fontWeight: round.isSynthesis ? 700 : 400,
                     }}>
-                      {round.isSynthesis ? "สรุปคำทำนายรวม" : roundIndex === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${roundIndex + 1}`}
+                      {round.isSynthesis ? "คำตอบรวม" : roundIndex === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${roundIndex + 1}`}
                     </div>
                     <div className="flex-1 border-t" style={{ borderColor: round.isSynthesis ? "var(--accent)" : "var(--border)" }} />
                   </div>
@@ -2487,6 +2471,18 @@ export default function ResearchPage() {
                     </div>
                   )}
 
+                  <details
+                    open={!round.finalAnswer}
+                    className="rounded-xl border p-2 sm:p-3"
+                    style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+                  >
+                    <summary className="cursor-pointer list-none text-xs font-bold" style={{ color: "var(--text)" }}>
+                      <span style={{ color: "var(--accent)" }}>ดูคำตอบจากหมอดูแต่ละท่าน</span>
+                      <span className="ml-2 font-normal" style={{ color: "var(--text-muted)" }}>
+                        {round.messages.filter((msg) => msg.role === "finding").length || round.messages.length} รายการ
+                      </span>
+                    </summary>
+                    <div className="mt-3 space-y-3">
                   {(() => {
                     let lastPhaseRole = "";
                     return round.messages.filter((msg) => msg.role !== "thinking" && !(round.finalAnswer && msg.role === "synthesis")).map((msg) => {
@@ -2494,7 +2490,7 @@ export default function ResearchPage() {
                       if (msg.role !== lastPhaseRole && lastPhaseRole !== "") {
                         const phaseLabels: Record<string, { icon: string; label: string; color: string }> = {
                           chat: { icon: "✦", label: "มุมมองเพิ่มเติม", color: "var(--orange)" },
-                          synthesis: { icon: "✨", label: "OMNIA.AI สรุปรวม", color: "var(--accent)" },
+                          synthesis: { icon: "✨", label: "OMNIA.AI จัดคำตอบ", color: "var(--accent)" },
                         };
                         const separator = phaseLabels[msg.role];
                         if (separator) {
@@ -2536,6 +2532,8 @@ export default function ResearchPage() {
                       return elements;
                     });
                   })()}
+                    </div>
+                  </details>
 
                   {round.finalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
@@ -2631,7 +2629,7 @@ export default function ResearchPage() {
                         background: isCurrentClosing ? "var(--accent)" : "var(--accent-8)",
                         fontWeight: isCurrentClosing ? 700 : 400,
                       }}>
-                        {isCurrentClosing ? "สรุปคำทำนายรวม" : displayRounds.filter(r => !r.isSynthesis).length === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${displayRounds.filter(r => !r.isSynthesis).length + 1}`}
+                        {isCurrentClosing ? "คำตอบรวม" : displayRounds.filter(r => !r.isSynthesis).length === 0 ? "คำถามแรก" : `ถามต่อครั้งที่ ${displayRounds.filter(r => !r.isSynthesis).length + 1}`}
                       </div>
                       <div className="flex-1 border-t" style={{ borderColor: isCurrentClosing ? "var(--accent)" : "var(--border)" }} />
                     </div>
@@ -2656,7 +2654,7 @@ export default function ResearchPage() {
                         }
                         const phaseLabels: Record<string, { icon: string; label: string; color: string }> = {
                           chat: { icon: "✦", label: "มุมมองเพิ่มเติม", color: "var(--orange)" },
-                          synthesis: { icon: "✨", label: "OMNIA.AI สรุปรวม", color: "var(--accent)" },
+                          synthesis: { icon: "✨", label: "OMNIA.AI จัดคำตอบ", color: "var(--accent)" },
                         };
                         const separator = phaseLabels[msg.role];
                         if (separator) {
@@ -2853,7 +2851,7 @@ export default function ResearchPage() {
                           </>
                         )}
                         <span className="inline-flex rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-                          สภา {selectedIds.size} ท่านพร้อมอ่าน
+                          หมอดู {selectedIds.size} ท่านพร้อมอ่าน
                         </span>
                       </div>
                     )}
@@ -2870,7 +2868,7 @@ export default function ResearchPage() {
                     onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleRun(); } }}
                     disabled={running}
                     rows={1}
-                    placeholder={selectedIds.size === 0 ? "เลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม..." : meetingSessionId && !hasFinalReading() ? "ถามต่อได้เลย หรือกด 'สรุปรวม' เมื่อพร้อม..." : rounds.length > 0 ? "พิมพ์คำถามต่อไป..." : "พิมพ์เรื่องที่อยากดูดวง..."}
+                    placeholder={selectedIds.size === 0 ? "เลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม..." : meetingSessionId ? "ถามต่อจากคำทำนายนี้ได้เลย..." : rounds.length > 0 ? "พิมพ์คำถามต่อไป..." : "พิมพ์เรื่องที่อยากดูดวง..."}
                     className="w-full bg-transparent text-sm resize-none outline-none px-4 pt-3 pb-1"
                     style={{ color: "var(--text)", minHeight: 36, maxHeight: 160 }}
                   />
@@ -2919,28 +2917,8 @@ export default function ResearchPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {rounds.length > 0 && !running && meetingSessionId && effectiveMode !== "qa" && !hasFinalReading() && (
-                        <button
-                          onClick={handleCloseMeeting}
-                          className="h-8 px-3 rounded-lg flex items-center gap-1 justify-center text-xs font-bold transition-all hover:opacity-80"
-                          style={{ color: "var(--accent-contrast)", background: "var(--accent)" }}
-                          title="ให้ OMNIA.AI สรุปคำทำนายรวม"
-                        >
-                          <Building2 size={14} /> สรุปรวม
-                        </button>
-                      )}
                       {running ? (
                         <>
-                          {effectiveMode !== "qa" && (
-                            <button
-                              onClick={handleSkipToSummary}
-                              className="h-8 px-3 rounded-lg flex items-center gap-1 justify-center border text-xs font-bold transition-all hover:opacity-80"
-                              style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--accent-10)" }}
-                              title="ข้ามไปสรุปรวมเลย"
-                            >
-                              <SkipForward size={14} /> สรุปเลย
-                            </button>
-                          )}
                           <button
                             onClick={handleStop}
                             className="w-8 h-8 rounded-lg flex items-center justify-center border transition-all"
