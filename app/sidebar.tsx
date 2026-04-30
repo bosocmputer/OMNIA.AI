@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import {
   Home,
   MessageSquare,
+  History,
   Users,
   ChevronLeft,
   ChevronRight,
@@ -46,6 +47,7 @@ const NAV_ITEMS: NavGroup[] = [
     group: "ดูดวง",
     items: [
       { href: "/research", icon: MessageSquare, labelKey: "nav.research" },
+      { href: "/history", icon: History, labelKey: "nav.history" },
       { href: "/profile", icon: UserCircle, labelKey: "nav.profile" },
     ],
   },

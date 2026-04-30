@@ -230,8 +230,8 @@ export default function ProfilePage() {
               <input type="text" value={form.name} onChange={set("name")} required placeholder="เช่น คุณบอส" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all" style={inputStyle} />
             </Field>
 
-            <Field label="ความสัมพันธ์/ป้ายชื่อ">
-              <input type="text" value={form.label ?? ""} onChange={set("label")} placeholder="เช่น ตัวฉัน, แฟน, ลูกค้า" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all" style={inputStyle} />
+            <Field label="เจ้าชะตาคนนี้คือใคร" hint="ใช้เป็นป้ายช่วยจำและช่วยให้ OMNIA เรียกบริบทให้ถูก เช่น ดูให้ตัวเอง แฟน ลูกค้า หรือคนในครอบครัว ไม่ใช่ค่าที่ใช้คำนวณดวงโดยตรง">
+              <input type="text" value={form.label ?? ""} onChange={set("label")} placeholder="เช่น ตัวฉัน, แฟน, ลูกค้า, คุณแม่" className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all" style={inputStyle} />
             </Field>
 
             <Field icon={<CalendarDays size={15} />} label="วันเกิด" required>
@@ -301,7 +301,7 @@ export default function ProfilePage() {
   );
 }
 
-function Field({ icon, label, required, children }: { icon?: React.ReactNode; label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ icon, label, required, hint, children }: { icon?: React.ReactNode; label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
       <label className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>
@@ -309,6 +309,11 @@ function Field({ icon, label, required, children }: { icon?: React.ReactNode; la
         {label}
         {required && <span style={{ color: "var(--danger)" }}>*</span>}
       </label>
+      {hint && (
+        <p className="mb-3 text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          {hint}
+        </p>
+      )}
       {children}
     </div>
   );

@@ -1584,7 +1584,7 @@ export default function ResearchPage() {
   const displayRounds = rounds;
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  const renderSidebarContent = (onNavigate?: () => void) => (
+  const renderSidebarContent = (onNavigate?: () => void, includeHistory = true) => (
     <>
       {/* Birth profile selector */}
       <div className="border rounded-xl p-3" style={{ borderColor: "var(--accent-30)", background: "var(--accent-5)" }}>
@@ -1833,6 +1833,7 @@ export default function ResearchPage() {
       )}
 
       {/* History panel */}
+      {includeHistory && (
       <div className="border rounded-xl flex-1 flex flex-col overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         <div className="flex border-b" style={{ borderColor: "var(--border)" }}>
           <button
@@ -1911,6 +1912,7 @@ export default function ResearchPage() {
           </div>
         )}
       </div>
+      )}
     </>
   );
 
@@ -1933,13 +1935,13 @@ export default function ResearchPage() {
             >
               <Settings size={14} /> สภา ({selectedIds.size})
             </button>
-            <button
-              onClick={() => { setHistoryTab("history"); setMobileSidebarOpen(true); }}
+            <a
+              href="/history"
               className="md:hidden px-3 py-2 rounded-lg text-xs border flex items-center gap-1.5"
               style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}
             >
               <History size={14} /> ประวัติ
-            </button>
+            </a>
             {(rounds.length > 0 || viewingSession) && (
               <button onClick={exportMinutes} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }} title="บันทึกคำทำนายเป็น Markdown">
                 <Download size={14} /> บันทึกคำทำนาย
@@ -1953,9 +1955,9 @@ export default function ResearchPage() {
           <button onClick={() => { setHistoryTab("current"); setMobileSidebarOpen(true); }} className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: selectedIds.size > 0 ? "var(--accent)" : "var(--border)", color: selectedIds.size > 0 ? "var(--accent)" : "var(--text-muted)" }}>
             <Users size={12} /> {selectedIds.size} หมอดู
           </button>
-          <button onClick={() => { setHistoryTab("history"); setMobileSidebarOpen(true); }} className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+          <a href="/history" className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
             <History size={12} /> ประวัติ {totalSessionCount}
-          </button>
+          </a>
           {useFileContext && attachedFiles.length > 0 && <span className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "var(--accent-10)", color: "var(--accent)" }}><Paperclip size={10} /> {attachedFiles.length} ไฟล์</span>}
           {(!useFileContext || attachedFiles.length === 0) && selectedIds.size > 0 && <span className="opacity-60">พร้อมถามคำถามแรก</span>}
           {selectedIds.size === 0 && <span className="opacity-60">เลือกหมอดูอย่างน้อย 1 ท่าน</span>}
@@ -1980,7 +1982,7 @@ export default function ResearchPage() {
                   >×</button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-                  {renderSidebarContent(() => setMobileSidebarOpen(false))}
+                  {renderSidebarContent(() => setMobileSidebarOpen(false), false)}
                 </div>
               </aside>
             </div>
