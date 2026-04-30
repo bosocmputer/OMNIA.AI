@@ -2233,10 +2233,11 @@ export default function ResearchPage() {
                       <div className="text-[11px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1" style={{ color: "var(--text-muted)" }}><Lightbulb size={12} /> ลองถามเรื่องเหล่านี้</div>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {[
+                          "ดูดวงวันนี้ ควรระวังอะไรและควรทำอะไร",
+                          "ดูดวงพรุ่งนี้ มีเรื่องไหนควรเตรียมตัว",
                           "ดูดวงภาพรวม 12 เดือนข้างหน้า",
                           "ปีนี้การงานและการเงินควรวางแผนอย่างไร",
-                          "ช่วงไหนเหมาะเริ่มงานใหม่หรือขยายธุรกิจ",
-                          "วิเคราะห์ความรักและความสัมพันธ์ในปีนี้",
+                          "วิเคราะห์ความรักและความสัมพันธ์ช่วงนี้",
                         ].map((q) => (
                           <button
                             key={q}
@@ -2829,7 +2830,7 @@ export default function ResearchPage() {
                       </span>
                       <div className="min-w-0">
                         <div className="text-xs font-bold" style={{ color: "var(--text)" }}>ถามตรง ๆ ได้เลย</div>
-                        <div className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>งาน เงิน ความรัก สอบ หรือเรื่องที่ต้องตัดสินใจ</div>
+                        <div className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>ดูดวงวันนี้ พรุ่งนี้ งาน เงิน ความรัก สอบ หรือเรื่องที่ต้องตัดสินใจ</div>
                       </div>
                     </div>
                     {selectedIds.size > 0 && (
@@ -2869,7 +2870,7 @@ export default function ResearchPage() {
                     onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleRun(); } }}
                     disabled={running}
                     rows={1}
-                    placeholder={selectedIds.size === 0 ? "เลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม..." : meetingSessionId ? "ถามต่อจากคำทำนายนี้ได้เลย..." : rounds.length > 0 ? "พิมพ์คำถามต่อไป..." : "พิมพ์เรื่องที่อยากดูดวง..."}
+                    placeholder={selectedIds.size === 0 ? "เลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม..." : meetingSessionId ? "ถามต่อจากคำทำนายนี้ได้เลย..." : rounds.length > 0 ? "พิมพ์คำถามต่อไป..." : "เช่น ดูดวงวันนี้ ควรระวังอะไรและควรทำอะไร"}
                     className="w-full bg-transparent text-sm resize-none outline-none px-4 pt-3 pb-1"
                     style={{ color: "var(--text)", minHeight: 36, maxHeight: 160 }}
                   />

@@ -74,6 +74,27 @@ function isOutcomeQuestion(text: string): boolean {
 
 function detectTimeFrame(text: string): { label: string; agentInstruction: string; summaryInstruction: string } {
   const q = text.toLowerCase().replace(/\s+/g, "");
+  if (
+    q.includes("ดูดวงวันนี้") ||
+    q.includes("ดวงวันนี้") ||
+    q.includes("วันนี้") ||
+    q.includes("ประจำวัน") ||
+    q.includes("รายวัน") ||
+    q.includes("daily")
+  ) {
+    return {
+      label: "วันนี้",
+      agentInstruction: "**แนวโน้มวันนี้**\n- แบ่งเป็น เช้า / บ่าย / เย็น-ค่ำ แบบสั้นและชัด\n- ต้องมี: เรื่องเด่นของวันนี้, สิ่งที่ควรระวังวันนี้, จังหวะที่เหมาะกับการตัดสินใจ, และ action เล็ก ๆ ที่ทำได้วันนี้\n- ห้ามลากไปทำนาย 3 เดือนหรือ 12 เดือน เว้นแต่ผู้ใช้ถามเพิ่มเอง\n",
+      summaryInstruction: "**แนวโน้มวันนี้**\n- แบ่งเป็น เช้า / บ่าย / เย็น-ค่ำ ให้ชัดเจน\n- ระบุเรื่องเด่นวันนี้ 1 เรื่อง, เรื่องที่ต้องระวังวันนี้ 1 เรื่อง, เวลาหรือจังหวะที่เหมาะกับการลงมือ, และ action เล็ก ๆ ที่ทำได้ก่อนหมดวัน\n",
+    };
+  }
+  if (q.includes("พรุ่งนี้") || q.includes("วันพรุ่งนี้")) {
+    return {
+      label: "พรุ่งนี้",
+      agentInstruction: "**แนวโน้มพรุ่งนี้**\n- แบ่งเป็น ก่อนเที่ยง / บ่าย / หลังเลิกงานหรือค่ำ แบบสั้นและชัด\n- ต้องมี: เรื่องเด่นพรุ่งนี้, สิ่งที่ควรเตรียมคืนนี้, สิ่งที่ห้ามรีบ, และ action ที่ควรทำพรุ่งนี้\n- ห้ามลากไปทำนาย 3 เดือนหรือ 12 เดือน เว้นแต่ผู้ใช้ถามเพิ่มเอง\n",
+      summaryInstruction: "**แนวโน้มพรุ่งนี้**\n- แบ่งก่อนเที่ยง / บ่าย / หลังเลิกงานหรือค่ำ ให้ชัดเจน\n- ระบุสิ่งที่ควรเตรียมตั้งแต่วันนี้, เรื่องเด่นพรุ่งนี้, สิ่งที่ห้ามรีบ, และ action ที่ควรทำพรุ่งนี้\n",
+    };
+  }
   if (q.includes("สัปดาห์หน้า") || q.includes("อาทิตย์หน้า")) {
     return {
       label: "สัปดาห์หน้า",
@@ -1039,10 +1060,20 @@ export async function POST(req: NextRequest) {
 
       // Current date context — inject so LLM knows the actual date (avoids wrong year like 2567)
       const _now = new Date();
-      const _ceYear = _now.getFullYear();
-      const _beYear = _ceYear + 543;
-      const _monthTh = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"][_now.getMonth()];
-      const dateContext = `\n\n📅 วันที่ปัจจุบัน: ${_now.getDate()} ${_monthTh} พ.ศ. ${_beYear} (ค.ศ. ${_ceYear}) — ใช้ปีนี้เป็นฐานในการวิเคราะห์และพยากรณ์ทุกกรณี ห้ามอ้างอิงปีที่ผ่านมาเป็นปัจจุบัน\n`;
+      const _bangkokDate = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+        timeZone: "Asia/Bangkok",
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(_now);
+      const _bangkokTime = new Intl.DateTimeFormat("th-TH", {
+        timeZone: "Asia/Bangkok",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(_now);
+      const dateContext = `\n\n📅 วันที่ปัจจุบันตามเวลาไทย: ${_bangkokDate} เวลา ${_bangkokTime} น. — ใช้วันนี้เป็นฐานในการวิเคราะห์ โดยเฉพาะคำถามรายวัน/วันนี้/พรุ่งนี้ และห้ามอ้างอิงปีที่ผ่านมาเป็นปัจจุบัน\n`;
 
       // Anti-hallucination rules (injected into all prompts)
       const antiHallucinationRules = `\n\n🚫 กฎเหล็กป้องกันข้อมูลเท็จ (Anti-Hallucination):\n- ห้ามสร้างเลขที่คำวินิจฉัย คำพิพากษา หรือคำสั่งที่ไม่แน่ใจ 100% (เช่น "คำวินิจฉัย กค 0811/xxxx") — ถ้าไม่แน่ใจ ให้เขียนว่า "ตามแนวคำวินิจฉัยของกรมสรรพากร" โดยไม่ระบุเลขที่\n- ห้ามสร้างชื่อ พ.ร.บ. พ.ร.ก. ประกาศ หรือกฎกระทรวง ที่ไม่มีอยู่จริง\n- ถ้าอ้างอิงมาตรากฎหมาย ต้องแน่ใจว่าเลขมาตราถูกต้อง — ถ้าไม่แน่ใจ ให้ระบุเป็นหลักการแทน\n- ถ้าข้อมูลจาก Web Search ขัดกับความรู้เดิม ให้เชื่อ Web Search มากกว่า (เพราะอาจมีการแก้ไขกฎหมาย)\n- แยกชัดเจนระหว่าง "ข้อเท็จจริงที่แน่ชัด" กับ "ความเห็น/การตีความ"\n`;
@@ -1107,12 +1138,16 @@ export async function POST(req: NextRequest) {
         const knowledgeContext = await getAgentKnowledgeContent(agent.id, question);
         try {
           send("status", { message: `💬 ${agent.emoji} กำลังวิเคราะห์และเรียบเรียงคำตอบ...` });
+          const qaSystemPrompt = isAstrologySession
+            ? `${companyContext}${memoryContext}${agent.soul}${getAgentVoice(agent.role)}${getAstroMethodSignature(agent.role)}${getAstroPrecisionRules("agent")}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${questionStyleContext}${dateContext}${agentCoverageContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}${astrologyElementGuardRules}`
+            : `${companyContext}${memoryContext}${agent.soul}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}\n\nรูปแบบการตอบ:\n1. **ตอบคำตอบหลักให้ชัดเจนก่อนเลยในย่อหน้าแรก** (ใช่/ไม่ใช่/มี/ไม่มี + สรุปสั้น 1-2 ประโยค)\n2. จากนั้นค่อยอธิบายเหตุผล หลักกฎหมาย หรือรายละเอียดสนับสนุน\n3. ถ้ามีเงื่อนไขพิเศษหรือข้อยกเว้น ให้ระบุชัดเจนว่ากรณีของผู้ถามเข้าเงื่อนไขไหน\n\n⚠️ กฎเหล็กด้านความถูกต้อง:\n- ตอบในบริบทกฎหมายและมาตรฐานของประเทศไทยเป็นหลัก\n- ก่อนสรุปว่าต้องเสียภาษีหรือปฏิบัติตามกฎใด ต้องตรวจสอบข้อยกเว้น (exemptions) ที่เกี่ยวข้องก่อนเสมอ\n- คำตอบต้องสอดคล้องกันตลอด — ห้ามเปิดด้วยข้อมูลที่ขัดกับข้อสรุป\n- อ้างอิงมาตรากฎหมาย มาตรฐานบัญชี หรือแนวปฏิบัติที่เกี่ยวข้อง\n- ใช้ภาษาที่เข้าใจง่าย ตอบไม่เกิน 500 คำ`;
+          const qaUserPrompt = isAstrologySession
+            ? `${directAnswerOpeningContext}คำถามของผู้ใช้: ${question}\n\nคุณคือหมอดูสาย ${agent.role} กำลังตอบแบบถามตรง 1 ต่อ 1${getAstroRoleFocus(agent.role)}\n\nให้ตอบเป็นภาษาไทยแบบคนทั่วไป อ่านง่าย ตรง และใช้ข้อมูลเจ้าชะตาที่มีจริงเท่านั้น\n\nรูปแบบคำตอบต้องเป็นหัวข้อต่อไปนี้:\n\n**คำตอบตรง ๆ**\n- ตอบประเด็นหลักก่อนใน 1-2 ประโยค ถ้าเป็นคำถามรายวันให้บอกน้ำหนักวันนี้ทันทีว่า เด่น/ผสม/หนัก/ควรระวัง พร้อมเรื่องที่หนักสุด\n\n**เช็กอดีตก่อนเชื่อ**\n- ทักอดีตหรือปัจจุบัน 1-2 ข้อ โดยโยงกับคำถามล่าสุด และต้องเป็นฉากชีวิตจริงที่ตรวจได้ ไม่ใช่ความรู้สึกลอย ๆ\n\n**หลักที่ใช้ทัก**\n- ระบุข้อมูลตั้งต้น 2-3 จุดที่ใช้จริง เช่น วันเกิด อายุ เลขชีวิต เลขปีส่วนตัว เวลาเกิด หรือข้อมูลเหตุการณ์ที่ผู้ใช้ให้มา\n\n**สัญญาณที่เห็น**\n- บอกสัญญาณหนุนและสัญญาณฉุดอย่างละ 1 ข้อ ถ้ามีแรงฉุดมาก ให้พูดตรง ๆ\n\n${timeFrame.agentInstruction}\n**ตัวอย่างเรื่องที่อาจเจอ**\n- ยกตัวอย่างสถานการณ์จริง 1 ข้อที่ตรงกับกรอบเวลา เช่น วันนี้/พรุ่งนี้/สัปดาห์หน้า ต้องมีช่วงเวลา + เรื่องที่เกี่ยวข้อง + อาการที่เห็น + วิธีรับมือ\n\n**เรื่องที่ควรระวัง**\n- ระบุ 1-2 เรื่องพร้อมวิธีรับมือสั้น ๆ\n\n**สิ่งที่ควรทำ**\n- ให้ action ที่ทำได้จริงภายในกรอบเวลาที่ถาม เช่น วันนี้ต้องทำอะไรก่อนหมดวัน\n\nกติกา:\n- ถ้าถามรายวัน/วันนี้/ประจำวัน ตอบไม่เกิน 220 คำ และห้ามลากไป 3 เดือนหรือ 12 เดือน\n- ถ้าเป็นคำถามพรุ่งนี้ ตอบไม่เกิน 240 คำ และให้สิ่งที่ควรเตรียมคืนนี้\n- ห้ามฟันธงแรงเกินจริง ห้ามทำให้กลัว ห้ามขายฝัน\n- ห้ามตอบ generic ถ้าประโยคไหนใช้ได้กับทุกคน ให้ตัดทิ้งหรือเติมเหตุผลจากข้อมูลตั้งต้น`
+            : question;
           // Use streaming LLM — user sees tokens appearing in real-time
           const result = await callLLMStream(agent.provider, agent.model, apiKey, agent.baseUrl, [
-            { role: "system",
-              content: `${companyContext}${memoryContext}${agent.soul}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}\n\nรูปแบบการตอบ:\n1. **ตอบคำตอบหลักให้ชัดเจนก่อนเลยในย่อหน้าแรก** (ใช่/ไม่ใช่/มี/ไม่มี + สรุปสั้น 1-2 ประโยค)\n2. จากนั้นค่อยอธิบายเหตุผล หลักกฎหมาย หรือรายละเอียดสนับสนุน\n3. ถ้ามีเงื่อนไขพิเศษหรือข้อยกเว้น ให้ระบุชัดเจนว่ากรณีของผู้ถามเข้าเงื่อนไขไหน\n\n⚠️ กฎเหล็กด้านความถูกต้อง:\n- ตอบในบริบทกฎหมายและมาตรฐานของประเทศไทยเป็นหลัก\n- ก่อนสรุปว่าต้องเสียภาษีหรือปฏิบัติตามกฎใด ต้องตรวจสอบข้อยกเว้น (exemptions) ที่เกี่ยวข้องก่อนเสมอ\n- คำตอบต้องสอดคล้องกันตลอด — ห้ามเปิดด้วยข้อมูลที่ขัดกับข้อสรุป\n- อ้างอิงมาตรากฎหมาย มาตรฐานบัญชี หรือแนวปฏิบัติที่เกี่ยวข้อง\n- ใช้ภาษาที่เข้าใจง่าย ตอบไม่เกิน 500 คำ`,
-            },
-            { role: "user", content: question },
+            { role: "system", content: qaSystemPrompt },
+            { role: "user", content: qaUserPrompt },
           ], clientSignal, (delta) => send("final_answer_delta", { content: delta }));
 
           const answerMsg: ResearchMessage = {
