@@ -54,7 +54,7 @@ export default function ContactPage() {
         <section className="mt-5 rounded-2xl border p-6" style={{ borderColor: "var(--accent-30)", background: "var(--accent-8)" }}>
           <h2 className="font-bold">ข้อความที่ควรส่งมาเมื่อมีปัญหาโอนเงิน</h2>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            “เติมเครดิตแพ็ก Focus 199 บาท โอนเวลา 14:32 ชื่อบัญชีผู้โอน ... username ...”
+            “เติมเครดิตแพ็ก Focus 99 บาท โอนเวลา 14:32 ชื่อบัญชีผู้โอน ... username ...”
             <br />
             ถ้าระบบมีการใช้งานลูกค้าจริงมากขึ้น ควรเพิ่ม LINE OA หรืออีเมล support แล้วนำมาใส่หน้านี้เพิ่มเติม
           </p>

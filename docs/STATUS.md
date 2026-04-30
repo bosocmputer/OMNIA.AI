@@ -25,6 +25,7 @@
 - ทุก user ไม่ถูกหักเครดิตเมื่อถามระหว่าง demo
 - Admin/superadmin ยังคงถูกยกเว้นการหักเครดิตจริงที่ server-side
 - Analytics dashboard และ feedback dashboard พร้อมดูภาพรวม
+- Feedback หลังคำทำนายเปลี่ยนเป็น dialog เพื่อให้ user กดง่ายและเก็บข้อมูลช่วง demo ได้จริง
 - Theme dark green/gold ปรับเข้าชุดทั้ง app
 
 ## ข้อมูล PromptPay
@@ -48,6 +49,7 @@
 - Process quick tunnel ล่าสุดใช้คำสั่ง `cloudflared tunnel --url http://localhost:3005 --no-autoupdate`
 - ถ้า URL เดิมเข้าไม่ได้ ให้เปิด quick tunnel ใหม่เฉพาะ port `3005`
 - Credit billing ปิดอยู่โดย default; เปิดขายจริงด้วย env `CREDIT_BILLING_ENABLED=true`
+- ราคาเครดิตช่วงเปิดตัวที่เตรียมไว้เมื่อเปิดขายจริง: ถามเร็ว 19 cr, สภา OMNIA 49 cr, ถามต่อ 9 cr
 
 ## สิ่งที่ควรทำหลังได้ feedback จริง
 

@@ -2,15 +2,15 @@ import crypto from "crypto";
 import { db } from "./db";
 
 export const CREDIT_PACKAGES = [
-  { id: "starter", label: "Starter", amountTHB: 99, credits: 120, desc: "เหมาะกับลองถามหลายเรื่อง" },
-  { id: "focus", label: "Focus", amountTHB: 199, credits: 280, desc: "คุ้มสุดสำหรับใช้จริงรายสัปดาห์" },
-  { id: "pro", label: "Pro", amountTHB: 499, credits: 800, desc: "เหมาะกับคนดูให้ลูกค้าหรือถามบ่อย" },
+  { id: "starter", label: "Starter", amountTHB: 49, credits: 80, desc: "เหมาะกับลองถามหลายเรื่องช่วงเปิดตัว" },
+  { id: "focus", label: "Focus", amountTHB: 99, credits: 190, desc: "คุ้มสำหรับใช้จริงรายสัปดาห์" },
+  { id: "pro", label: "Pro", amountTHB: 249, credits: 560, desc: "เหมาะกับคนถามบ่อยหรือดูให้ลูกค้า" },
 ] as const;
 
 export const READING_PRICES = {
-  quick: { credits: 29, label: "ถามเร็ว", desc: "หมอดู 1-2 ท่าน" },
-  council: { credits: 59, label: "สภา OMNIA", desc: "หมอดู 3-5 ท่าน พร้อมสรุปรวม" },
-  followup: { credits: 19, label: "ถามต่อ", desc: "ต่อจากคำทำนายเดิม" },
+  quick: { credits: 19, label: "ถามเร็ว", desc: "หมอดู 1-2 ท่าน" },
+  council: { credits: 49, label: "สภา OMNIA", desc: "หมอดู 3-5 ท่าน พร้อมสรุปรวม" },
+  followup: { credits: 9, label: "ถามต่อ", desc: "ต่อจากคำทำนายเดิม" },
 } as const;
 
 export const WELCOME_CREDITS = Number(process.env.WELCOME_CREDITS || 29);

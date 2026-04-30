@@ -63,9 +63,9 @@ interface CreditTopup {
 }
 
 const READING_TIERS = [
-  { label: "ถามเร็ว", credits: 29, desc: "หมอดู 1-2 ท่าน เหมาะกับคำถามสั้นและตัดสินใจเร็ว" },
-  { label: "สภา OMNIA", credits: 59, desc: "หมอดู 3-5 ท่าน พร้อมสรุปจาก OMNIA.AI" },
-  { label: "ถามต่อ", credits: 19, desc: "ต่อจากคำทำนายเดิม ไม่ต้องเล่าบริบทซ้ำ" },
+  { label: "ถามเร็ว", credits: 19, desc: "หมอดู 1-2 ท่าน เหมาะกับคำถามสั้นและตัดสินใจเร็ว" },
+  { label: "สภา OMNIA", credits: 49, desc: "หมอดู 3-5 ท่าน พร้อมสรุปจาก OMNIA.AI" },
+  { label: "ถามต่อ", credits: 9, desc: "ต่อจากคำทำนายเดิม ไม่ต้องเล่าบริบทซ้ำ" },
 ];
 
 const PREMIUM_PREVIEWS = [

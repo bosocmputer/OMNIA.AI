@@ -485,6 +485,7 @@ function ReadingFeedback({
   profileId,
   agentIds,
   answerExcerpt,
+  autoPrompt = false,
 }: {
   scope: string;
   sessionId?: string | null;
@@ -492,17 +493,35 @@ function ReadingFeedback({
   profileId?: string | null;
   agentIds?: string[];
   answerExcerpt?: string;
+  autoPrompt?: boolean;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const options = [
     { id: "accurate", label: "แม่น", icon: "✓" },
     { id: "easy", label: "อ่านง่าย", icon: "✦" },
     { id: "too_broad", label: "กว้างไป", icon: "?" },
     { id: "too_long", label: "ยาวไป", icon: "!" },
   ];
+  const feedbackKey = `omnia_feedback:${sessionId || scope}`;
+
+  useEffect(() => {
+    setSelected(null);
+    setDismissed(false);
+    if (!answerExcerpt || !autoPrompt) return;
+    try {
+      const alreadyDone = localStorage.getItem(feedbackKey) === "done";
+      if (alreadyDone) return;
+    } catch { /* ignore */ }
+    const timer = window.setTimeout(() => setOpen(true), 900);
+    return () => window.clearTimeout(timer);
+  }, [answerExcerpt, autoPrompt, feedbackKey]);
 
   const saveFeedback = (value: string) => {
     setSelected(value);
+    setOpen(false);
+    setDismissed(true);
     const timestamp = new Date().toISOString();
     try {
       const key = "omnia_reading_feedback";
@@ -511,6 +530,7 @@ function ReadingFeedback({
         ...prev.slice(-49),
         { scope, value, sessionId, question, timestamp },
       ]));
+      localStorage.setItem(feedbackKey, "done");
     } catch { /* ignore */ }
     fetch("/api/reading-feedback", {
       method: "POST",
@@ -528,27 +548,81 @@ function ReadingFeedback({
     showToast("success", "ขอบคุณครับ รับ feedback แล้ว");
   };
 
+  const skipFeedback = () => {
+    setOpen(false);
+    setDismissed(true);
+    try {
+      localStorage.setItem(feedbackKey, "done");
+    } catch { /* ignore */ }
+  };
+
   return (
-    <div className="mt-3 pt-3 border-t flex flex-col sm:flex-row sm:items-center gap-2" style={{ borderColor: "var(--accent-20)" }}>
-      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>คำตอบนี้เป็นยังไงบ้าง?</span>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => saveFeedback(opt.id)}
-            className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all hover:opacity-85"
-            style={{
-              borderColor: selected === opt.id ? "var(--accent)" : "var(--border)",
-              background: selected === opt.id ? "var(--accent-12)" : "var(--surface)",
-              color: selected === opt.id ? "var(--accent)" : "var(--text-muted)",
-            }}
-          >
-            <span>{opt.icon}</span> {opt.label}
-          </button>
-        ))}
+    <>
+      <div className="mt-3 pt-3 border-t flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--accent-20)" }}>
+        <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+          {selected ? "ขอบคุณสำหรับ feedback ครับ" : dismissed ? "ข้าม feedback แล้ว" : "ช่วยให้ OMNIA แม่นขึ้นอีกนิด"}
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex w-fit items-center gap-2 rounded-lg border px-3 py-1.5 text-[11px] font-bold transition-all hover:opacity-85"
+          style={{
+            borderColor: selected ? "var(--accent)" : "var(--border)",
+            background: selected ? "var(--accent-12)" : "var(--surface)",
+            color: selected ? "var(--accent)" : "var(--text)",
+          }}
+        >
+          {selected ? "ให้ feedback แล้ว" : "ให้ feedback"}
+        </button>
       </div>
-    </div>
+      <Modal open={open} onClose={skipFeedback} title="คำตอบนี้เป็นยังไงบ้าง?" maxWidth="max-w-md">
+        <div className="space-y-5">
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            ช่วยให้ OMNIA.AI ปรับคำตอบให้ตรงขึ้นในรอบถัดไป กดเพียงข้อเดียวก็พอครับ
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {options.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => saveFeedback(opt.id)}
+                className="group rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5"
+                style={{
+                  borderColor: selected === opt.id ? "var(--accent)" : "var(--border)",
+                  background: selected === opt.id ? "var(--accent-12)" : "var(--surface)",
+                  color: "var(--text)",
+                }}
+              >
+                <span
+                  className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border text-lg font-black"
+                  style={{
+                    borderColor: "var(--accent-25)",
+                    background: "var(--accent-8)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  {opt.icon}
+                </span>
+                <span className="block text-sm font-bold">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Feedback จะถูกใช้ปรับ prompt และคุณภาพคำตอบเท่านั้น
+            </span>
+            <button
+              type="button"
+              onClick={skipFeedback}
+              className="rounded-lg px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--surface)]"
+              style={{ color: "var(--text-muted)" }}
+            >
+              ข้าม
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
 
@@ -2276,6 +2350,7 @@ export default function ResearchPage() {
                         profileId={selectedBirthProfileId}
                         agentIds={viewingSession.agentIds}
                         answerExcerpt={viewingSession.finalAnswer}
+                        autoPrompt={false}
                       />
                       <ResultActions
                         onAskMore={focusQuestionInput}
@@ -2428,7 +2503,7 @@ export default function ResearchPage() {
                             className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-bold"
                             style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
                           >
-                            ถามต่อ 19 เครดิต
+                            ถามต่อ 9 เครดิต
                           </button>
                         </div>
                       )}
@@ -2466,6 +2541,7 @@ export default function ResearchPage() {
                         profileId={selectedBirthProfileId}
                         agentIds={Array.from(selectedIds)}
                         answerExcerpt={round.finalAnswer}
+                        autoPrompt={roundIndex === displayRounds.length - 1 && !running}
                       />
                       <ResultActions
                         onAskMore={focusQuestionInput}
@@ -2621,7 +2697,7 @@ export default function ResearchPage() {
                             className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-bold"
                             style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
                           >
-                            ถามต่อ 19 เครดิต
+                            ถามต่อ 9 เครดิต
                           </button>
                         </div>
                       )}
@@ -2655,6 +2731,7 @@ export default function ResearchPage() {
                         profileId={selectedBirthProfileId}
                         agentIds={Array.from(selectedIds)}
                         answerExcerpt={currentFinalAnswer}
+                        autoPrompt={!running}
                       />
                       <ResultActions
                         onAskMore={focusQuestionInput}

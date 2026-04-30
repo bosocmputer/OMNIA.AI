@@ -207,7 +207,7 @@ export function Sidebar() {
           style={{ borderColor: isDemo ? "var(--accent-25)" : "var(--border)", color: (isAdmin || isDemo) ? "var(--accent)" : "var(--text-muted)" }}
         >
           <Coins size={18} />
-          {!isDemo && !isAdmin && walletBalance != null && walletBalance < 59 ? (
+          {!isDemo && !isAdmin && walletBalance != null && walletBalance < 49 ? (
             <span className="absolute right-1 top-1 h-2 w-2 rounded-full" style={{ background: "var(--danger)" }} />
           ) : null}
         </Link>

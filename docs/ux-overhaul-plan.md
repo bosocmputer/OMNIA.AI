@@ -92,6 +92,7 @@ OMNIA.AI
 - Billing mode: แสดงราคาคำถามตามจำนวนหมอดูที่เลือก
 - Billing mode: แสดงเครดิตคงเหลือก่อนกดส่ง
 - Admin เห็นว่าไม่ถูกหักเครดิต
+- หลังได้คำตอบ final แสดง feedback dialog ให้กดง่ายกว่า inline feedback เดิม
 
 ---
 
