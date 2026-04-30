@@ -409,6 +409,8 @@ function dbSessionToDomain(s: {
   messages: { id: string; agentId: string; agentName: string; agentEmoji: string; role: string; content: string; tokensUsed: number; timestamp: Date }[];
   user?: { username: string } | null;
 }): ResearchSession {
+  const hasDetailedMessages = s.messages.some((m) => ["finding", "chat", "analysis", "verification"].includes(m.role));
+
   return {
     id: s.id,
     userId: s.userId,
@@ -421,7 +423,7 @@ function dbSessionToDomain(s: {
     completedAt: s.completedAt?.toISOString(),
     finalAnswer: s.finalAnswer ?? undefined,
     totalTokens: s.totalTokens,
-    messages: s.messages.filter((m) => !(s.finalAnswer && m.role === "synthesis")).map((m) => ({
+    messages: s.messages.filter((m) => !(s.finalAnswer && m.role === "synthesis" && hasDetailedMessages)).map((m) => ({
       id: m.id,
       agentId: m.agentId,
       agentName: m.agentName,

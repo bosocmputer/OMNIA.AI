@@ -69,6 +69,7 @@ function MarkdownBlock({ content }: { content: string }) {
 function groupSessionHistory(session: ServerSession): { question: string; messages: ResearchMessage[] }[] {
   const groups: { question: string; messages: ResearchMessage[] }[] = [];
   let current: { question: string; messages: ResearchMessage[] } | null = null;
+  const hasDetailedMessages = (session.messages ?? []).some((m) => ["finding", "chat", "analysis", "verification"].includes(m.role));
 
   for (const msg of session.messages ?? []) {
     if (msg.role === "user_question") {
@@ -76,7 +77,7 @@ function groupSessionHistory(session: ServerSession): { question: string; messag
       groups.push(current);
       continue;
     }
-    if (msg.role === "thinking" || (session.finalAnswer && msg.role === "synthesis")) continue;
+    if (msg.role === "thinking" || (session.finalAnswer && msg.role === "synthesis" && hasDetailedMessages)) continue;
     if (!current) {
       current = { question: session.question, messages: [] };
       groups.push(current);
@@ -272,7 +273,9 @@ export default function HistoryPage() {
                     <div className="mb-3 text-sm font-bold" style={{ color: "var(--text)" }}>{questionLabel(index)}: {group.question}</div>
                     <div className="space-y-3">
                       {group.messages.length === 0 ? (
-                        <div className="text-sm" style={{ color: "var(--text-muted)" }}>ไม่มีรายละเอียดเพิ่มเติม</div>
+                        <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+                          เซสชันนี้มีเฉพาะคำตอบสรุปด้านบน ไม่มีข้อความแยกจากหมอดูแต่ละท่าน
+                        </div>
                       ) : group.messages.map((msg) => (
                         <article key={msg.id} className="rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
                           <div className="mb-2 flex items-center gap-2 text-xs font-bold" style={{ color: "var(--text)" }}>

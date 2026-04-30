@@ -1066,6 +1066,18 @@ export async function POST(req: NextRequest) {
 
       // === QA Mode: Direct single-agent answer (no meeting ceremony) ===
       if (mode === "qa") {
+        const questionMarker: ResearchMessage = {
+          id: crypto.randomUUID(),
+          agentId: "user",
+          agentName: "ผู้ใช้",
+          agentEmoji: "👤",
+          role: "user_question",
+          content: question,
+          tokensUsed: 0,
+          timestamp: new Date().toISOString(),
+        };
+        await appendResearchMessage(sessionId, questionMarker);
+
         const agent = orderedAgents[0];
         const apiKey = await getAgentApiKey(agent.id);
         if (!apiKey) {
@@ -1108,7 +1120,7 @@ export async function POST(req: NextRequest) {
             agentId: agent.id,
             agentName: agent.name,
             agentEmoji: agent.emoji,
-            role: "synthesis",
+            role: "finding",
             content: result.content,
             tokensUsed: result.inputTokens + result.outputTokens,
             timestamp: new Date().toISOString(),

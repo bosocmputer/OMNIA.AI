@@ -725,6 +725,7 @@ function buildMinutesMarkdown(rounds: ConversationRound[], agents: Agent[]): str
 function groupSessionHistory(session: ServerSession): { question: string; messages: ResearchMessage[] }[] {
   const groups: { question: string; messages: ResearchMessage[] }[] = [];
   let current: { question: string; messages: ResearchMessage[] } | null = null;
+  const hasDetailedMessages = (session.messages ?? []).some((m) => ["finding", "chat", "analysis", "verification"].includes(m.role));
 
   for (const msg of session.messages ?? []) {
     if (msg.role === "user_question") {
@@ -733,7 +734,7 @@ function groupSessionHistory(session: ServerSession): { question: string; messag
       continue;
     }
 
-    if (msg.role === "thinking" || (session.finalAnswer && msg.role === "synthesis")) continue;
+    if (msg.role === "thinking" || (session.finalAnswer && msg.role === "synthesis" && hasDetailedMessages)) continue;
 
     if (!current) {
       current = { question: session.question, messages: [] };
@@ -2262,7 +2263,7 @@ export default function ResearchPage() {
                           {groupIndex + 1}
                         </span>
                         <span className="text-[11px] font-bold px-2 py-1 rounded-full border" style={{ color: "var(--text-muted)", borderColor: "var(--border)", background: "var(--surface)" }}>
-                          คำถามจากผู้ใช้ · หมอดูตอบ {group.messages.filter((m) => m.role === "finding").length} ท่าน
+                          คำถามจากผู้ใช้ · มีคำตอบ {group.messages.filter((m) => m.role === "finding").length || group.messages.length} รายการ
                         </span>
                       </div>
                       <div className="flex justify-end">
