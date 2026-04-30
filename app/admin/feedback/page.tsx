@@ -45,7 +45,9 @@ export default function AdminFeedbackPage() {
 
   const counts = useMemo(() => {
     return rows.reduce<Record<string, number>>((acc, row) => {
-      acc[row.value] = (acc[row.value] ?? 0) + 1;
+      row.value.split(",").map((value) => value.trim()).filter(Boolean).forEach((value) => {
+        acc[value] = (acc[value] ?? 0) + 1;
+      });
       return acc;
     }, {});
   }, [rows]);
@@ -104,13 +106,18 @@ export default function AdminFeedbackPage() {
         ) : (
           <div className="divide-y" style={{ borderColor: "var(--border)" }}>
             {rows.map((row) => {
-              const meta = VALUE_META[row.value] ?? { label: row.value, icon: null, color: "var(--text-muted)" };
+              const values = row.value.split(",").map((value) => value.trim()).filter(Boolean);
               return (
                 <div key={row.id} className="p-4 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg border" style={{ borderColor: meta.color, color: meta.color, background: "var(--surface)" }}>
-                      {meta.icon} {meta.label}
-                    </span>
+                    {values.map((value) => {
+                      const meta = VALUE_META[value] ?? { label: value, icon: null, color: "var(--text-muted)" };
+                      return (
+                        <span key={value} className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg border" style={{ borderColor: meta.color, color: meta.color, background: "var(--surface)" }}>
+                          {meta.icon} {meta.label}
+                        </span>
+                      );
+                    })}
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                       {new Date(row.createdAt).toLocaleString("th-TH")}
                     </span>

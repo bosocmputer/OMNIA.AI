@@ -107,7 +107,9 @@ export async function GET(req: NextRequest) {
     }
 
     const feedbackCounts = feedbackRows.reduce<Record<string, number>>((acc, row) => {
-      acc[row.value] = (acc[row.value] ?? 0) + 1;
+      row.value.split(",").map((value) => value.trim()).filter(Boolean).forEach((value) => {
+        acc[value] = (acc[value] ?? 0) + 1;
+      });
       return acc;
     }, {});
 

@@ -62,14 +62,20 @@ export async function POST(req: NextRequest) {
   try {
     await ensureFeedbackTable();
     const body = await req.json().catch(() => null);
-    const value = cleanText(body?.value, 40);
+    const rawValues = Array.isArray(body?.values)
+      ? body.values
+      : typeof body?.value === "string"
+        ? body.value.split(",")
+        : [];
+    const allowed = new Set(["accurate", "easy", "too_broad", "too_long"]);
+    const values = Array.from(new Set(rawValues.filter((item: unknown) => typeof item === "string").map((item: string) => item.trim()).filter((item: string) => allowed.has(item)))).slice(0, 4);
+    const value = values.join(",");
     const scope = cleanText(body?.scope, 240);
     if (!value || !scope) {
       return NextResponse.json({ error: "Missing feedback value or scope" }, { status: 400 });
     }
 
-    const allowed = new Set(["accurate", "easy", "too_broad", "too_long"]);
-    if (!allowed.has(value)) {
+    if (values.length === 0) {
       return NextResponse.json({ error: "Invalid feedback value" }, { status: 400 });
     }
 

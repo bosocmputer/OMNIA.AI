@@ -495,7 +495,7 @@ function ReadingFeedback({
   answerExcerpt?: string;
   autoPrompt?: boolean;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const options = [
@@ -507,13 +507,24 @@ function ReadingFeedback({
   const feedbackKey = `omnia_feedback:${sessionId || scope}`;
 
   useEffect(() => {
-    setSelected(null);
+    setSelected(new Set());
     setDismissed(false);
     void autoPrompt;
   }, [answerExcerpt, autoPrompt]);
 
-  const saveFeedback = (value: string) => {
-    setSelected(value);
+  const toggleFeedback = (value: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  };
+
+  const saveFeedback = () => {
+    if (selected.size === 0) return;
+    const values = Array.from(selected);
+    const value = values.join(",");
     setOpen(false);
     setDismissed(true);
     const timestamp = new Date().toISOString();
@@ -522,7 +533,7 @@ function ReadingFeedback({
       const prev = JSON.parse(localStorage.getItem(key) || "[]");
       localStorage.setItem(key, JSON.stringify([
         ...prev.slice(-49),
-        { scope, value, sessionId, question, timestamp },
+        { scope, values, sessionId, question, timestamp },
       ]));
       localStorage.setItem(feedbackKey, "done");
     } catch { /* ignore */ }
@@ -532,6 +543,7 @@ function ReadingFeedback({
       body: JSON.stringify({
         scope,
         value,
+        values,
         sessionId,
         question,
         profileId,
@@ -554,65 +566,80 @@ function ReadingFeedback({
     <>
       <div className="mt-3 pt-3 border-t flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--accent-20)" }}>
         <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-          {selected ? "ขอบคุณสำหรับ feedback ครับ" : dismissed ? "ข้าม feedback แล้ว" : "อ่านจบแล้วช่วยบอกได้ว่าคำตอบนี้เป็นยังไง"}
+          {selected.size > 0 && dismissed ? "ขอบคุณสำหรับ feedback ครับ" : dismissed ? "ข้าม feedback แล้ว" : "อ่านจบแล้วช่วยบอกได้ว่าคำตอบนี้เป็นยังไง"}
         </div>
         <button
           type="button"
           onClick={() => setOpen(true)}
           className="inline-flex w-fit items-center gap-2 rounded-lg border px-3 py-1.5 text-[11px] font-bold transition-all hover:opacity-85"
           style={{
-            borderColor: selected ? "var(--accent)" : "var(--border)",
-            background: selected ? "var(--accent-12)" : "var(--surface)",
-            color: selected ? "var(--accent)" : "var(--text)",
+            borderColor: selected.size > 0 && dismissed ? "var(--accent)" : "var(--border)",
+            background: selected.size > 0 && dismissed ? "var(--accent-12)" : "var(--surface)",
+            color: selected.size > 0 && dismissed ? "var(--accent)" : "var(--text)",
           }}
         >
-          {selected ? "ให้ feedback แล้ว" : "ให้ feedback"}
+          {selected.size > 0 && dismissed ? `ให้ feedback แล้ว ${selected.size} ข้อ` : "ให้ feedback"}
         </button>
       </div>
       <Modal open={open} onClose={skipFeedback} title="คำตอบนี้เป็นยังไงบ้าง?" maxWidth="max-w-md">
         <div className="space-y-5">
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            ช่วยให้ OMNIA.AI ปรับคำตอบให้ตรงขึ้นในรอบถัดไป กดเพียงข้อเดียวก็พอครับ
+            เลือกได้มากกว่า 1 ข้อ เพื่อให้ OMNIA.AI รู้ทั้งจุดที่ดีและจุดที่ควรปรับ
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {options.map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => saveFeedback(opt.id)}
-                className="group rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5"
-                style={{
-                  borderColor: selected === opt.id ? "var(--accent)" : "var(--border)",
-                  background: selected === opt.id ? "var(--accent-12)" : "var(--surface)",
-                  color: "var(--text)",
-                }}
-              >
-                <span
-                  className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border text-lg font-black"
+            {options.map((opt) => {
+              const isSelected = selected.has(opt.id);
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => toggleFeedback(opt.id)}
+                  className="group rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5"
+                  aria-pressed={isSelected}
                   style={{
-                    borderColor: "var(--accent-25)",
-                    background: "var(--accent-8)",
-                    color: "var(--accent)",
+                    borderColor: isSelected ? "var(--accent)" : "var(--border)",
+                    background: isSelected ? "var(--accent-12)" : "var(--surface)",
+                    color: "var(--text)",
                   }}
                 >
-                  {opt.icon}
-                </span>
-                <span className="block text-sm font-bold">{opt.label}</span>
-              </button>
-            ))}
+                  <span
+                    className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border text-lg font-black"
+                    style={{
+                      borderColor: isSelected ? "var(--accent)" : "var(--accent-25)",
+                      background: isSelected ? "var(--accent)" : "var(--accent-8)",
+                      color: isSelected ? "var(--accent-contrast)" : "var(--accent)",
+                    }}
+                  >
+                    {isSelected ? "✓" : opt.icon}
+                  </span>
+                  <span className="block text-sm font-bold">{opt.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <div className="flex items-center justify-between gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)" }}>
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Feedback จะถูกใช้ปรับ prompt และคุณภาพคำตอบเท่านั้น
+              เลือกแล้ว {selected.size} ข้อ · Feedback จะถูกใช้ปรับ prompt และคุณภาพคำตอบเท่านั้น
             </span>
-            <button
-              type="button"
-              onClick={skipFeedback}
-              className="rounded-lg px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--surface)]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              ข้าม
-            </button>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={skipFeedback}
+                className="rounded-lg px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--surface)]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                ข้าม
+              </button>
+              <button
+                type="button"
+                onClick={saveFeedback}
+                disabled={selected.size === 0}
+                className="rounded-lg px-3 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
+              >
+                ส่ง feedback
+              </button>
+            </div>
           </div>
         </div>
       </Modal>
@@ -962,16 +989,6 @@ export default function ResearchPage() {
       else next.add(id);
       return next;
     });
-  };
-
-  const selectRecommendedAgent = () => {
-    const recommended = agents.find((agent) => agent.hasApiKey) ?? agents[0];
-    if (!recommended) return;
-    setSelectedIds(new Set([recommended.id]));
-  };
-
-  const selectAllAgents = () => {
-    setSelectedIds(new Set(agents.map((agent) => agent.id)));
   };
 
   const uploadFile = async (file: File) => {
@@ -1619,39 +1636,6 @@ export default function ResearchPage() {
             หมอดูในห้อง ({selectedIds.size}/{agents.length})
           </div>
         </div>
-        {agents.length > 0 && (
-          <div className="mb-3 space-y-2">
-            <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              เลือกอย่างน้อย 1 ท่านก่อนถาม · 1 ท่านประหยัด token และตอบเร็ว, 3-5 ท่านเหมาะกับคำถามสำคัญที่อยากได้หลายมุม
-            </p>
-            <div className="grid grid-cols-3 gap-1.5">
-              <button
-                type="button"
-                onClick={selectRecommendedAgent}
-                className="rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-all hover:opacity-85"
-                style={{ borderColor: "var(--accent)", color: "var(--accent)", background: selectedIds.size === 1 ? "var(--accent-10)" : "transparent" }}
-              >
-                แนะนำ 1 ท่าน
-              </button>
-              <button
-                type="button"
-                onClick={selectAllAgents}
-                className="rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-all hover:opacity-85"
-                style={{ borderColor: "var(--border)", color: "var(--text)" }}
-              >
-                เลือกทั้งหมด
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedIds(new Set())}
-                className="rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-all hover:opacity-85"
-                style={{ borderColor: selectedIds.size === 0 ? "var(--accent)" : "var(--border)", color: selectedIds.size === 0 ? "var(--accent)" : "var(--text-muted)", background: selectedIds.size === 0 ? "var(--accent-8)" : "transparent" }}
-              >
-                ล้าง
-              </button>
-            </div>
-          </div>
-        )}
         {agents.length === 0 ? (
           <div className="text-center py-6 px-3">
                   <div className="text-2xl mb-2"><Building2 size={28} style={{ color: "var(--accent)" }} /></div>
@@ -1931,14 +1915,14 @@ export default function ResearchPage() {
   );
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden" style={{ background: "transparent" }}>
+    <div className="h-[calc(100dvh-3.5rem)] md:h-[100dvh] flex flex-col overflow-hidden" style={{ background: "transparent" }}>
       <div className="max-w-6xl mx-auto w-full h-full flex flex-col p-3 sm:p-6 gap-3 sm:gap-4 min-h-0">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2" style={{ color: "var(--text)" }}><Building2 size={22} style={{ color: "var(--accent)" }} /><span>ห้องอ่านดวง OMNIA.AI</span></h1>
             <p className="text-xs sm:text-sm mt-1 hidden sm:block" style={{ color: "var(--text-muted)" }}>
-              เลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม เลือกน้อยตอบเร็วและช่วยประหยัด token
+              พิมพ์คำถาม เลือกหมอดู แล้วอ่านคำตอบหรือย้อนดูประวัติได้ทันที
             </p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
@@ -1948,6 +1932,13 @@ export default function ResearchPage() {
               style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--accent-8)" }}
             >
               <Settings size={14} /> สภา ({selectedIds.size})
+            </button>
+            <button
+              onClick={() => { setHistoryTab("history"); setMobileSidebarOpen(true); }}
+              className="md:hidden px-3 py-2 rounded-lg text-xs border flex items-center gap-1.5"
+              style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}
+            >
+              <History size={14} /> ประวัติ
             </button>
             {(rounds.length > 0 || viewingSession) && (
               <button onClick={exportMinutes} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }} title="บันทึกคำทำนายเป็น Markdown">
@@ -1959,8 +1950,11 @@ export default function ResearchPage() {
 
         {/* ── Mobile quick-info strip ── */}
         <div className="flex md:hidden items-center gap-2 px-3 py-2 rounded-xl border text-[11px] flex-wrap" style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--text-muted)" }}>
-          <button onClick={() => setMobileSidebarOpen(true)} className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: selectedIds.size > 0 ? "var(--accent)" : "var(--border)", color: selectedIds.size > 0 ? "var(--accent)" : "var(--text-muted)" }}>
+          <button onClick={() => { setHistoryTab("current"); setMobileSidebarOpen(true); }} className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: selectedIds.size > 0 ? "var(--accent)" : "var(--border)", color: selectedIds.size > 0 ? "var(--accent)" : "var(--text-muted)" }}>
             <Users size={12} /> {selectedIds.size} หมอดู
+          </button>
+          <button onClick={() => { setHistoryTab("history"); setMobileSidebarOpen(true); }} className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+            <History size={12} /> ประวัติ {totalSessionCount}
           </button>
           {useFileContext && attachedFiles.length > 0 && <span className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "var(--accent-10)", color: "var(--accent)" }}><Paperclip size={10} /> {attachedFiles.length} ไฟล์</span>}
           {(!useFileContext || attachedFiles.length === 0) && selectedIds.size > 0 && <span className="opacity-60">พร้อมถามคำถามแรก</span>}
@@ -1977,7 +1971,7 @@ export default function ResearchPage() {
                 onClick={() => setMobileSidebarOpen(false)}
                 aria-label="Close panel"
               />
-              <aside className="absolute top-0 left-0 bottom-0 w-[300px] max-w-[88vw] border-r flex flex-col" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+              <aside className="absolute top-0 left-0 bottom-0 w-[360px] max-w-[96vw] border-r flex flex-col" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
                 <div className="h-14 px-3 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "var(--border)" }}>
                   <div className="font-semibold text-sm flex items-center gap-1.5" style={{ color: "var(--text)" }}><Settings size={14} /> ตั้งค่าสภา</div>
                   <button
