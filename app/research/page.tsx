@@ -325,26 +325,8 @@ function cleanInlineMarkdown(text: string) {
     .trim();
 }
 
-function firstMeaningfulLine(content: string) {
-  return content
-    .replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "")
-    .split("\n")
-    .map((line) => cleanInlineMarkdown(line.replace(/^#+\s*/, "").replace(/^[-*]\s*/, "").trim()))
-    .find((line) => line.length > 0) ?? "";
-}
-
-function confidenceLabel(content: string) {
-  const pctMatch = content.match(/(\d{1,2})\s*[-–]\s*(\d{1,2})\s*%|(\d{1,2})\s*%/);
-  if (pctMatch) {
-    if (pctMatch[1] && pctMatch[2]) return `${pctMatch[1]}-${pctMatch[2]}%`;
-    if (pctMatch[3]) return `${pctMatch[3]}%`;
-  }
-  if (/โอกาสสูง|แนวโน้มสูง|เอนเอียงไปทางดี|มีแนวโน้มที่ดี/.test(content)) return "โอกาสค่อนข้างดี";
-  if (/โอกาสต่ำ|แนวโน้มต่ำ|ยังไม่เห็นชัด|ยังไม่เด่น/.test(content)) return "ยังไม่เด่นชัด";
-  return "";
-}
-
-const ASTRO_FOCUS_OPTIONS = ["งาน", "เงิน", "ความรัก", "สุขภาพ", "ภาพรวม", "ข้าม"];
+const ASTRO_FOCUS_OPTIONS = ["งาน", "เงิน", "ความรัก", "สุขภาพ", "ภาพรวม"];
+const ASTRO_FOCUS_MAX = 2;
 
 function isBroadAstrologyQuestion(text: string) {
   const q = text.toLowerCase().replace(/\s+/g, "");
@@ -414,51 +396,6 @@ function ReadingTimeline({ content }: { content: string }) {
             {phase.avoidText && <div className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--orange)" }}>เลี่ยง: {cleanInlineMarkdown(phase.avoidText.replace(/^สิ่งที่ห้ามรีบ[:：]?\s*/, ""))}</div>}
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function AnswerSnapshot({ content }: { content: string }) {
-  const directSection = extractMarkdownSection(content, "คำตอบตรง ๆ");
-  const direct = sectionBullets(directSection, 1)[0] || cleanInlineMarkdown(directSection) || firstMeaningfulLine(content);
-  const keyPoint = sectionBullets(extractMarkdownSection(content, "จุดที่ทักได้ชัดที่สุด"), 1)[0]
-    || sectionBullets(extractMarkdownSection(content, "สัญญาณที่ทำให้เชื่อแบบนี้"), 1)[0]
-    || "มีสัญญาณที่ควรจับตาในเรื่องหลักของคำถามนี้";
-  const risk = sectionBullets(extractMarkdownSection(content, "เรื่องที่ควรระวัง"), 1)[0]
-    || cleanInlineMarkdown(extractMarkdownSection(content, "เรื่องที่ดูไม่ง่ายที่สุด"))
-    || "อย่ารีบตัดสินใจเรื่องสำคัญโดยไม่มีข้อมูลพอ";
-  const action = sectionBullets(extractMarkdownSection(content, "คำแนะนำที่ควรทำ"), 1)[0]
-    || sectionBullets(extractMarkdownSection(content, "สิ่งที่ควรสังเกตต่อ"), 1)[0]
-    || "สังเกตสัญญาณใกล้ตัว แล้วค่อยวางแผนเป็นขั้นตอน";
-  if (!direct) return null;
-
-  return (
-    <div className="mb-3 overflow-hidden rounded-xl border" style={{ borderColor: "var(--accent-30)", background: "linear-gradient(135deg, var(--surface), var(--card))" }}>
-      <div className="grid gap-0 lg:grid-cols-[170px_1fr]">
-        <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r" style={{ borderColor: "var(--border)" }}>
-          <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>สรุปจาก OMNIA.AI</div>
-          {confidenceLabel(content) && (
-            <div className="mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-black" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
-              {confidenceLabel(content)}
-            </div>
-          )}
-        </div>
-        <div className="p-3 sm:p-4">
-          <div className="text-base sm:text-lg font-extrabold leading-relaxed" style={{ color: "var(--text)" }}>{direct}</div>
-          <div className="mt-3 grid gap-2 lg:grid-cols-3">
-            {[
-              { title: "เรื่องเด่น", body: keyPoint, tone: "var(--accent)" },
-              { title: "ต้องระวัง", body: risk, tone: "var(--orange)" },
-              { title: "ทำต่อ", body: action, tone: "var(--teal-soft)" },
-            ].map((item) => (
-              <div key={item.title} className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
-                <div className="text-[11px] font-bold mb-1" style={{ color: item.tone }}>{item.title}</div>
-                <div className="text-[11px] leading-relaxed line-clamp-3" style={{ color: "var(--text-muted)" }}>{item.body}</div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -832,7 +769,7 @@ export default function ResearchPage() {
   const lastClarificationAnswersRef = useRef<{ question: string; answer: string }[] | undefined>(undefined);
   const [astroFocusOpen, setAstroFocusOpen] = useState(false);
   const [pendingAstroQuestion, setPendingAstroQuestion] = useState("");
-  const [astroFocus, setAstroFocus] = useState("งาน");
+  const [astroFocus, setAstroFocus] = useState<string[]>([]);
   const [astroContext, setAstroContext] = useState("");
 
   // Web sources state
@@ -1195,7 +1132,7 @@ export default function ResearchPage() {
   const maybeAskAstroFocus = (text: string, focusPayload?: AstroFocusPayload) => {
     if (focusPayload || !isAstrologyPrompt(text) || !isBroadAstrologyQuestion(text)) return false;
     setPendingAstroQuestion(text);
-    setAstroFocus("งาน");
+    setAstroFocus([]);
     setAstroContext("");
     setAstroFocusOpen(true);
     return true;
@@ -2457,7 +2394,6 @@ export default function ResearchPage() {
                   {viewingSession.finalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{(viewingSession.agentIds?.length ?? 0) <= 1 ? <MessageSquare size={16} /> : <Building2 size={16} />} {(viewingSession.agentIds?.length ?? 0) <= 1 ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
-                      <AnswerSnapshot content={viewingSession.finalAnswer} />
                       <ReadingTimeline content={viewingSession.finalAnswer} />
                       <MessageContent content={viewingSession.finalAnswer} />
                       <ReadingFeedback
@@ -2624,7 +2560,6 @@ export default function ResearchPage() {
                   {round.finalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{round.isQA ? <MessageSquare size={16} /> : <Building2 size={16} />} {round.isQA ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
-                      <AnswerSnapshot content={round.finalAnswer} />
                       <ReadingTimeline content={round.finalAnswer} />
                       <MessageContent content={round.finalAnswer} />
                       {round.chartData && <SimpleBarChart data={round.chartData} />}
@@ -2818,7 +2753,6 @@ export default function ResearchPage() {
                   {currentFinalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
                       <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{isCurrentQA ? <MessageSquare size={16} /> : <Building2 size={16} />} {isCurrentQA ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
-                      <AnswerSnapshot content={currentFinalAnswer} />
                       <ReadingTimeline content={currentFinalAnswer} />
                       <MessageContent content={currentFinalAnswer} />
                       {currentChartData && <SimpleBarChart data={currentChartData} />}
@@ -3038,19 +2972,27 @@ export default function ResearchPage() {
       <Modal open={astroFocusOpen} onClose={() => setAstroFocusOpen(false)} title="อยากให้หมอดูจับเรื่องไหนก่อน?" maxWidth="max-w-md">
         <div className="space-y-4">
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            คำถามนี้ยังค่อนข้างกว้าง เลือกโฟกัสสั้น ๆ ได้เลย หรือข้ามเพื่อดูภาพรวม
+            คำถามนี้ยังค่อนข้างกว้าง เลือกได้สูงสุด {ASTRO_FOCUS_MAX} เรื่อง หรือข้ามเพื่อดูภาพรวม
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {ASTRO_FOCUS_OPTIONS.map((option) => (
               <button
                 key={option}
                 type="button"
-                onClick={() => setAstroFocus(option)}
+                onClick={() => {
+                  setAstroFocus((prev) => {
+                    const isSelected = prev.includes(option);
+                    if (isSelected) return prev.filter((item) => item !== option);
+                    if (option === "ภาพรวม") return ["ภาพรวม"];
+                    const withoutOverview = prev.filter((item) => item !== "ภาพรวม");
+                    return [...withoutOverview, option].slice(0, ASTRO_FOCUS_MAX);
+                  });
+                }}
                 className="rounded-lg border px-3 py-2 text-sm font-semibold transition-all"
                 style={{
-                  borderColor: astroFocus === option ? "var(--accent)" : "var(--border)",
-                  background: astroFocus === option ? "var(--accent-12)" : "var(--surface)",
-                  color: astroFocus === option ? "var(--accent)" : "var(--text)",
+                  borderColor: astroFocus.includes(option) ? "var(--accent)" : "var(--border)",
+                  background: astroFocus.includes(option) ? "var(--accent-12)" : "var(--surface)",
+                  color: astroFocus.includes(option) ? "var(--accent)" : "var(--text)",
                 }}
               >
                 {option}
@@ -3087,7 +3029,8 @@ export default function ResearchPage() {
               type="button"
               onClick={() => {
                 const q = pendingAstroQuestion;
-                const payload = { focus: astroFocus, context: astroContext.trim() };
+                const selectedFocus = astroFocus.length > 0 ? astroFocus.join(", ") : "ภาพรวม";
+                const payload = { focus: selectedFocus, context: astroContext.trim() };
                 setAstroFocusOpen(false);
                 handleRun(q, false, undefined, payload);
               }}
