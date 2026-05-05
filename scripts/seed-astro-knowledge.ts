@@ -1,0 +1,282 @@
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
+import { PrismaClient } from "@prisma/client";
+import { OPENCLAW_HOME } from "../lib/openclaw-paths";
+import { addAgentKnowledge, estimateTokens } from "../lib/agents-store";
+import type { KnowledgeFile } from "../lib/agents-store-json";
+
+const db = new PrismaClient();
+const KNOWLEDGE_DIR = path.join(OPENCLAW_HOME, "knowledge");
+
+const nowIso = () => new Date().toISOString();
+
+type KnowledgeSeed = {
+  agentName: string;
+  filename: string;
+  meta: string;
+  content: string;
+};
+
+function sourceBlock(sources: string[]): string {
+  return [
+    "แหล่งอ้างอิง:",
+    ...sources.map((s) => `- ${s}`),
+    "",
+    "หลักการใช้ใน OMNIA.AI:",
+    "- ใช้เป็น rule card และกรอบตีความ ไม่ใช่การคัดลอกตำราทั้งเล่ม",
+    "- ถ้าระบบยังไม่มี calculation ของศาสตร์นั้น ให้ระบุข้อจำกัดก่อนทำนาย",
+    "- ห้ามอ้างสูตร/ตำแหน่ง/องศา/ฐานที่ไม่ได้คำนวณจริง",
+  ].join("\n");
+}
+
+const seeds: KnowledgeSeed[] = [
+  {
+    agentName: "ปรมาจารย์วิมล (โหราศาสตร์ไทย)",
+    filename: "omnia-knowledge-thai-astrology-rule-cards.md",
+    meta: "OMNIA curated knowledge: โหราศาสตร์ไทย, จักรทีปนี, การอ่านจังหวะชีวิตและคำถามงาน/ลูกค้า",
+    content: `# OMNIA Knowledge: โหราศาสตร์ไทย
+
+${sourceBlock([
+  "จักรทีปนี - Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%E0%B8%88%E0%B8%B1%E0%B8%81%E0%B8%A3%E0%B8%97%E0%B8%B5%E0%B8%9B%E0%B8%99%E0%B8%B5_-_%E0%B8%9B%E0%B8%A3%E0%B8%A1%E0%B8%B2%E0%B8%99%E0%B8%B8%E0%B8%8A%E0%B8%B4%E0%B8%95_-_%E0%B9%92%E0%B9%94%E0%B9%96%E0%B9%99.pdf",
+  "หนังสือจักรทีปนี ตำราโหราศาสตร - D-Library หอสมุดแห่งชาติ: https://digital.nlt.go.th/dlib/items/show/6048",
+  "คัมภีร์จักรทีปนี - D-Library หอสมุดแห่งชาติ: https://digital.nlt.go.th/dlib/items/show/2201",
+])}
+
+## บทบาทของศาสตร์นี้
+- อ่าน "แกนชีวิตและจังหวะใหญ่" จากวันเกิด เวลาเกิด สถานที่เกิด อายุ และบริบทคำถาม
+- ถ้าไม่มี calculation ลัคนา/ดาวจร/เรือนชะตาจริง ห้ามอ้างว่าเห็นลัคนาหรือดาวเจ้าเรือนแบบฟันธง
+- ให้ใช้ภาษาแบบครูโหร: สุขุม ตรง อธิบายเหตุผล ไม่ขายฝัน
+
+## วิธีทำให้คำตอบเจาะจง
+- เริ่มจากเรื่องที่ผู้ใช้ถาม ไม่เปิดครบทุกด้านชีวิต
+- ทุกคำทักต้องมี: เรื่องที่เกี่ยวข้อง + คน/บทบาท + ช่วงเวลา + อาการที่เห็นจริง + วิธีรับมือ
+- ถ้าทักอดีต ให้โยงกับสิ่งที่ตรวจสอบได้ เช่น งานที่ต้องรอผู้ใหญ่, ขอบเขตงานที่ยังไม่ล็อก, คำสัญญาที่ต้อง follow-up, ครอบครัว/บ้าน/เงินก้อน
+- ห้ามใช้ "เหนื่อย/รับผิดชอบเยอะ/คิดมาก" เป็นคำทักเดี่ยว ๆ
+
+## Rule cards สำหรับคำถาม demo/ขาย/ลูกค้า
+- มุมโหรไทยให้เน้นบทบาทคนตัดสินใจ, ผู้ใหญ่, การรับรอง, ความน่าเชื่อถือ และจังหวะการเจรจา
+- ถ้าผู้ใช้ถามว่า demo จะสำเร็จไหม ให้แยก:
+  1. ผู้ถามพร้อมแค่ไหน
+  2. ลูกค้ามี pain point หรือเงื่อนไขอะไร
+  3. คนในห้องมีอำนาจตัดสินใจหรือเป็นผู้ใช้งาน
+  4. ต้องปิดด้วย next step อะไร
+- ตัวอย่างคำทักที่ใช้ได้: "จุดที่ควรเช็กคือคนที่ฟัง demo วันนี้เป็นคนตัดสินใจงบหรือเป็นทีมใช้งาน ถ้าเป็นทีมใช้งาน โอกาสชอบมี แต่ผลปิดดีลอาจต้องรอผู้ใหญ่"
+- ถ้าให้เปอร์เซ็นต์ ให้ผูกกับเงื่อนไข เช่น decision maker อยู่ในห้อง, use case ตรง pain point, ตอบราคา/scope ได้ชัด
+
+## ข้อจำกัด
+- ถ้ายังไม่มี ephemeris หรือสูตรลัคนา ห้ามอ้างตำแหน่งดาวเฉพาะ
+- ให้เขียนว่า "จากข้อมูลพื้นฐานและบริบทคำถาม" หรือ "น้ำหนักเบื้องต้น" เมื่อข้อมูลยังน้อย
+`,
+  },
+  {
+    agentName: "ซือฝู่หลิน (โหราศาสตร์จีน BaZi)",
+    filename: "omnia-knowledge-bazi-rule-cards.md",
+    meta: "OMNIA curated knowledge: BaZi/Four Pillars, Heavenly Stems, Earthly Branches, limitation-safe interpretation",
+    content: `# OMNIA Knowledge: BaZi / Four Pillars
+
+${sourceBlock([
+  "Four Pillars of Destiny overview: https://en.wikipedia.org/wiki/Four_Pillars_of_Destiny",
+  "Heavenly Stems & Earthly Branches guide: https://bazi-web.com/heavenly-stems-earthly-branches-explained/",
+  "A Destiny - Heavenly Stems and Earthly Branches: https://www.adestiny.com/blog/heavenly-stems-and-earthly-branches-explained/",
+])}
+
+## บทบาทของศาสตร์นี้
+- BaZi ใช้ปี เดือน วัน เวลาเกิด เพื่อสร้าง Four Pillars; แต่ละ pillar มี Heavenly Stem และ Earthly Branch
+- Day Master คือ Heavenly Stem ของเสาวันเท่านั้น ห้ามเดา Day Master ถ้าระบบยังไม่ได้คำนวณเสาวันจริง
+- ถ้ายังไม่มี pillar chart ให้ใช้ได้เฉพาะ "การตีความเชิงสัญลักษณ์จากข้อมูลพื้นฐาน" และต้องบอกข้อจำกัด
+
+## วิธีตอบแบบ BaZi ที่ไม่ generic
+- ใช้โครง: สมดุลที่เห็น -> พฤติกรรมที่อาจเกิด -> วิธีปรับ
+- หลีกเลี่ยงการพูดว่า "ธาตุ...เด่น" ถ้าไม่มีผลคำนวณจริง
+- แปลงภาษาธาตุเป็นพฤติกรรม เช่น เร่งเกินไป, กังวลรายละเอียด, ต้องทำให้ flow นิ่ง, ต้องปรับน้ำเสียงให้ชัดและสงบ
+
+## Rule cards สำหรับคำถาม demo/ขาย/ลูกค้า
+- มุม BaZi ให้เน้นพลังงานตอนนำเสนอ: จังหวะเร่ง/ผ่อน, น้ำเสียง, ความมั่นใจ, การรับมือคำถามเฉพาะหน้า
+- ถ้า demo มีความเสี่ยง ให้ชี้ว่าเสี่ยงตรง flow, use case, integration, data/security, ราคา, หรือ timeline ไม่ใช้คำว่า "สื่อสารไม่ชัด" ลอย ๆ
+- คำแนะนำที่ดี:
+  - เปิดด้วย pain point ลูกค้า ไม่เปิดด้วย feature ทั้งหมด
+  - ทำ demo เป็นลำดับ 3 ช่วง: ปัญหา -> วิธีใช้ -> ผลลัพธ์ที่ลูกค้าจะได้
+  - ถ้าตอบไม่ได้ ให้รับปากเป็น next step พร้อมเวลาส่งคำตอบ
+- ตัวอย่างคำทัก: "มีแนวโน้มว่าลูกค้าจะสนใจตอนเห็น use case จริง แต่จะยังไม่ปิดทันทีถ้าคนตัดสินใจถามเรื่อง integration หรือ security แล้วคำตอบยังไม่ล็อก"
+
+## ข้อจำกัด
+- ห้ามอ้าง Day Master, Ten Gods, useful god, clash/combine ถ้ายังไม่มี chart คำนวณจริง
+- ถ้าต้องใช้ศัพท์ธาตุ ให้เขียนว่าเป็นเชิงสัญลักษณ์เท่านั้น
+`,
+  },
+  {
+    agentName: "อาจารย์ศักดา (เลข 7 ตัว 9 ฐาน)",
+    filename: "omnia-knowledge-seven-number-rule-cards.md",
+    meta: "OMNIA curated knowledge: เลข 7 ตัว 9 ฐาน, numerology-safe checklist, decision/action reading",
+    content: `# OMNIA Knowledge: เลข 7 ตัว 9 ฐาน
+
+${sourceBlock([
+  "MyHora - ดูดวงเลข 7 ตัว: https://myhora.com/horoscope/seven-number.aspx",
+  "Google Books - เลข 7 ตัว 9 ฐาน: https://books.google.com/books/about/%E0%B9%80%E0%B8%A5%E0%B8%82_7_%E0%B8%95%E0%B8%B1%E0%B8%A7_9_%E0%B8%90%E0%B8%B2%E0%B8%99.html?id=mcZdDwAAQBAJ",
+  "Google Books - เลข 7 ตัว 9 ฐาน ภาคพยากรณ์: https://books.google.com/books/about/%E0%B9%80%E0%B8%A5%E0%B8%82_7_%E0%B8%95%E0%B8%B1%E0%B8%A7_9_%E0%B8%90%E0%B8%B2%E0%B8%99_%E0%B8%A0%E0%B8%B2.html?id=YvRiDwAAQBAJ",
+])}
+
+## บทบาทของศาสตร์นี้
+- เลข 7 ตัว 9 ฐานเป็นแนวโหราศาสตร์ไทยที่ใช้วันเดือนปีเกิดและระบบตัวเลข/ดาว 7 ดวงเพื่อผูกดวง
+- ถ้าระบบยังไม่ได้คำนวณผัง 7 ตัว 9 ฐานจริง ห้ามอ้างตำแหน่งฐานหรือดาวฐานแบบฟันธง
+- ให้ใช้เลขที่ระบบคำนวณได้จริงก่อน เช่น เลขวันเกิด เลขเส้นชีวิต เลขปีส่วนตัว อายุ
+
+## วิธีตอบแบบอาจารย์ศักดา
+- ตรง กระชับ เป็น checklist: ทำ / เลี่ยง / รอ / เตรียม
+- ถ้าเป็นคำถามผลลัพธ์ ให้ให้น้ำหนักและบอกตัวแปรที่ทำให้ผลเปลี่ยน
+- ห้ามตอบแบบนิสัยทั่วไป ต้องแปลงเป็นการตัดสินใจในชีวิตจริง
+
+## Rule cards สำหรับคำถาม demo/ขาย/ลูกค้า
+- มุมเลข 7 ตัวให้เป็น checklist ปิดดีล:
+  1. เปิดด้วยปัญหาลูกค้า
+  2. แสดง flow demo ที่สั้นและไม่หลุด
+  3. เตรียมคำตอบเรื่องราคา/ขอบเขต/integration/security
+  4. ปิดด้วย next step และกำหนดเวลาชัด
+- ถ้าโอกาสกลางค่อนสูง ให้บอกเงื่อนไข เช่น "สูงขึ้นถ้าคนตัดสินใจอยู่ในห้องและเห็น use case ตรง pain point"
+- ถ้าโอกาสยังไม่สุด ให้บอกสาเหตุเชิงธุรกิจ เช่น "ลูกค้าอาจชอบตัวระบบ แต่ยังต้องเทียบงบหรือขอทีมเทคนิคดูต่อ"
+
+## ตัวอย่างคำตอบสั้น
+- "น้ำหนักกลางค่อนสูง แต่ต้องปิดด้วย next step อย่าจบ demo แบบเปิดกว้าง"
+- "สิ่งที่ห้ามพลาดคือ scope, ราคา, integration และวัน follow-up"
+
+## ข้อจำกัด
+- ห้ามอ้างฐานที่ 1-9 หรือดาวประจำฐาน ถ้ายังไม่ได้คำนวณจากสูตรจริง
+- ถ้าข้อมูลมีแค่วันเกิด ให้ระบุว่าเป็นเลขพื้นฐาน ไม่ใช่ผัง 7 ตัวเต็ม
+`,
+  },
+  {
+    agentName: "ดร.เทพฤทธิ์ (ยูเรเนียนโหราศาสตร์)",
+    filename: "omnia-knowledge-uranian-midpoint-rule-cards.md",
+    meta: "OMNIA curated knowledge: Uranian astrology, midpoint, Basic Five, event signal reading",
+    content: `# OMNIA Knowledge: Uranian Astrology / Midpoint
+
+${sourceBlock([
+  "Midpoint Astrology - Augurine: https://www.augurine.com/learn/midpoint-astrology",
+  "Basic Five - Augurine: https://www.augurine.com/learn/basic-five",
+])}
+
+## บทบาทของศาสตร์นี้
+- ยูเรเนียนเน้น midpoint, planetary picture, 90-degree dial และการจับสัญญาณเหตุการณ์
+- Midpoint คือจุดกึ่งกลางเชิงองศาระหว่างปัจจัยสองตัว ใช้ดูการเชื่อมพลังของสองเรื่อง
+- Basic Five เป็นแกนส่วนบุคคลที่ใช้กรองว่าประเด็นใดกระทบตัวตน/ทิศทาง/บทบาทสาธารณะ
+
+## ข้อจำกัดสำคัญ
+- ถ้าระบบไม่มี ephemeris, องศาดาว, AS/MC หรือ midpoint chart ห้ามอ้างองศา/ดาว/planetary picture แบบจริงจัง
+- ให้ใช้ภาษา "สัญญาณโดยประมาณจากบริบทและข้อมูลพื้นฐาน" แทนการฟันธง
+
+## วิธีตอบแบบยูเรเนียน
+- ตอบแบบจับสัญญาณ: จุดพลิก, หน้าต่างเวลา, trigger, สิ่งที่ต้องเฝ้าดู
+- ต้องแยก "สิ่งที่หนุน" กับ "สิ่งที่อาจทำให้เฉียด/เลื่อน/ต้อง follow-up"
+- ถ้าผลไม่ออกทันที ให้บอกว่าจุดตัดสินใจอาจย้ายไปหลังเหตุการณ์ใด
+
+## Rule cards สำหรับคำถาม demo/ขาย/ลูกค้า
+- มุมยูเรเนียนให้ดู "จุดพลิกระหว่าง demo" เช่น:
+  - คำถามเฉียบจากลูกค้า
+  - technical/integration/security blocker
+  - decision maker ไม่อยู่ในห้อง
+  - ลูกค้าเปลี่ยน scope ระหว่างฟัง
+  - ต้องส่งข้อมูล follow-up หลังจบ
+- คำตอบที่ดีควรระบุสัญญาณที่ต้องจับในห้อง:
+  - ลูกค้าถามเรื่อง timeline/ราคา = เริ่มเข้าสู่การตัดสินใจ
+  - ลูกค้าถามแต่ feature ทั่วไป = ยังอยู่ขั้นสำรวจ
+  - ลูกค้าขอให้ส่ง proposal/ทดลองใช้ = มีแรงต่อ แต่ยังไม่ปิดทันที
+- ถ้าให้เปอร์เซ็นต์ ให้บอก trigger ที่ขยับเปอร์เซ็นต์ขึ้น/ลง
+
+## ตัวอย่างคำทัก
+- "จุดพลิกไม่ได้อยู่ตอนเปิด demo แต่อยู่ตอนลูกค้าถามว่าเอาไปใช้กับระบบเดิมได้ไหม ถ้าตอบ integration ได้ชัด น้ำหนักจะดีขึ้น"
+- "มีโอกาสที่ผลยังไม่จบทันที แต่จะต่อด้วย follow-up หรือขอข้อมูลเพิ่ม"
+`,
+  },
+  {
+    agentName: "อาจารย์นิรันดร์ (ทักษามหาพยากรณ์)",
+    filename: "omnia-knowledge-thaksa-rule-cards.md",
+    meta: "OMNIA curated knowledge: ทักษา/มหาทักษา, วันเกิด, อายุจร, roadmap advice",
+    content: `# OMNIA Knowledge: ทักษามหาพยากรณ์
+
+${sourceBlock([
+  "ตำราทักษาพยากรณ์ - D-Library หอสมุดแห่งชาติ: https://digital.nlt.go.th/dlib/items/show/1629",
+  "ตำรามหาทักษาพยากรณ์ - D-Library หอสมุดแห่งชาติ: https://digital.nlt.go.th/dlib/items/show/3002",
+  "คัมภีร์นามทักษาพยากรณ์ - D-Library หอสมุดแห่งชาติ: https://digital.nlt.go.th/dlib/items/show/3122",
+  "ลิลิตทักษาพยากรณ์ - National Library of Australia catalogue: https://catalogue.nla.gov.au/catalog/6421317",
+])}
+
+## บทบาทของศาสตร์นี้
+- ทักษาใช้วันเกิดและอายุ/จังหวะจรเพื่อแปลเป็นแรงส่ง แรงต้าน และแนวทางปฏิบัติ
+- จุดแข็งของ agent นี้คือแปลงคำทำนายเป็น roadmap ไม่ใช่แค่บอกดี/ไม่ดี
+- ถ้ายังไม่มีตารางทักษาคำนวณจริง ให้ใช้วันเกิด/อายุที่ระบบให้เป็นกรอบพื้นฐาน และบอกข้อจำกัด
+
+## วิธีตอบแบบทักษา
+- เปิดด้วยสิ่งที่ควรเริ่มก่อน
+- บอกสิ่งที่ควรรอ/เลี่ยง
+- ให้แผนสั้น ๆ ตามกรอบเวลาที่ผู้ใช้ถาม เช่น วันนี้, พรุ่งนี้, 7 วัน, 30 วัน
+- ถามต่อเมื่อข้อมูลยังน้อย แต่ถามเพียงข้อเดียวที่มีผลต่อคำทำนาย
+
+## Rule cards สำหรับคำถาม demo/ขาย/ลูกค้า
+- มุมทักษาให้เป็น roadmap หลัง demo:
+  1. ก่อนคุย: ล็อก pain point และ demo flow
+  2. ระหว่างคุย: จับคำถามที่บอกระดับความสนใจ
+  3. หลังคุย: ส่ง recap, proposal, next step, วัน follow-up
+- ถ้าลูกค้ายังไม่ตัดสินใจ ให้แนะนำการตามงานแบบไม่เร่งเกินไป
+- ห้ามจบคำตอบแค่ "มีโอกาสดี" ต้องบอกขั้นต่อไปที่ควรทำ
+
+## สัญญาณชีวิตจริงที่ควรสังเกต
+- ลูกค้าขอ proposal, trial, technical call, security document = มีแรงต่อ
+- ลูกค้าฟังเฉย ๆ แต่ไม่ถามเรื่องราคา/timeline = ยังไม่เข้า decision mode
+- ลูกค้าเรียกทีมอื่นเข้ามาฟังเพิ่ม = ดีขึ้น แต่รอบปิดอาจไม่ใช่วันนี้
+
+## ข้อจำกัด
+- ห้ามอ้างดาวทักษาจร/ภูมิ/อายุจรเฉพาะถ้ายังไม่มี calculation table
+- ถ้าข้อมูลยังน้อย ให้บอกว่าเป็น roadmap จากบริบทและวันเกิดพื้นฐาน
+`,
+  },
+];
+
+function removeKnowledgeFile(agentId: string, knowledgeId: string) {
+  try {
+    fs.unlinkSync(path.join(KNOWLEDGE_DIR, agentId, `${knowledgeId}.txt`));
+  } catch {
+    // file may not exist; DB cleanup still proceeds
+  }
+}
+
+async function replaceKnowledge(agentId: string, seed: KnowledgeSeed) {
+  const existing = await db.agentKnowledge.findMany({
+    where: { agentId, filename: seed.filename },
+  });
+  for (const item of existing) {
+    removeKnowledgeFile(agentId, item.id);
+    await db.agentKnowledge.delete({ where: { id: item.id } });
+  }
+
+  const file: KnowledgeFile = {
+    id: crypto.randomUUID(),
+    filename: seed.filename,
+    meta: seed.meta,
+    content: seed.content.trim(),
+    tokens: estimateTokens(seed.content),
+    uploadedAt: nowIso(),
+  };
+  await addAgentKnowledge(agentId, file);
+}
+
+async function main() {
+  for (const seed of seeds) {
+    const agents = await db.agent.findMany({ where: { name: seed.agentName } });
+    if (agents.length === 0) {
+      console.log(`skip: ${seed.agentName}`);
+      continue;
+    }
+    for (const agent of agents) {
+      await replaceKnowledge(agent.id, seed);
+    }
+    console.log(`uploaded ${agents.length}: ${seed.filename} -> ${seed.agentName}`);
+  }
+}
+
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  })
+  .finally(() => db.$disconnect());
