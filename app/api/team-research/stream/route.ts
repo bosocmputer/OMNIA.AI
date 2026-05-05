@@ -72,6 +72,26 @@ function isOutcomeQuestion(text: string): boolean {
   ].some((kw) => q.includes(kw));
 }
 
+function isSalesDemoQuestion(text: string): boolean {
+  const q = text.toLowerCase();
+  const normalized = q.replace(/\s+/g, "");
+  const hasSalesMoment = [
+    "demo",
+    "เดโม",
+    "นำเสนอ",
+    "พรีเซนต์",
+    "present",
+    "ขาย",
+    "ลูกค้า",
+    "proposal",
+    "เสนอราคา",
+    "ปิดการขาย",
+    "นัดคุย",
+  ].some((kw) => normalized.includes(kw.replace(/\s+/g, "")));
+  const asksOutcome = isOutcomeQuestion(text) || ["สำเร็จ", "ผ่าน", "ได้งาน", "ปิดดีล"].some((kw) => normalized.includes(kw));
+  return hasSalesMoment && asksOutcome;
+}
+
 function detectTimeFrame(text: string): { label: string; agentInstruction: string; summaryInstruction: string } {
   const q = text.toLowerCase().replace(/\s+/g, "");
   if (
@@ -770,6 +790,7 @@ function getAstroPrecisionRules(target: "agent" | "summary"): string {
 - ทักอดีตต้องมีระดับความมั่นใจกำกับ เช่น "ความมั่นใจสูง", "ความมั่นใจปานกลาง", หรือ "ความมั่นใจต่ำ"; ห้ามใช้คำว่า "ทักแรง", "ทักกลาง", "ทักเบา" เพราะผู้ใช้ไม่เข้าใจ; ถ้าไม่ตรงให้บอกสั้น ๆ ว่าควรลดน้ำหนักคำทำนายส่วนถัดไป
 - อดีตที่ตรวจสอบได้ต้องเป็น "ฉากชีวิตจริง" ไม่ใช่ความรู้สึกลอย ๆ: ต้องมีช่วงเวลา + คน/บทบาทหรือเรื่อง + สิ่งที่เกิด/พฤติกรรมที่เห็น + ผลกระทบสั้น ๆ
 - ห้ามใช้คำทักอดีตแบบกว้าง เช่น "คิดเยอะ", "อยากเปลี่ยนแปลง", "มีภาระเพิ่มขึ้น", "เหนื่อยล้า" เว้นแต่ต่อด้วยฉากจริง เช่น เอกสารค้าง เงินก้อน คนขอยืม หัวหน้าเร่ง งานแก้ซ้ำ ลูกค้าหาย คนรักตอบช้า บ้าน/รถต้องซ่อม
+- สำหรับคำถาม demo/นำเสนอ/ขาย/ลูกค้า ห้ามใช้คำทักอดีตว่า "เหนื่อย/รับผิดชอบเยอะ/คิดมาก" เป็นแกน ต้องทักเป็นฉากงานจริง เช่น เพิ่งแก้ flow ใกล้วันจริง, ลูกค้ายังไม่ล็อก pain point, มีคนตัดสินใจหลายคน, ราคา/ขอบเขต/integration ยังต้องตอบ, หรือเคย follow-up แล้วเงียบ
 - ห้ามหยิบชุดเดิม "สื่อสารผิดพลาด / เอกสาร / เดินทาง / เหนื่อย / รับผิดชอบมากขึ้น" มาใช้เป็นคำตอบเริ่มต้น ถ้าข้อมูลหรือคำถามไม่ได้ชี้ไปเรื่องนั้นจริง
 - สำหรับคำถามรายวัน ถ้าข้อมูลมีแค่วันเกิด ให้เลือกประเด็นที่เฉพาะกับเจ้าชะตาเพียง 1 เรื่องและบอกเหตุผลจากวันเกิด/อายุ/เลข/เวลาเกิด ห้ามกระจายไปหลายเรื่องแบบครอบจักรวาล
 - ห้ามคำนวณเลขวันเกิด/เลขเส้นชีวิต/เลขปีส่วนตัว/อายุจรใหม่เอง ถ้าระบบส่งค่าคำนวณมาแล้ว ให้ใช้ค่าระบบเท่านั้น
@@ -1065,6 +1086,9 @@ export async function POST(req: NextRequest) {
       const questionStyleContext = outcomeQuestion
         ? `\n\n⚖️ ประเภทคำถาม: คำถามผลลัพธ์/ใช่หรือไม่\n- ต้องให้น้ำหนักชัดว่าเอนเอียงไปทางไหน พร้อมด้านหนุนและด้านฉุด\n- ใช้เปอร์เซ็นต์ได้เฉพาะเมื่อมีเหตุผลรองรับ และห้ามเกิน 75%\n- ถ้าแรงฉุดมากกว่าแรงหนุน ให้พูดตรง ๆ ว่าโอกาสกลางค่อนต่ำ/ยังไม่เด่น/ควรเผื่อใจ พร้อมวิธีรับมือ\n`
         : `\n\n⚖️ ประเภทคำถาม: คำถามภาพรวมหรือคำถามขอแนวโน้ม\n- ห้ามใส่เปอร์เซ็นต์ เช่น 60-70% เพราะผู้ใช้ไม่ได้ถามผลลัพธ์แบบผ่าน/ไม่ผ่านหรือได้/ไม่ได้\n- ให้ใช้ "น้ำหนักรวม" แทน เช่น ดี, ผสม, หนัก, ยังไม่เด่น, กลางค่อนดี, กลางค่อนหนัก\n- ใน 2 ประโยคแรกต้องบอกด้วยว่าเรื่องที่หนัก/ไม่ง่ายที่สุดคืออะไร ถ้าไม่ดีให้พูดตรง ๆ ห้ามกลบด้วยประโยคบวก\n- ต้องบอก "ช่วงที่ต้องระวังที่สุด" และ "เรื่องที่ดูไม่ง่าย" อย่างน้อยอย่างละ 1 จุด\n- ถ้าภาพรวมมีทั้งดีและไม่ดี ให้สรุปว่า "ผสม" อย่างตรงไปตรงมา ห้ามปิดด้วยคำบวกจนดูขายฝัน\n`;
+      const salesDemoContext = isSalesDemoQuestion(question)
+        ? `\n\n🧩 กฎเฉพาะคำถาม demo/นำเสนอ/ขาย/คุยลูกค้า:\n- คำตอบต้องแยก 4 แกนนี้ให้ชัด: (1) ความพร้อมของผู้ถาม (2) ความเข้าใจ/ความกังวลของลูกค้า (3) จุดเสี่ยงระหว่าง demo เช่น flow พัง, use case ไม่ตรง, ราคา/เวลา/integration/security (4) next step หลังจบ demo\n- ห้ามใช้ "สื่อสารไม่ชัด" เป็นคำตอบสุดท้าย ต้องระบุว่าไม่ชัดตรงไหน: pain point ลูกค้า, use case, ROI, scope, budget, decision maker, timeline, integration, data/security, หรือเงื่อนไขทดลองใช้\n- เช็กอดีต/ปัจจุบันต้องโยงกับการเตรียมงานขายหรือการคุยลูกค้าเท่านั้น เช่น เคยแก้ flow demo ใกล้วันจริง, ลูกค้ายังไม่ confirm pain point, มีคนตัดสินใจมากกว่า 1 คน, เคยต้อง follow-up หลายรอบ ห้ามทักกว้างว่าเหนื่อย/รับผิดชอบเยอะ\n- ถ้าให้เปอร์เซ็นต์ ต้องบอกเงื่อนไขที่ทำให้เปอร์เซ็นต์ขยับขึ้น/ลง 1 ข้อ เช่น ถ้า decision maker อยู่ในห้อง, ถ้า demo ตรง use case, ถ้าตอบราคา/integration ได้ชัด\n- แต่ละ agent ต้องมองคนละมุม: โหรไทยเน้นจังหวะเจรจา/ผู้ใหญ่/บทบาทคนตัดสินใจ, BaZi เน้นจังหวะพลังงานและวิธีปรับน้ำเสียง, เลขศาสตร์เน้น checklist ปิดดีล, ยูเรเนียนเน้นจุดพลิก/คำถามเฉียบ, ทักษาเน้น next step หลัง demo\n`
+        : "";
 
       // Detect astrology/fortune-telling session — used to inject ทายทัก section into prompts
       const _astroKw = ["ดูดวง","โหราศาสตร์","ดวงชะตา","ดวง","พยากรณ์","ทำนาย","ฤกษ์","bazi","ba zi","tarot","ไพ่ยิปซี","ชะตา","ชงกับ","ราศี","จักรราศี","เลขศาสตร์","numerology","ฮวงจุ้ย","feng shui","สี่เสา","midpoint","ascendant","ทักษา"];
@@ -1161,7 +1185,7 @@ export async function POST(req: NextRequest) {
         try {
           send("status", { message: `💬 ${agent.emoji} กำลังวิเคราะห์และเรียบเรียงคำตอบ...` });
           const qaSystemPrompt = isAstrologySession
-            ? `${companyContext}${memoryContext}${agent.soul}${getAgentVoice(agent.role)}${getAstroMethodSignature(agent.role)}${getAstroPrecisionRules("agent")}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${astroFocusContext}${timeFrameContext}${questionStyleContext}${dailyBrevityContext}${dateContext}${agentCoverageContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}${astrologyElementGuardRules}`
+            ? `${companyContext}${memoryContext}${agent.soul}${getAgentVoice(agent.role)}${getAstroMethodSignature(agent.role)}${getAstroPrecisionRules("agent")}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${astroFocusContext}${timeFrameContext}${questionStyleContext}${salesDemoContext}${dailyBrevityContext}${dateContext}${agentCoverageContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}${astrologyElementGuardRules}`
             : `${companyContext}${memoryContext}${agent.soul}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${timeFrameContext}${dateContext}${antiHallucinationRules}\n\nรูปแบบการตอบ:\n1. **ตอบคำตอบหลักให้ชัดเจนก่อนเลยในย่อหน้าแรก** (ใช่/ไม่ใช่/มี/ไม่มี + สรุปสั้น 1-2 ประโยค)\n2. จากนั้นค่อยอธิบายเหตุผล หลักกฎหมาย หรือรายละเอียดสนับสนุน\n3. ถ้ามีเงื่อนไขพิเศษหรือข้อยกเว้น ให้ระบุชัดเจนว่ากรณีของผู้ถามเข้าเงื่อนไขไหน\n\n⚠️ กฎเหล็กด้านความถูกต้อง:\n- ตอบในบริบทกฎหมายและมาตรฐานของประเทศไทยเป็นหลัก\n- ก่อนสรุปว่าต้องเสียภาษีหรือปฏิบัติตามกฎใด ต้องตรวจสอบข้อยกเว้น (exemptions) ที่เกี่ยวข้องก่อนเสมอ\n- คำตอบต้องสอดคล้องกันตลอด — ห้ามเปิดด้วยข้อมูลที่ขัดกับข้อสรุป\n- อ้างอิงมาตรากฎหมาย มาตรฐานบัญชี หรือแนวปฏิบัติที่เกี่ยวข้อง\n- ใช้ภาษาที่เข้าใจง่าย ตอบไม่เกิน 500 คำ`;
           const qaUserPrompt = isAstrologySession
             ? isDailyTimeFrame
@@ -1363,7 +1387,7 @@ export async function POST(req: NextRequest) {
           const result = await callLLMWithRetry(agent.provider, agent.model, apiKey, agent.baseUrl, [
             {
               role: "system",
-              content: `${companyContext}${memoryContext}${agent.soul}${agentVoice}${getAstroMethodSignature(agent.role)}${getAstroPrecisionRules("agent")}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${astroFocusContext}${timeFrameContext}${questionStyleContext}${dailyBrevityContext}${dateContext}${agentCoverageContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}${astrologyElementGuardRules}`,
+              content: `${companyContext}${memoryContext}${agent.soul}${agentVoice}${getAstroMethodSignature(agent.role)}${getAstroPrecisionRules("agent")}${knowledgeContext}${domainKnowledge}${dataSourceContext}${historyContext}${fileContext}${mcpContext}${searchContext}${clarificationContext}${astroFocusContext}${timeFrameContext}${questionStyleContext}${salesDemoContext}${dailyBrevityContext}${dateContext}${agentCoverageContext}${antiHallucinationRules}${astrologyAntiHallucinationRules}${astrologyElementGuardRules}`,
             },
             {
               role: "user",
@@ -1696,7 +1720,7 @@ export async function POST(req: NextRequest) {
           const result = await callLLM(chairman.provider, chairman.model, chairApiKey, chairman.baseUrl, [
             {
               role: "system",
-              content: `${companyContext}${memoryContext}คุณคือ OMNIA.AI ผู้สรุปคำทำนายรวมจากหมอดูหลายศาสตร์ หน้าที่ของคุณคืออ่านคำทำนายของแต่ละศาสตร์ แล้วสรุปให้ผู้ใช้เข้าใจแบบกระชับ อบอุ่น ตรงประเด็น และนำไปใช้ได้จริง ห้ามใช้ภาษาเป็นทางการหรือศัพท์ยากเกินจำเป็น ห้ามเรียกตัวเองว่าประธาน ห้ามใช้คำว่า วาระ/มติ/ประชุม${mode === "close" && allRounds && allRounds.length > 1 ? ` (มีคำถามต่อเนื่อง ${allRounds.length} รอบ ให้สรุปรวมทั้งหมด)` : ""}${failureNote}${factCheckNote}${domainKnowledge}${clarificationContext}${astroFocusContext}${timeFrameContext}${questionStyleContext}${dailyBrevityContext}${dateContext}${agentCoverageContext}${getAstroPrecisionRules("summary")}${antiHallucinationRules}${astrologyAntiHallucinationRules}${astrologyElementGuardRules}`,
+              content: `${companyContext}${memoryContext}คุณคือ OMNIA.AI ผู้สรุปคำทำนายรวมจากหมอดูหลายศาสตร์ หน้าที่ของคุณคืออ่านคำทำนายของแต่ละศาสตร์ แล้วสรุปให้ผู้ใช้เข้าใจแบบกระชับ อบอุ่น ตรงประเด็น และนำไปใช้ได้จริง ห้ามใช้ภาษาเป็นทางการหรือศัพท์ยากเกินจำเป็น ห้ามเรียกตัวเองว่าประธาน ห้ามใช้คำว่า วาระ/มติ/ประชุม${mode === "close" && allRounds && allRounds.length > 1 ? ` (มีคำถามต่อเนื่อง ${allRounds.length} รอบ ให้สรุปรวมทั้งหมด)` : ""}${failureNote}${factCheckNote}${domainKnowledge}${clarificationContext}${astroFocusContext}${timeFrameContext}${questionStyleContext}${salesDemoContext}${dailyBrevityContext}${dateContext}${agentCoverageContext}${getAstroPrecisionRules("summary")}${antiHallucinationRules}${astrologyAntiHallucinationRules}${astrologyElementGuardRules}`,
             },
             {
               role: "user",
