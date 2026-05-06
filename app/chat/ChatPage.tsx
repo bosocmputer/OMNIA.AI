@@ -351,7 +351,7 @@ export default function ChatPage({ agentId }: { agentId: string }) {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-3.5rem)] md:h-screen">
+    <div className="flex flex-col min-h-[calc(100dvh-3.5rem)] md:h-screen">
       {/* Header */}
       <div className="flex-shrink-0 border-b px-4 py-3 flex items-center justify-between gap-3" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
         <div className="flex items-center gap-3 min-w-0">
@@ -391,7 +391,7 @@ export default function ChatPage({ agentId }: { agentId: string }) {
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-4">
+      <div className="md:flex-1 overflow-visible md:overflow-y-auto px-3 sm:px-4 py-4 space-y-4">
         {messages.length === 0 && !streamingContent && (
           <div className="flex-1 flex items-center justify-center min-h-[300px]">
             <div className="text-center max-w-sm">
