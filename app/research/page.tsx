@@ -420,12 +420,14 @@ function ResultActions({
   onChangeProfile,
   onExport,
   canExport,
+  changeProfileLabel = "เปลี่ยนเจ้าชะตา",
 }: {
   onAskMore: () => void;
   onNewTopic: () => void;
   onChangeProfile: () => void;
   onExport: () => void;
   canExport: boolean;
+  changeProfileLabel?: string;
 }) {
   return (
     <div className="mt-3 pt-3 border-t flex flex-wrap gap-2" style={{ borderColor: "var(--accent-20)" }}>
@@ -436,7 +438,7 @@ function ResultActions({
         ดูเรื่องอื่น
       </button>
       <button type="button" onClick={onChangeProfile} className="px-3 py-1.5 rounded-lg text-xs font-semibold border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-        เปลี่ยนเจ้าชะตา
+        {changeProfileLabel}
       </button>
       <button type="button" onClick={onExport} disabled={!canExport} className="px-3 py-1.5 rounded-lg text-xs font-semibold border disabled:opacity-40" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
         บันทึกคำทำนาย
@@ -470,10 +472,11 @@ function ReadingFeedback({
   const options = [
     { id: "accurate", label: "แม่น", icon: "✓" },
     { id: "inaccurate", label: "ไม่ตรง", icon: "×" },
-    { id: "too_broad", label: "กว้างไป", icon: "?" },
+    { id: "too_broad", label: "กว้าง/ไม่เจาะ", icon: "?" },
     { id: "too_long", label: "ยาวไป", icon: "!" },
   ];
   const feedbackKey = `omnia_feedback:${sessionId || scope}`;
+  const needsNote = selected.has("inaccurate") || selected.has("too_broad");
 
   useEffect(() => {
     if (!open) return;
@@ -500,8 +503,8 @@ function ReadingFeedback({
   const saveFeedback = () => {
     if (selected.size === 0) return;
     const trimmedNote = note.trim();
-    if (selected.has("inaccurate") && !trimmedNote) {
-      showToast("error", "ช่วยพิมพ์สั้น ๆ ว่าตรงไหนไม่ตรง");
+    if (needsNote && !trimmedNote) {
+      showToast("error", "ช่วยพิมพ์สั้น ๆ ว่าตรงไหนไม่ตรงหรือกว้างเกินไป");
       return;
     }
     const values = Array.from(selected);
@@ -601,21 +604,21 @@ function ReadingFeedback({
           </div>
           <div className="space-y-2">
             <label htmlFor="reading-feedback-note" className="block text-xs font-bold" style={{ color: "var(--text)" }}>
-              ถ้าไม่ตรง ช่วยบอกเหตุผลสั้น ๆ
+              ถ้าไม่ตรงหรือกว้างไป ช่วยบอกเหตุผลสั้น ๆ
             </label>
             <textarea
               ref={noteRef}
               id="reading-feedback-note"
               value={note}
               onChange={(event) => setNote(event.target.value.slice(0, 1200))}
-              placeholder="เช่น ทักเรื่องงานไม่ตรง เพราะตอนนี้ไม่ได้มีหัวหน้า/เอกสารเข้ามาเกี่ยว หรือช่วงเวลาที่ทักไม่ใช่ช่วงที่เกิดจริง"
+              placeholder="เช่น ทักเรื่องงานไม่ตรง เพราะตอนนี้ไม่ได้มีหัวหน้า/เอกสารเข้ามาเกี่ยว หรืออยากให้เจาะเรื่องลูกค้า/ยอดขายมากกว่าภาพรวม"
               rows={3}
               className="w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--accent)]"
-              style={{ borderColor: selected.has("inaccurate") && !note.trim() ? "var(--danger)" : "var(--border)", background: "var(--surface)", color: "var(--text)" }}
+              style={{ borderColor: needsNote && !note.trim() ? "var(--danger)" : "var(--border)", background: "var(--surface)", color: "var(--text)" }}
             />
-            {selected.has("inaccurate") && !note.trim() && (
+            {needsNote && !note.trim() && (
               <p className="text-[11px]" style={{ color: "var(--danger)" }}>
-                เลือก “ไม่ตรง” แล้วต้องใส่เหตุผล เพื่อให้ทีมรู้ว่าควรปรับ prompt หรือข้อมูลตั้งต้นตรงไหน
+                เลือก “ไม่ตรง” หรือ “กว้าง/ไม่เจาะ” แล้วต้องใส่เหตุผล เพื่อให้ทีมรู้ว่าควรปรับ prompt หรือข้อมูลตั้งต้นตรงไหน
               </p>
             )}
           </div>
@@ -635,7 +638,7 @@ function ReadingFeedback({
               <button
                 type="button"
                 onClick={saveFeedback}
-                disabled={selected.size === 0 || (selected.has("inaccurate") && !note.trim())}
+                disabled={selected.size === 0 || (needsNote && !note.trim())}
                 className="rounded-lg px-3 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                 style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
               >
@@ -1210,7 +1213,7 @@ export default function ResearchPage() {
     ];
   };
 
-  const openGuestBirthInfoDialog = (text: string) => {
+  const openGuestBirthInfoDialog = (text: string, prefillInfo = guestBirthInfo) => {
     pendingClarificationQuestionRef.current = text;
     setClarificationMode("birth");
     setClarificationQuestions([
@@ -1222,12 +1225,12 @@ export default function ResearchPage() {
       { id: "astro_context", question: "บริบทล่าสุดหรือเหตุการณ์ที่กำลังรอคำตอบ", type: "text" },
     ]);
     setClarificationAnswers({
-      astro_name: guestBirthInfo?.name || "",
-      astro_dob: guestBirthInfo?.birthDate || "",
-      astro_tob: guestBirthInfo?.birthTime || "ไม่ทราบ",
-      astro_birthplace: guestBirthInfo?.birthPlace || "",
-      astro_focus: guestBirthInfo?.focus || "",
-      astro_context: guestBirthInfo?.context || "",
+      astro_name: prefillInfo?.name || "",
+      astro_dob: prefillInfo?.birthDate || "",
+      astro_tob: prefillInfo?.birthTime || "ไม่ทราบ",
+      astro_birthplace: prefillInfo?.birthPlace || "",
+      astro_focus: prefillInfo?.focus || "",
+      astro_context: prefillInfo?.context || "",
     });
     setPendingClarification(true);
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 100);
@@ -1741,6 +1744,23 @@ export default function ResearchPage() {
     else if (authResolved) localStorage.removeItem(`${STORAGE_KEY_PREFIX}_guest`);
   };
 
+  const clearGuestBirthInfo = (openForm = false) => {
+    setGuestBirthInfo(null);
+    try { localStorage.removeItem(GUEST_BIRTH_INFO_KEY); } catch { /* ignore */ }
+    showToast("info", "ล้างข้อมูลเจ้าชะตาชั่วคราวแล้ว");
+    if (openForm) {
+      openGuestBirthInfoDialog(question.trim() || "ดูดวง", null);
+    }
+  };
+
+  const handleChangeProfileAction = () => {
+    if (isGuestMode) {
+      clearGuestBirthInfo(true);
+      return;
+    }
+    window.location.href = "/profile";
+  };
+
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const focusQuestionInput = () => {
     setViewingSession(null);
@@ -1817,8 +1837,23 @@ export default function ResearchPage() {
         {isGuestMode ? (
           <div className="space-y-2">
             <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              ทดลองถามได้ทันที ถ้าเป็นดูดวง ระบบจะถามวันเกิด/เวลาเกิดในแชทแบบชั่วคราว
+              ทดลองถามได้ทันที ถ้าเป็นดูดวง ระบบจะถามชื่อ วันเกิด เวลาเกิด และเรื่องที่อยากให้จับแบบชั่วคราว เพื่อให้คำตอบไม่กว้างเกินไป
             </p>
+            {guestBirthInfo?.name && (
+              <div className="rounded-lg border px-2.5 py-2 text-[11px] leading-relaxed" style={{ borderColor: "var(--border)", color: "var(--text-muted)", background: "var(--surface)" }}>
+                ใช้ข้อมูลของ <strong style={{ color: "var(--text)" }}>{guestBirthInfo.name}</strong>
+                {guestBirthInfo.birthDate ? ` · ${guestBirthInfo.birthDate}` : ""}
+                {guestBirthInfo.birthTime ? ` · ${guestBirthInfo.birthTime}` : ""}
+                <button
+                  type="button"
+                  onClick={() => clearGuestBirthInfo(true)}
+                  className="mt-2 w-full rounded-lg border px-2 py-1 text-[11px] font-semibold"
+                  style={{ borderColor: "var(--border)", color: "var(--accent)" }}
+                >
+                  เปลี่ยนข้อมูลทดลอง
+                </button>
+              </div>
+            )}
             <div className="rounded-lg border px-2.5 py-2 text-[11px]" style={{ borderColor: "var(--accent-30)", color: "var(--accent)", background: "var(--accent-8)" }}>
               เหลือ {guestRemaining}/{GUEST_TRIAL_LIMIT} คำถามฟรี
             </div>
@@ -2204,7 +2239,7 @@ export default function ResearchPage() {
         {isGuestMode && (
           <div className="rounded-xl border px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-2 text-xs" style={{ borderColor: "var(--accent-30)", background: "var(--accent-8)", color: "var(--text-muted)" }}>
             <div className="flex-1">
-              <strong style={{ color: "var(--accent)" }}>ทดลองถามฟรี</strong> เหลือ {guestRemaining}/{GUEST_TRIAL_LIMIT} คำถาม · ไม่ต้องสมัคร แต่ประวัติและข้อมูลเกิดยังไม่ถูกบันทึกถาวร
+              <strong style={{ color: "var(--accent)" }}>ทดลองถามฟรี</strong> เหลือ {guestRemaining}/{GUEST_TRIAL_LIMIT} คำถาม · ถ้าถามดวง ระบบจะขอข้อมูลเกิดชั่วคราวเพื่อให้แม่นขึ้น · <a href="/privacy" className="underline" style={{ color: "var(--accent)" }}>ดู privacy</a>
             </div>
             <a href="/register" className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 font-bold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
               สมัครฟรีเพื่อถามต่อ
@@ -2657,7 +2692,8 @@ export default function ResearchPage() {
                       <ResultActions
                         onAskMore={focusQuestionInput}
                         onNewTopic={handleConfirmClear}
-                        onChangeProfile={() => { window.location.href = "/profile"; }}
+                        onChangeProfile={handleChangeProfileAction}
+                        changeProfileLabel={isGuestMode ? "เปลี่ยนข้อมูลทดลอง" : "เปลี่ยนเจ้าชะตา"}
                         onExport={exportMinutes}
                         canExport={true}
                       />
@@ -2865,7 +2901,8 @@ export default function ResearchPage() {
                       <ResultActions
                         onAskMore={focusQuestionInput}
                         onNewTopic={handleConfirmClear}
-                        onChangeProfile={() => { window.location.href = "/profile"; }}
+                        onChangeProfile={handleChangeProfileAction}
+                        changeProfileLabel={isGuestMode ? "เปลี่ยนข้อมูลทดลอง" : "เปลี่ยนเจ้าชะตา"}
                         onExport={exportMinutes}
                         canExport={rounds.length > 0}
                       />
@@ -3054,7 +3091,8 @@ export default function ResearchPage() {
                       <ResultActions
                         onAskMore={focusQuestionInput}
                         onNewTopic={handleConfirmClear}
-                        onChangeProfile={() => { window.location.href = "/profile"; }}
+                        onChangeProfile={handleChangeProfileAction}
+                        changeProfileLabel={isGuestMode ? "เปลี่ยนข้อมูลทดลอง" : "เปลี่ยนเจ้าชะตา"}
                         onExport={exportMinutes}
                         canExport={rounds.length > 0 || !!currentFinalAnswer}
                       />
