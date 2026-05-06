@@ -1,3 +1,5 @@
+import { buildAstroCalculations, type AstroCalculationResult } from "./astro-calculations";
+
 export interface BirthFactInput {
   name?: string;
   birthDate?: string;
@@ -19,6 +21,7 @@ export interface BirthFacts {
   lifePathNumber: number | null;
   birthDayNumber: number | null;
   personalYearNumber: number | null;
+  calculations: AstroCalculationResult;
   timeKnown: boolean;
   timeNote: string;
   summaryText: string;
@@ -99,6 +102,12 @@ export function buildBirthFacts(input: BirthFactInput, now = new Date()): BirthF
   const lifePathNumber = reduceToOneDigit(sumDigits(input.birthDate ?? ""));
   const birthDayNumber = reduceToOneDigit(day);
   const personalYearNumber = reduceToOneDigit(day + month + sumDigits(String(now.getUTCFullYear())));
+  const calculations = buildAstroCalculations({
+    birthDate: input.birthDate,
+    birthTime: input.birthTime,
+    now,
+  });
+  if (!calculations) return null;
   const timeKnown = !!input.birthTime && input.birthTime !== "ไม่ทราบ";
   const nearMidnight = !!input.birthTime && /^(00:|23:)/.test(input.birthTime);
   const timeNote = !timeKnown
@@ -121,6 +130,7 @@ export function buildBirthFacts(input: BirthFactInput, now = new Date()): BirthF
     lifePathNumber,
     birthDayNumber,
     personalYearNumber,
+    calculations,
     timeKnown,
     timeNote,
     summaryText: "",
@@ -134,8 +144,44 @@ export function buildBirthFacts(input: BirthFactInput, now = new Date()): BirthF
     `สถานที่เกิด: ${facts.birthPlace}`,
     `ราศีตะวันตกพื้นฐาน: ${facts.westernZodiac}, ปีนักษัตรพื้นฐาน: ${facts.chineseZodiac}`,
     `เลขวันเกิด: ${facts.birthDayNumber}, เลขเส้นชีวิต: ${facts.lifePathNumber}, เลขปีส่วนตัว ${now.getUTCFullYear()}: ${facts.personalYearNumber}`,
+    "",
+    "ผลคำนวณรายศาสตร์ที่ระบบทำได้จริง:",
+    facts.calculations.summaryText,
+    "",
+    "Structured JSON แบบย่อสำหรับ agent ใช้อ้างอิง:",
+    JSON.stringify({
+      numerology: {
+        lifePath: facts.calculations.lifePath ? {
+          number: facts.calculations.lifePath.number,
+          name: facts.calculations.lifePath.name,
+        } : null,
+        birthDay: facts.calculations.birthDay ? {
+          number: facts.calculations.birthDay.number,
+          name: facts.calculations.birthDay.name,
+        } : null,
+        personalYear: facts.calculations.personalYear ? {
+          number: facts.calculations.personalYear.number,
+          name: facts.calculations.personalYear.name,
+        } : null,
+      },
+      taksa: facts.calculations.taksa ? {
+        formulaVersion: facts.calculations.taksa.formulaVersion,
+        weekdayForTaksa: facts.calculations.taksa.weekdayForTaksa,
+        birthPlanet: facts.calculations.taksa.birthPlanetName,
+        ageInThaiReading: facts.calculations.taksa.ageInThaiReading,
+        currentAgeBase: facts.calculations.taksa.currentAgeBase,
+        caveat: facts.calculations.taksa.caveat,
+      } : null,
+      sevenNumber: facts.calculations.sevenNumber ? {
+        formulaVersion: facts.calculations.sevenNumber.formulaVersion,
+        sevenDigits: facts.calculations.sevenNumber.sevenDigits,
+        repeatedDigits: facts.calculations.sevenNumber.repeatedDigits.map((d) => `${d.digit}x${d.count}`),
+        missingDigits: facts.calculations.sevenNumber.missingDigits.map((d) => d.digit),
+        zeroCount: facts.calculations.sevenNumber.zeroCount,
+        caveat: facts.calculations.sevenNumber.caveat,
+      } : null,
+    }),
   ].join("\n");
 
   return facts;
 }
-

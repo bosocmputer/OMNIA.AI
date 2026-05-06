@@ -3,7 +3,7 @@ import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
 // Public routes — no auth required
 const PUBLIC_ROUTES = new Set(["/", "/login", "/register", "/privacy", "/terms", "/contact", "/guide", "/research"]);
-const PUBLIC_PREFIX = ["/api/auth/", "/api/health", "/_next/", "/assets/", "/favicon"];
+const PUBLIC_PREFIX = ["/api/auth/", "/api/health", "/api/astro-calculations", "/_next/", "/assets/", "/favicon"];
 const GUEST_API_ROUTES = new Set(["/api/team-agents", "/api/team-research/stream"]);
 
 export async function proxy(req: NextRequest) {
