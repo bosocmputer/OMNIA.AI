@@ -2166,8 +2166,8 @@ export default function ResearchPage() {
   );
 
   return (
-    <div className="h-[calc(100dvh-3.5rem)] md:h-[100dvh] flex flex-col overflow-hidden" style={{ background: "transparent" }}>
-      <div className="max-w-6xl mx-auto w-full h-full flex flex-col p-3 sm:p-6 gap-3 sm:gap-4 min-h-0">
+    <div className="min-h-[calc(100dvh-3.5rem)] overflow-visible md:h-[100dvh] md:overflow-hidden flex flex-col" style={{ background: "transparent" }}>
+      <div className="max-w-6xl mx-auto w-full min-h-0 md:h-full flex flex-col p-3 sm:p-6 gap-3 sm:gap-4">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -2227,7 +2227,7 @@ export default function ResearchPage() {
           {selectedIds.size === 0 && <span className="opacity-60">เลือกหมอดูอย่างน้อย 1 ท่าน</span>}
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
+        <div className="flex flex-col md:flex-row gap-4 md:flex-1 md:min-h-0">
 
           {/* ── Mobile sidebar overlay ── */}
           {mobileSidebarOpen && (
@@ -2258,7 +2258,7 @@ export default function ResearchPage() {
           </div>
 
           {/* ── Main panel ── */}
-          <div className="flex-1 flex flex-col gap-2 sm:gap-3 min-w-0">
+          <div className="flex-1 flex flex-col gap-2 sm:gap-3 min-w-0 min-h-0">
 
             {/* Viewing server session banner */}
             {viewingSession && (
@@ -2279,7 +2279,7 @@ export default function ResearchPage() {
             <div
               ref={scrollContainerRef}
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto space-y-4 sm:space-y-6 min-h-[200px] sm:min-h-[300px] relative"
+              className="md:flex-1 overflow-visible md:overflow-y-auto space-y-4 sm:space-y-6 min-h-[200px] sm:min-h-[300px] relative"
             >
               {/* Persistent meeting state badge — always visible when session active or completed */}
               {!running && (rounds.length > 0 || meetingSessionId) && (
