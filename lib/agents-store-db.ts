@@ -870,11 +870,18 @@ export async function getAgentKnowledgeContent(agentId: string, question?: strin
 
   for (const k of items) {
     const content = readKnowledgeFile(agentId, k.id);
+    const searchableMeta = `${k.filename} ${k.meta}`.toLowerCase();
+    const isOmniaCuratedKnowledge = k.filename.toLowerCase().startsWith("omnia-knowledge-");
     for (const chunk of chunkText(content)) {
+      const chunkTextLower = chunk.toLowerCase();
       const score = qWords.length > 0
-        ? qWords.filter((w) => chunk.toLowerCase().includes(w) || k.filename.toLowerCase().includes(w)).length
+        ? qWords.filter((w) => chunkTextLower.includes(w) || searchableMeta.includes(w)).length
         : 1;
-      allChunks.push({ filename: k.filename, chunk, score });
+      // OMNIA curated astrology rule cards are small, agent-specific, and should
+      // always be available. Thai user questions often do not share exact words
+      // with the source terms, so pure lexical matching can silently drop them.
+      const effectiveScore = isOmniaCuratedKnowledge ? Math.max(score, 1) : score;
+      allChunks.push({ filename: k.filename, chunk, score: effectiveScore });
     }
   }
 
