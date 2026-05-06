@@ -37,23 +37,24 @@ const READING_TEMPLATES = [
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     async function fetchDashboard() {
       try {
-        const [agentsRes, sessionsRes, statsRes, profileRes] = await Promise.all([
-          fetch("/api/team-agents"),
-          fetch("/api/team-research"),
-          fetch("/api/agent-stats"),
-          fetch("/api/birth-profile"),
-        ]);
+        const authRes = await fetch("/api/auth/me");
+        const authed = authRes.ok;
+        setIsGuest(!authed);
 
-        const [agentsData, sessionsData, statsData, profileData] = await Promise.all([
-          agentsRes.json(),
-          sessionsRes.json(),
-          statsRes.json(),
-          profileRes.json(),
-        ]);
+        const agentsRes = await fetch("/api/team-agents");
+        const agentsData = await agentsRes.json();
+        const [sessionsData, statsData, profileData] = authed
+          ? await Promise.all([
+              fetch("/api/team-research").then((r) => r.json()),
+              fetch("/api/agent-stats").then((r) => r.json()),
+              fetch("/api/birth-profile").then((r) => r.json()),
+            ])
+          : [{ sessions: [] }, {}, { profile: null }];
 
         const agents = agentsData.agents || [];
         const sessions = sessionsData.sessions || [];
@@ -126,8 +127,17 @@ export default function DashboardPage() {
     return `${Math.floor(hours / 24)} วันที่แล้ว`;
   };
 
-  const primaryHref = data?.hasBirthProfile ? "/research" : "/profile";
+  const primaryHref = isGuest ? "/research" : data?.hasBirthProfile ? "/research" : "/profile";
   const dailyInsight = useMemo(() => {
+    if (isGuest) {
+      return {
+        tone: "ทดลองฟรี",
+        title: "ลองถามหมอดู AI ได้ทันทีโดยไม่ต้องสมัคร",
+        body: "ถามได้ 2 คำถามก่อนสมัคร ระบบจะถามข้อมูลเกิดในแชทเมื่อจำเป็น และถ้าถูกใจค่อยสมัครเพื่อเก็บประวัติไว้ถามต่อ",
+        action: "เริ่มทดลองถาม",
+        href: "/research",
+      };
+    }
     if (!data?.hasBirthProfile) {
       return {
         tone: "เตรียมดวง",
@@ -172,7 +182,7 @@ export default function DashboardPage() {
       action: "ดูดวงวันนี้",
       href: `/research?q=${encodeURIComponent("ดูดวงวันนี้ ควรระวังอะไรและควรทำอะไร")}`,
     };
-  }, [data]);
+  }, [data, isGuest]);
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-6xl mx-auto">
@@ -188,23 +198,35 @@ export default function DashboardPage() {
               เปิดสภาโหราจารย์ แล้วถามเรื่องชีวิตที่อยากรู้
             </h1>
             <p className="text-sm md:text-base mt-3 leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              กรอกข้อมูลเกิดครั้งเดียว จากนั้นให้โหราจารย์หลายศาสตร์วิเคราะห์ร่วมกันและสรุปเป็นคำตอบที่อ่านง่าย
+              {isGuest
+                ? "ลองถามก่อนสมัครได้ 2 คำถาม ถ้าถูกใจค่อยสมัครเพื่อเก็บประวัติและข้อมูลเกิดไว้ใช้ต่อ"
+                : "กรอกข้อมูลเกิดครั้งเดียว จากนั้นให้โหราจารย์หลายศาสตร์วิเคราะห์ร่วมกันและสรุปเป็นคำตอบที่อ่านง่าย"}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 lg:pb-1">
-            <Link
-              href="/profile"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:border-[var(--accent)]"
-              style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--card)" }}
-            >
-              <UserCircle size={16} /> ข้อมูลเกิด
-            </Link>
+            {!isGuest ? (
+              <Link
+                href="/profile"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:border-[var(--accent)]"
+                style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--card)" }}
+              >
+                <UserCircle size={16} /> ข้อมูลเกิด
+              </Link>
+            ) : (
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:border-[var(--accent)]"
+                style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--card)" }}
+              >
+                สมัครฟรี
+              </Link>
+            )}
             <Link
               href={primaryHref}
               className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all hover:brightness-110"
               style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
             >
-              {data?.hasBirthProfile ? "เริ่มอ่านดวง" : "เริ่มตั้งค่าดวง"}
+              {isGuest ? "ทดลองถามฟรี" : data?.hasBirthProfile ? "เริ่มอ่านดวง" : "เริ่มตั้งค่าดวง"}
               <ArrowRight size={16} />
             </Link>
           </div>
