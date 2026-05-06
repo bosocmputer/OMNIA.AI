@@ -91,6 +91,15 @@ interface AstroFocusPayload {
   context?: string;
 }
 
+interface GuestBirthInfo {
+  name: string;
+  birthDate: string;
+  birthTime: string;
+  birthPlace: string;
+  focus: string;
+  context: string;
+}
+
 interface BirthProfile {
   id?: string;
   label?: string | null;
@@ -152,6 +161,7 @@ function formatBytes(bytes: number) {
 const STORAGE_KEY_PREFIX = "research_conversation_v2";
 const GUEST_ID_KEY = "omnia_guest_id_v1";
 const GUEST_USAGE_KEY = "omnia_guest_trial_used_v1";
+const GUEST_BIRTH_INFO_KEY = "omnia_guest_birth_info_v1";
 const GUEST_TRIAL_LIMIT = 2;
 
 const ROLE_LABEL: Record<string, string> = {
@@ -328,8 +338,8 @@ function cleanInlineMarkdown(text: string) {
     .trim();
 }
 
-const ASTRO_FOCUS_OPTIONS = ["งาน", "เงิน", "ความรัก", "สุขภาพ", "ภาพรวม"];
-const ASTRO_FOCUS_MAX = 2;
+const ASTRO_FOCUS_OPTIONS = ["งาน", "เงิน", "ความรัก", "สุขภาพ", "ธุรกิจ/ลูกค้า", "การเรียน/สอบ", "ครอบครัว", "โชคลาภ", "ภาพรวม"];
+const ASTRO_FOCUS_MAX = 3;
 
 function isBroadAstrologyQuestion(text: string) {
   const q = text.toLowerCase().replace(/\s+/g, "");
@@ -747,6 +757,7 @@ export default function ResearchPage() {
   const [authResolved, setAuthResolved] = useState(false);
   const [guestId, setGuestId] = useState("");
   const [guestUsed, setGuestUsed] = useState(0);
+  const [guestBirthInfo, setGuestBirthInfo] = useState<GuestBirthInfo | null>(null);
   const [birthProfile, setBirthProfile] = useState<BirthProfile | null>(null);
   const [birthProfiles, setBirthProfiles] = useState<BirthProfile[]>([]);
   const [selectedBirthProfileId, setSelectedBirthProfileId] = useState("");
@@ -847,6 +858,20 @@ export default function ResearchPage() {
       }
       setGuestId(id);
       setGuestUsed(Number(localStorage.getItem(GUEST_USAGE_KEY) || "0") || 0);
+      const savedBirthInfo = localStorage.getItem(GUEST_BIRTH_INFO_KEY);
+      if (savedBirthInfo) {
+        const parsed = JSON.parse(savedBirthInfo);
+        if (parsed && typeof parsed === "object") {
+          setGuestBirthInfo({
+            name: String(parsed.name || ""),
+            birthDate: String(parsed.birthDate || ""),
+            birthTime: String(parsed.birthTime || ""),
+            birthPlace: String(parsed.birthPlace || ""),
+            focus: String(parsed.focus || ""),
+            context: String(parsed.context || ""),
+          });
+        }
+      }
     } catch {
       const fallback = `${Date.now()}${Math.random()}`.replace(/\D/g, "");
       setGuestId(fallback);
@@ -1170,6 +1195,57 @@ export default function ResearchPage() {
     ];
   };
 
+  const buildGuestBirthAnswers = (text: string, info = guestBirthInfo): { question: string; answer: string }[] => {
+    if (!info || !isAstrologyPrompt(text)) return [];
+    const concerns = getAstrologyConcerns(`${text} ${info.focus}`);
+    return [
+      { question: "เจ้าชะตาที่เลือกในระบบ", answer: "ผู้ทดลองใช้งานฟรี (ข้อมูลชั่วคราว)" },
+      { question: "ชื่อ-นามสกุล ของผู้ต้องการดูดวง", answer: info.name || "ผู้ทดลอง" },
+      { question: "วันเดือนปีเกิด", answer: info.birthDate },
+      { question: "เวลาเกิด", answer: info.birthTime || "ไม่ทราบ" },
+      { question: "จังหวัด/ประเทศเกิด", answer: info.birthPlace || "ไม่ระบุ" },
+      { question: "ประเด็นหลักที่ต้องการทราบ", answer: info.focus || (concerns.length > 0 ? concerns.join(", ") : "ภาพรวมชีวิต") },
+      { question: "บริบทล่าสุดที่อยากให้หมอดูจับ", answer: info.context || "ผู้ใช้ไม่ได้เล่าเหตุการณ์เฉพาะเพิ่ม" },
+      { question: "กฎการใช้ข้อมูลเจ้าชะตา", answer: "ใช้เฉพาะข้อมูลเจ้าชะตาชั่วคราวนี้ในการดูดวง ห้ามเดาข้อมูลเกิดอื่นเพิ่มเอง" },
+    ];
+  };
+
+  const openGuestBirthInfoDialog = (text: string) => {
+    pendingClarificationQuestionRef.current = text;
+    setClarificationMode("birth");
+    setClarificationQuestions([
+      { id: "astro_name", question: "ชื่อหรือชื่อเล่นของผู้ที่จะดูดวง", type: "text" },
+      { id: "astro_dob", question: "วันเดือนปีเกิด", type: "text" },
+      { id: "astro_tob", question: "เวลาเกิด ถ้าไม่ทราบให้พิมพ์ ไม่ทราบ", type: "text" },
+      { id: "astro_birthplace", question: "จังหวัด/ประเทศเกิด", type: "text" },
+      { id: "astro_focus", question: "อยากให้หมอดูจับเรื่องไหนก่อน", type: "choice", options: ASTRO_FOCUS_OPTIONS },
+      { id: "astro_context", question: "บริบทล่าสุดหรือเหตุการณ์ที่กำลังรอคำตอบ", type: "text" },
+    ]);
+    setClarificationAnswers({
+      astro_name: guestBirthInfo?.name || "",
+      astro_dob: guestBirthInfo?.birthDate || "",
+      astro_tob: guestBirthInfo?.birthTime || "ไม่ทราบ",
+      astro_birthplace: guestBirthInfo?.birthPlace || "",
+      astro_focus: guestBirthInfo?.focus || "",
+      astro_context: guestBirthInfo?.context || "",
+    });
+    setPendingClarification(true);
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 100);
+  };
+
+  const guestNeedsBirthInfo = (text: string) => {
+    if (!isGuestMode || !isAstrologyPrompt(text)) return false;
+    return !guestBirthInfo?.name?.trim() || !guestBirthInfo?.birthDate?.trim();
+  };
+
+  const guestFocusPayload = (info = guestBirthInfo): AstroFocusPayload | undefined => {
+    if (!info) return undefined;
+    return {
+      focus: info.focus?.trim() || "ภาพรวม",
+      context: info.context?.trim() || undefined,
+    };
+  };
+
   const buildAstroFocusAnswers = (payload?: AstroFocusPayload): { question: string; answer: string }[] => {
     if (!payload) return [];
     const answers = [
@@ -1262,13 +1338,18 @@ export default function ResearchPage() {
       showToast("info", "มีคำตอบรวมแล้ว — ถามต่อได้เลย");
       return;
     }
-    if (!closeMode && effectiveMode !== "qa" && maybeAskAstroFocus(q, focusPayload)) return;
+    if (!closeMode && !withClarificationAnswers && guestNeedsBirthInfo(q)) {
+      openGuestBirthInfoDialog(q);
+      return;
+    }
+    const runFocusPayload = focusPayload ?? (isGuestMode && isAstrologyPrompt(q) ? guestFocusPayload() : undefined);
+    if (!closeMode && effectiveMode !== "qa" && maybeAskAstroFocus(q, runFocusPayload)) return;
     setLastCreditUsage(null);
     const balanceBeforeRun = wallet?.balance;
 
     const isQA = !closeMode && effectiveMode === "qa";
-    const focusAnswers = buildAstroFocusAnswers(focusPayload);
-    const baseClarificationAnswers = withClarificationAnswers ?? buildBirthProfileAnswers(q) ?? [];
+    const focusAnswers = buildAstroFocusAnswers(runFocusPayload);
+    const baseClarificationAnswers = withClarificationAnswers ?? buildBirthProfileAnswers(q) ?? buildGuestBirthAnswers(q) ?? [];
     const effectiveClarificationAnswers = [...baseClarificationAnswers, ...focusAnswers];
 
     setViewingSession(null);
@@ -1316,8 +1397,8 @@ export default function ResearchPage() {
         disableMcp: true,
         includeCompanyInfo: false,
         clarificationAnswers: effectiveClarificationAnswers || undefined,
-        astroFocus: focusPayload?.focus,
-        astroContext: focusPayload?.context?.trim() || undefined,
+        astroFocus: runFocusPayload?.focus,
+        astroContext: runFocusPayload?.context?.trim() || undefined,
         guestId: isGuestMode ? guestId : undefined,
       };
 
@@ -1569,25 +1650,58 @@ export default function ResearchPage() {
 
   // Handle clarification submit
   const handleClarificationSubmit = () => {
+    const pendingQuestion = pendingClarificationQuestionRef.current;
+    if (clarificationMode === "birth" && isGuestMode) {
+      const nextGuestBirthInfo: GuestBirthInfo = {
+        name: (clarificationAnswers.astro_name || "").trim(),
+        birthDate: (clarificationAnswers.astro_dob || "").trim(),
+        birthTime: (clarificationAnswers.astro_tob || "").trim(),
+        birthPlace: (clarificationAnswers.astro_birthplace || "").trim(),
+        focus: (clarificationAnswers.astro_focus || "").trim(),
+        context: (clarificationAnswers.astro_context || "").trim(),
+      };
+      if (!nextGuestBirthInfo.name || !nextGuestBirthInfo.birthDate) {
+        showToast("warning", "กรุณากรอกชื่อ/ชื่อเล่น และวันเดือนปีเกิดก่อน เพื่อให้หมอดูอ่านดวงจากเจ้าชะตาจริง");
+        return;
+      }
+      setGuestBirthInfo(nextGuestBirthInfo);
+      try { localStorage.setItem(GUEST_BIRTH_INFO_KEY, JSON.stringify(nextGuestBirthInfo)); } catch { /* ignore */ }
+      const answers = buildGuestBirthAnswers(`${pendingQuestion} ${nextGuestBirthInfo.focus}`, nextGuestBirthInfo);
+      setPendingClarification(false);
+      setClarificationMode("chat");
+      setClarificationQuestions([]);
+      setClarificationAnswers({});
+      handleRun(pendingQuestion || undefined, false, answers, guestFocusPayload(nextGuestBirthInfo));
+      return;
+    }
+
     let answers = clarificationQuestions.map((q) => ({
       question: q.question,
       answer: clarificationAnswers[q.id] || "(ไม่ระบุ)",
     }));
-    const profileAnswers = buildBirthProfileAnswers(`${pendingClarificationQuestionRef.current} ${answers.map((a) => a.answer).join(" ")}`);
+    const profileAnswers = buildBirthProfileAnswers(`${pendingQuestion} ${answers.map((a) => a.answer).join(" ")}`);
     if (profileAnswers) {
       const seen = new Set(answers.map((a) => a.question));
       answers = [...answers, ...profileAnswers.filter((a) => !seen.has(a.question))];
     }
     setPendingClarification(false);
     setClarificationQuestions([]);
-    handleRun(pendingClarificationQuestionRef.current || undefined, false, answers);
+    handleRun(pendingQuestion || undefined, false, answers);
   };
 
   const handleSkipClarification = () => {
+    if (clarificationMode === "birth" && isGuestMode && guestNeedsBirthInfo(pendingClarificationQuestionRef.current)) {
+      showToast("warning", "โหมดทดลองฟรีควรมีชื่อ/วันเกิดก่อนดูดวง ไม่อย่างนั้นคำตอบจะกว้างเกินไป");
+      return;
+    }
     setPendingClarification(false);
     setClarificationMode("chat");
     setClarificationQuestions([]);
-    handleRun(pendingClarificationQuestionRef.current || undefined, false, buildBirthProfileAnswers(pendingClarificationQuestionRef.current) ?? []);
+    handleRun(
+      pendingClarificationQuestionRef.current || undefined,
+      false,
+      buildBirthProfileAnswers(pendingClarificationQuestionRef.current) ?? buildGuestBirthAnswers(pendingClarificationQuestionRef.current)
+    );
   };
 
   const handleStop = () => {
@@ -2273,7 +2387,9 @@ export default function ResearchPage() {
                         </div>
                         <div className="text-xs" style={{ color: "var(--text-muted)" }}>
                           {clarificationMode === "birth"
-                            ? "ตรวจข้อมูลก่อนเปิดคำทำนาย แก้เฉพาะช่องที่ไม่ตรงได้เลย"
+                            ? isGuestMode
+                              ? "ข้อมูลนี้ใช้เฉพาะการทดลองบนเครื่องนี้ เพื่อให้หมอดูอ่านจากเจ้าชะตาจริง ไม่ได้บันทึกเป็นโปรไฟล์ถาวร"
+                              : "ตรวจข้อมูลก่อนเปิดคำทำนาย แก้เฉพาะช่องที่ไม่ตรงได้เลย"
                             : "หมอดูต้องการรายละเอียดเพิ่มเพื่อทักให้ตรงกว่าเดิม"}
                         </div>
                       </div>
@@ -2286,7 +2402,7 @@ export default function ResearchPage() {
                             {qi + 1}. {q.question}
                           </div>
                           {q.id === "astro_focus" && (
-                            <div className="text-[11px] mb-2" style={{ color: "var(--text-muted)" }}>เลือกได้สูงสุด 3 เรื่อง</div>
+                            <div className="text-[11px] mb-2" style={{ color: "var(--text-muted)" }}>เลือกได้สูงสุด {ASTRO_FOCUS_MAX} เรื่อง</div>
                           )}
                           {q.type === "choice" && q.options ? (
                             <div className="space-y-1.5">
@@ -2299,7 +2415,7 @@ export default function ResearchPage() {
                                         const selected = (prev[q.id] ?? "").split(", ").filter(Boolean);
                                         const next = selected.includes(opt)
                                           ? selected.filter((item) => item !== opt)
-                                          : selected.length >= 3 ? selected : [...selected, opt];
+                                          : selected.length >= ASTRO_FOCUS_MAX ? selected : [...selected, opt];
                                         return { ...prev, [q.id]: next.join(", ") };
                                       }
                                       return { ...prev, [q.id]: opt };
@@ -2347,13 +2463,15 @@ export default function ResearchPage() {
                       >
                         {clarificationMode === "birth" ? "ใช้ข้อมูลนี้ดูดวง" : "ตอบแล้วให้หมอดูอ่านต่อ"}
                       </button>
-                      <button
-                        onClick={handleSkipClarification}
-                        className="px-4 py-2 rounded-lg text-xs border transition-all hover:opacity-80"
-                        style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
-                      >
-                        ข้ามไป →
-                      </button>
+                      {!(clarificationMode === "birth" && isGuestMode) && (
+                        <button
+                          onClick={handleSkipClarification}
+                          className="px-4 py-2 rounded-lg text-xs border transition-all hover:opacity-80"
+                          style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+                        >
+                          ข้ามไป →
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
