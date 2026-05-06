@@ -180,6 +180,16 @@ export function buildBirthFacts(input: BirthFactInput, now = new Date()): BirthF
         zeroCount: facts.calculations.sevenNumber.zeroCount,
         caveat: facts.calculations.sevenNumber.caveat,
       } : null,
+      bazi: facts.calculations.bazi ? {
+        formulaVersion: facts.calculations.bazi.formulaVersion,
+        year: facts.calculations.bazi.year.label,
+        month: facts.calculations.bazi.month.label,
+        day: facts.calculations.bazi.day.label,
+        hour: facts.calculations.bazi.hour?.label ?? null,
+        dayMaster: facts.calculations.bazi.dayMaster,
+        elementCounts: facts.calculations.bazi.elementCounts,
+        caveat: facts.calculations.bazi.caveat,
+      } : null,
     }),
   ].join("\n");
 

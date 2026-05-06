@@ -42,12 +42,46 @@ export interface SevenNumberCalculation {
   caveat: string;
 }
 
+export interface StemBranch {
+  index: number;
+  stem: string;
+  stemEn: string;
+  stemTh: string;
+  stemElement: string;
+  stemPolarity: "Yang" | "Yin";
+  branch: string;
+  branchEn: string;
+  branchTh: string;
+  branchElement: string;
+  hiddenStems: string[];
+  label: string;
+}
+
+export interface BaziCalculation {
+  formulaVersion: string;
+  year: StemBranch;
+  month: StemBranch;
+  day: StemBranch;
+  hour: StemBranch | null;
+  dayMaster: {
+    stem: string;
+    stemEn: string;
+    stemTh: string;
+    element: string;
+    polarity: "Yang" | "Yin";
+  };
+  hourBranchNote: string;
+  elementCounts: Record<string, number>;
+  caveat: string;
+}
+
 export interface AstroCalculationResult {
   lifePath: NumberMeaning | null;
   birthDay: NumberMeaning | null;
   personalYear: NumberMeaning | null;
   taksa: TaksaCalculation | null;
   sevenNumber: SevenNumberCalculation | null;
+  bazi: BaziCalculation | null;
   json: {
     numerology: {
       lifePath: NumberMeaning | null;
@@ -56,11 +90,38 @@ export interface AstroCalculationResult {
     };
     taksa: TaksaCalculation | null;
     sevenNumber: SevenNumberCalculation | null;
+    bazi: BaziCalculation | null;
   };
   summaryText: string;
 }
 
 const WEEKDAYS_TH = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
+const STEMS = [
+  { stem: "甲", en: "Jia", th: "เจี่ย", element: "ไม้", polarity: "Yang" as const },
+  { stem: "乙", en: "Yi", th: "อี่", element: "ไม้", polarity: "Yin" as const },
+  { stem: "丙", en: "Bing", th: "ปิ่ง", element: "ไฟ", polarity: "Yang" as const },
+  { stem: "丁", en: "Ding", th: "ติง", element: "ไฟ", polarity: "Yin" as const },
+  { stem: "戊", en: "Wu", th: "อู้", element: "ดิน", polarity: "Yang" as const },
+  { stem: "己", en: "Ji", th: "จี๋", element: "ดิน", polarity: "Yin" as const },
+  { stem: "庚", en: "Geng", th: "เกิง", element: "ทอง", polarity: "Yang" as const },
+  { stem: "辛", en: "Xin", th: "ซิน", element: "ทอง", polarity: "Yin" as const },
+  { stem: "壬", en: "Ren", th: "เหริน", element: "น้ำ", polarity: "Yang" as const },
+  { stem: "癸", en: "Gui", th: "กุ่ย", element: "น้ำ", polarity: "Yin" as const },
+];
+const BRANCHES = [
+  { branch: "子", en: "Zi", th: "ชวด", element: "น้ำ", hiddenStems: ["癸"] },
+  { branch: "丑", en: "Chou", th: "ฉลู", element: "ดิน", hiddenStems: ["己", "癸", "辛"] },
+  { branch: "寅", en: "Yin", th: "ขาล", element: "ไม้", hiddenStems: ["甲", "丙", "戊"] },
+  { branch: "卯", en: "Mao", th: "เถาะ", element: "ไม้", hiddenStems: ["乙"] },
+  { branch: "辰", en: "Chen", th: "มะโรง", element: "ดิน", hiddenStems: ["戊", "乙", "癸"] },
+  { branch: "巳", en: "Si", th: "มะเส็ง", element: "ไฟ", hiddenStems: ["丙", "戊", "庚"] },
+  { branch: "午", en: "Wu", th: "มะเมีย", element: "ไฟ", hiddenStems: ["丁", "己"] },
+  { branch: "未", en: "Wei", th: "มะแม", element: "ดิน", hiddenStems: ["己", "丁", "乙"] },
+  { branch: "申", en: "Shen", th: "วอก", element: "ทอง", hiddenStems: ["庚", "壬", "戊"] },
+  { branch: "酉", en: "You", th: "ระกา", element: "ทอง", hiddenStems: ["辛"] },
+  { branch: "戌", en: "Xu", th: "จอ", element: "ดิน", hiddenStems: ["戊", "辛", "丁"] },
+  { branch: "亥", en: "Hai", th: "กุน", element: "น้ำ", hiddenStems: ["壬", "甲"] },
+];
 const TAKSA_PLANET_ORDER = [
   { planetNumber: 1, planetName: "อาทิตย์" },
   { planetNumber: 2, planetName: "จันทร์" },
@@ -183,6 +244,148 @@ function getAge(date: Date, now: Date): { age: number; nextBirthdayAge: number }
   return { age, nextBirthdayAge: age + 1 };
 }
 
+function positiveMod(n: number, m: number): number {
+  return ((n % m) + m) % m;
+}
+
+function makeStemBranch(index: number): StemBranch {
+  const normalized = positiveMod(index, 60);
+  const stem = STEMS[normalized % 10];
+  const branch = BRANCHES[normalized % 12];
+  return {
+    index: normalized,
+    stem: stem.stem,
+    stemEn: stem.en,
+    stemTh: stem.th,
+    stemElement: stem.element,
+    stemPolarity: stem.polarity,
+    branch: branch.branch,
+    branchEn: branch.en,
+    branchTh: branch.th,
+    branchElement: branch.element,
+    hiddenStems: branch.hiddenStems,
+    label: `${stem.stem}${branch.branch} ${stem.en} ${branch.en}`,
+  };
+}
+
+function julianDayNumber(date: Date): number {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth() + 1;
+  const d = date.getUTCDate();
+  const a = Math.floor((14 - m) / 12);
+  const year = y + 4800 - a;
+  const month = m + 12 * a - 3;
+  return d + Math.floor((153 * month + 2) / 5) + 365 * year + Math.floor(year / 4) - Math.floor(year / 100) + Math.floor(year / 400) - 32045;
+}
+
+function isBeforeApproxLiChun(date: Date): boolean {
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
+  return month < 2 || (month === 2 && day < 4);
+}
+
+function getBaziYear(date: Date): number {
+  const year = date.getUTCFullYear();
+  return isBeforeApproxLiChun(date) ? year - 1 : year;
+}
+
+function getApproxSolarMonthIndex(date: Date): number {
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
+  const md = month * 100 + day;
+  if (md >= 204 && md < 306) return 0;  // Yin
+  if (md >= 306 && md < 405) return 1;  // Mao
+  if (md >= 405 && md < 506) return 2;  // Chen
+  if (md >= 506 && md < 606) return 3;  // Si
+  if (md >= 606 && md < 707) return 4;  // Wu
+  if (md >= 707 && md < 808) return 5;  // Wei
+  if (md >= 808 && md < 908) return 6;  // Shen
+  if (md >= 908 && md < 1008) return 7; // You
+  if (md >= 1008 && md < 1107) return 8; // Xu
+  if (md >= 1107 && md < 1207) return 9; // Hai
+  if (md >= 1207 || md < 106) return 10; // Zi
+  return 11; // Chou, Jan 6 - Feb 3
+}
+
+function getMonthStemStartIndex(yearStemIndex: number): number {
+  if (yearStemIndex === 0 || yearStemIndex === 5) return 2; // Jia/Ji -> Bing Yin
+  if (yearStemIndex === 1 || yearStemIndex === 6) return 4; // Yi/Geng -> Wu Yin
+  if (yearStemIndex === 2 || yearStemIndex === 7) return 6; // Bing/Xin -> Geng Yin
+  if (yearStemIndex === 3 || yearStemIndex === 8) return 8; // Ding/Ren -> Ren Yin
+  return 0; // Wu/Gui -> Jia Yin
+}
+
+function getHourBranchIndex(birthTime?: string): number | null {
+  if (!birthTime || birthTime === "ไม่ทราบ") return null;
+  const match = birthTime.match(/^([01]\d|2[0-3]):[0-5]\d$/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  if (hour === 23 || hour === 0) return 0;
+  return Math.floor((hour + 1) / 2);
+}
+
+function getHourStemStartIndex(dayStemIndex: number): number {
+  if (dayStemIndex === 0 || dayStemIndex === 5) return 0; // Jia/Ji -> Jia Zi
+  if (dayStemIndex === 1 || dayStemIndex === 6) return 2; // Yi/Geng -> Bing Zi
+  if (dayStemIndex === 2 || dayStemIndex === 7) return 4; // Bing/Xin -> Wu Zi
+  if (dayStemIndex === 3 || dayStemIndex === 8) return 6; // Ding/Ren -> Geng Zi
+  return 8; // Wu/Gui -> Ren Zi
+}
+
+function makePillarFromStemAndBranch(stemIndex: number, branchIndex: number): StemBranch {
+  for (let i = 0; i < 60; i++) {
+    if (i % 10 === positiveMod(stemIndex, 10) && i % 12 === positiveMod(branchIndex, 12)) {
+      return makeStemBranch(i);
+    }
+  }
+  return makeStemBranch(stemIndex);
+}
+
+function buildBazi(date: Date, birthTime?: string): BaziCalculation {
+  const baziYear = getBaziYear(date);
+  const year = makeStemBranch(baziYear - 1984);
+  const yearStemIndex = year.index % 10;
+  const solarMonthIndex = getApproxSolarMonthIndex(date);
+  const monthStemIndex = getMonthStemStartIndex(yearStemIndex) + solarMonthIndex;
+  const monthBranchIndex = (solarMonthIndex + 2) % 12; // Yin month starts at branch index 2.
+  const month = makePillarFromStemAndBranch(monthStemIndex, monthBranchIndex);
+  const day = makeStemBranch(julianDayNumber(date) + 49); // 2000-01-01 validates to 戊午.
+  const hourBranchIndex = getHourBranchIndex(birthTime);
+  const hour = hourBranchIndex === null
+    ? null
+    : makePillarFromStemAndBranch(getHourStemStartIndex(day.index % 10) + hourBranchIndex, hourBranchIndex);
+
+  const elementCounts: Record<string, number> = { ไม้: 0, ไฟ: 0, ดิน: 0, ทอง: 0, น้ำ: 0 };
+  for (const pillar of [year, month, day, hour].filter(Boolean) as StemBranch[]) {
+    elementCounts[pillar.stemElement] += 1;
+    elementCounts[pillar.branchElement] += 1;
+    for (const hidden of pillar.hiddenStems) {
+      const stem = STEMS.find((s) => s.stem === hidden);
+      if (stem) elementCounts[stem.element] += 0.5;
+    }
+  }
+
+  return {
+    formulaVersion: "OMNIA-BAZI-APPROX-SOLAR-v1",
+    year,
+    month,
+    day,
+    hour,
+    dayMaster: {
+      stem: day.stem,
+      stemEn: day.stemEn,
+      stemTh: day.stemTh,
+      element: day.stemElement,
+      polarity: day.stemPolarity,
+    },
+    hourBranchNote: hour
+      ? "ยามเกิดคำนวณจากช่วงเวลา 2 ชั่วโมงแบบ BaZi; เวลา 23:00-00:59 ถือเป็นยามชวด"
+      : "ไม่มีเวลาเกิดหรือรูปแบบเวลาไม่ชัด จึงยังไม่คำนวณเสายาม",
+    elementCounts,
+    caveat: "BaZi v1 ใช้ Li Chun และ solar-term boundary แบบประมาณตามวันที่ปฏิทินสากล ไม่ได้คำนวณดวงอาทิตย์เชิงดาราศาสตร์ระดับนาที; คนเกิดใกล้วันเปลี่ยน solar term หรือช่วง 23:00 ควรตรวจด้วยปฏิทินหมื่นปี/Wan Nian Li อีกครั้ง",
+  };
+}
+
 function getBirthPlanet(date: Date, birthTime?: string) {
   const weekday = date.getUTCDay();
   const time = birthTime?.trim() ?? "";
@@ -289,6 +492,7 @@ export function buildAstroCalculations(input: AstroCalculationInput): AstroCalcu
   const personalYear = NUMBER_MEANINGS[personalYearNumber] ?? null;
   const taksa = buildTaksa(date, input.birthTime, now);
   const sevenNumber = buildSevenNumber(date);
+  const bazi = buildBazi(date, input.birthTime);
 
   const summaryLines = [
     formatMeaning("เลขเส้นชีวิต", lifePath),
@@ -299,6 +503,9 @@ export function buildAstroCalculations(input: AstroCalculationInput): AstroCalcu
       : null,
     `เลข 7 ตัวพื้นฐาน: ${sevenNumber.sevenDigits.join(" ")} (จาก ${sevenNumber.sourceDigits} + เลขรวม ${sevenNumber.reducedNumber}); เลขซ้ำ: ${sevenNumber.repeatedDigits.length ? sevenNumber.repeatedDigits.map((d) => `${d.digit}x${d.count}`).join(", ") : "ไม่มี"}; เลขที่ขาด: ${sevenNumber.missingDigits.slice(0, 5).map((d) => d.digit).join(", ") || "ไม่มี"}`,
     `ข้อจำกัดเลข 7 ตัว: ${sevenNumber.caveat}`,
+    `BaZi v1: ปี ${bazi.year.label}, เดือน ${bazi.month.label}, วัน ${bazi.day.label}, ยาม ${bazi.hour ? bazi.hour.label : "ยังไม่คำนวณ"}; Day Master คือ ${bazi.dayMaster.stem} ${bazi.dayMaster.stemEn} (${bazi.dayMaster.element} ${bazi.dayMaster.polarity})`,
+    `ธาตุรวม BaZi เบื้องต้น: ${Object.entries(bazi.elementCounts).map(([element, count]) => `${element} ${count}`).join(", ")}`,
+    `ข้อจำกัด BaZi: ${bazi.caveat}`,
   ].filter(Boolean) as string[];
 
   return {
@@ -307,12 +514,13 @@ export function buildAstroCalculations(input: AstroCalculationInput): AstroCalcu
     personalYear,
     taksa,
     sevenNumber,
+    bazi,
     json: {
       numerology: { lifePath, birthDay, personalYear },
       taksa,
       sevenNumber,
+      bazi,
     },
     summaryText: summaryLines.join("\n"),
   };
 }
-
