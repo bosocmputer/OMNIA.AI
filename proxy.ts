@@ -8,19 +8,28 @@ const GUEST_API_ROUTES = new Set(["/api/team-agents", "/api/team-research/stream
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const nextWithPath = () => {
+  const nextWithPath = (payload?: Awaited<ReturnType<typeof verifyToken>>) => {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-pathname", pathname);
+    if (payload) {
+      requestHeaders.set("x-user-id", payload.sub);
+      requestHeaders.set("x-user-role", payload.role);
+      requestHeaders.set("x-username", payload.username);
+    }
     return NextResponse.next({ request: { headers: requestHeaders } });
   };
 
-  // Allow public routes
-  if (PUBLIC_ROUTES.has(pathname)) return nextWithPath();
-  if (PUBLIC_PREFIX.some((p) => pathname.startsWith(p))) return nextWithPath();
-  if (GUEST_API_ROUTES.has(pathname)) return nextWithPath();
+  if (pathname.startsWith("/_next/") || pathname.startsWith("/assets/") || pathname === "/favicon.ico") {
+    return nextWithPath();
+  }
 
   const token = req.cookies.get(COOKIE_NAME)?.value;
   const payload = token ? await verifyToken(token) : null;
+
+  // Allow public routes
+  if (PUBLIC_ROUTES.has(pathname)) return nextWithPath(payload);
+  if (PUBLIC_PREFIX.some((p) => pathname.startsWith(p))) return nextWithPath(payload);
+  if (GUEST_API_ROUTES.has(pathname)) return nextWithPath(payload);
 
   if (!payload) {
     if (pathname.startsWith("/api/")) {
@@ -35,13 +44,7 @@ export async function proxy(req: NextRequest) {
   }
 
   // Attach user info to request headers for API routes
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-pathname", pathname);
-  requestHeaders.set("x-user-id", payload.sub);
-  requestHeaders.set("x-user-role", payload.role);
-  requestHeaders.set("x-username", payload.username);
-
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  return nextWithPath(payload);
 }
 
 export const config = {
