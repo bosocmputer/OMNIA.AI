@@ -91,6 +91,11 @@ interface AstroFocusPayload {
   context?: string;
 }
 
+interface AssumptionCheck {
+  category: string;
+  label: string;
+}
+
 interface GuestBirthInfo {
   name: string;
   birthDate: string;
@@ -340,6 +345,49 @@ function cleanInlineMarkdown(text: string) {
 
 const ASTRO_FOCUS_OPTIONS = ["งาน", "เงิน", "ความรัก", "สุขภาพ", "ธุรกิจ/ลูกค้า", "การเรียน/สอบ", "ครอบครัว", "โชคลาภ", "ภาพรวม"];
 const ASTRO_FOCUS_MAX = 3;
+
+const ASSUMPTION_CATEGORIES = [
+  {
+    category: "relationship_or_person",
+    label: "คนหรือความสัมพันธ์ที่ถูกพูดถึง",
+    terms: ["แฟน", "คนรัก", "คู่", "สามี", "ภรรยา", "คนคุย", "เขา", "คนเก่า", "มือที่สาม", "นอกใจ", "กลับมา"],
+  },
+  {
+    category: "current_work_or_role",
+    label: "งาน บทบาท หรือคนตัดสินใจในงาน",
+    terms: ["หัวหน้า", "ลูกค้า", "บริษัท", "ตำแหน่ง", "งานนี้", "โปรเจกต์", "ดีล", "สัญญา", "เซ็น", "เลื่อนตำแหน่ง", "ไล่ออก"],
+  },
+  {
+    category: "dependent_or_family",
+    label: "คนในครอบครัวหรือคนที่ถามแทน",
+    terms: ["ลูก", "พ่อ", "แม่", "ครอบครัว", "พี่", "น้อง", "ญาติ", "คนที่บ้าน"],
+  },
+  {
+    category: "asset_or_liability",
+    label: "ทรัพย์สิน เงินก้อน หรือภาระที่ต้องมีอยู่จริง",
+    terms: ["บ้าน", "รถ", "ที่ดิน", "หนี้", "เงินก้อน", "ธุรกิจ", "ร้าน", "ขายได้", "ผ่อน", "ลงทุน"],
+  },
+  {
+    category: "pending_event",
+    label: "เหตุการณ์หรือคำตอบที่กำลังรอผล",
+    terms: ["สอบ", "สัมภาษณ์", "ประชุม", "นัด", "รอคำตอบ", "อนุมัติ", "ยื่น", "เอกสาร", "ข้อเสนอ", "ใบเสนอราคา"],
+  },
+];
+
+function detectAssumptionCheck(text: string): AssumptionCheck | null {
+  const q = text.toLowerCase().replace(/\s+/g, "");
+  if (!q) return null;
+  const asksOutcome = /ไหม|มั้ย|หรือเปล่า|จะ|ได้ไหม|สำเร็จ|ผ่าน|ติด|กลับมา|นอกใจ|เลิก|เซ็น|อนุมัติ|ขายได้|โดน|หายไหม/.test(q);
+  const asksGeneralOverview = /ปีนี้|ปีหน้า|ช่วงนี้|ภาพรวม|เป็นยังไง|วางแผน|ควรระวัง|ควรทำอะไร/.test(q);
+  if (!asksOutcome || asksGeneralOverview) return null;
+
+  for (const item of ASSUMPTION_CATEGORIES) {
+    if (item.terms.some((term) => q.includes(term.toLowerCase().replace(/\s+/g, "")))) {
+      return { category: item.category, label: item.label };
+    }
+  }
+  return null;
+}
 
 function isBroadAstrologyQuestion(text: string) {
   const q = text.toLowerCase().replace(/\s+/g, "");
@@ -810,8 +858,14 @@ export default function ResearchPage() {
   const lastClarificationAnswersRef = useRef<{ question: string; answer: string }[] | undefined>(undefined);
   const [astroFocusOpen, setAstroFocusOpen] = useState(false);
   const [pendingAstroQuestion, setPendingAstroQuestion] = useState("");
+  const [pendingAstroClarifications, setPendingAstroClarifications] = useState<{ question: string; answer: string }[] | undefined>(undefined);
   const [astroFocus, setAstroFocus] = useState<string[]>([]);
   const [astroContext, setAstroContext] = useState("");
+  const [assumptionOpen, setAssumptionOpen] = useState(false);
+  const [pendingAssumptionQuestion, setPendingAssumptionQuestion] = useState("");
+  const [pendingAssumptionCheck, setPendingAssumptionCheck] = useState<AssumptionCheck | null>(null);
+  const [assumptionChoice, setAssumptionChoice] = useState<"real" | "hypothetical" | "test" | "custom">("real");
+  const [assumptionContext, setAssumptionContext] = useState("");
 
   // Web sources state
   const [currentWebSources, setCurrentWebSources] = useState<WebSource[]>([]);
@@ -1284,9 +1338,40 @@ export default function ResearchPage() {
     return answers;
   };
 
-  const maybeAskAstroFocus = (text: string, focusPayload?: AstroFocusPayload) => {
+  const maybeAskAssumptionCheck = (text: string, existingAnswers?: { question: string; answer: string }[]) => {
+    if (existingAnswers?.length || !isAstrologyPrompt(text)) return false;
+    const check = detectAssumptionCheck(text);
+    if (!check) return false;
+    setPendingAssumptionQuestion(text);
+    setPendingAssumptionCheck(check);
+    setAssumptionChoice("real");
+    setAssumptionContext("");
+    setAssumptionOpen(true);
+    return true;
+  };
+
+  const buildAssumptionAnswers = (): { question: string; answer: string }[] => {
+    const choiceLabel = {
+      real: "มีเรื่องนี้เกิดขึ้นจริง ดูต่อจากสถานการณ์นี้",
+      hypothetical: "ยังไม่มีหรือถามเป็นแนวโน้ม",
+      test: "ถามเพื่อทดสอบระบบ",
+      custom: "ผู้ใช้เล่าสถานการณ์จริงเอง",
+    }[assumptionChoice];
+    const guardRule = assumptionChoice === "real" || assumptionChoice === "custom"
+      ? "อ่านต่อจากสถานการณ์ที่ผู้ใช้ยืนยัน แต่ห้ามแต่งรายละเอียดเพิ่มเกินข้อมูลที่ให้"
+      : "ห้ามตอบเหมือนเหตุการณ์นี้เกิดขึ้นจริง ให้เปลี่ยนเป็นการอ่านแนวโน้ม/รูปแบบ/ความเสี่ยงในอนาคต และบอกชัดว่าพื้นเรื่องยังไม่ถูกยืนยัน";
+    return [
+      { question: "เช็กพื้นเรื่องก่อนอ่าน", answer: pendingAssumptionCheck?.label || "ข้อมูลตั้งต้นที่ต้องยืนยัน" },
+      { question: "ผู้ใช้ยืนยันสถานะของเรื่องนี้", answer: choiceLabel },
+      { question: "สถานการณ์จริงที่ผู้ใช้เล่าเพิ่ม", answer: assumptionContext.trim() || "ไม่ได้เล่าเพิ่ม" },
+      { question: "กฎสำหรับหมอดูในรอบนี้", answer: guardRule },
+    ];
+  };
+
+  const maybeAskAstroFocus = (text: string, focusPayload?: AstroFocusPayload, priorAnswers?: { question: string; answer: string }[]) => {
     if (focusPayload || !isAstrologyPrompt(text) || !isBroadAstrologyQuestion(text)) return false;
     setPendingAstroQuestion(text);
+    setPendingAstroClarifications(priorAnswers);
     setAstroFocus([]);
     setAstroContext("");
     setAstroFocusOpen(true);
@@ -1366,15 +1451,17 @@ export default function ResearchPage() {
       openGuestBirthInfoDialog(q);
       return;
     }
+    if (!closeMode && maybeAskAssumptionCheck(q, withClarificationAnswers)) return;
     const runFocusPayload = focusPayload ?? (isGuestMode && isAstrologyPrompt(q) ? guestFocusPayload() : undefined);
-    if (!closeMode && effectiveMode !== "qa" && maybeAskAstroFocus(q, runFocusPayload)) return;
+    if (!closeMode && effectiveMode !== "qa" && maybeAskAstroFocus(q, runFocusPayload, withClarificationAnswers)) return;
     setLastCreditUsage(null);
     const balanceBeforeRun = wallet?.balance;
 
     const isQA = !closeMode && effectiveMode === "qa";
     const focusAnswers = buildAstroFocusAnswers(runFocusPayload);
-    const baseClarificationAnswers = withClarificationAnswers ?? buildBirthProfileAnswers(q) ?? buildGuestBirthAnswers(q) ?? [];
-    const effectiveClarificationAnswers = [...baseClarificationAnswers, ...focusAnswers];
+    const profileClarificationAnswers = buildBirthProfileAnswers(q) ?? buildGuestBirthAnswers(q) ?? [];
+    const providedClarificationAnswers = withClarificationAnswers ?? [];
+    const effectiveClarificationAnswers = [...profileClarificationAnswers, ...providedClarificationAnswers, ...focusAnswers];
 
     setViewingSession(null);
     setHistoryTab("current");
@@ -3294,6 +3381,71 @@ export default function ResearchPage() {
         </div>
       </div>
 
+      {/* Assumption guard for questions with an unverified real-world premise */}
+      <Modal open={assumptionOpen} onClose={() => setAssumptionOpen(false)} title="ขอเช็กพื้นเรื่องก่อนนะ" maxWidth="max-w-lg">
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            เรื่องนี้ต้องรู้ก่อนว่าสถานการณ์เกิดขึ้นจริงแค่ไหน ถ้าพื้นเรื่องไม่ตรง คำอ่านจะหลุดทางได้
+          </p>
+          {pendingAssumptionCheck && (
+            <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: "var(--accent-25)", background: "var(--accent-8)", color: "var(--text-muted)" }}>
+              หมอดูกำลังเช็ก: <strong style={{ color: "var(--text)" }}>{pendingAssumptionCheck.label}</strong>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-2">
+            {[
+              { id: "real", label: "มีเรื่องนี้เกิดขึ้นจริง", desc: "ให้หมอดูอ่านต่อจากสถานการณ์นี้" },
+              { id: "hypothetical", label: "ยังไม่มี/ถามเป็นแนวโน้ม", desc: "ให้ดูเป็นภาพอนาคตหรือรูปแบบที่ควรระวัง" },
+              { id: "test", label: "ถามเพื่อทดสอบระบบ", desc: "ให้ระบบอธิบายแบบไม่แกล้งรู้ว่าเรื่องนี้เกิดจริง" },
+              { id: "custom", label: "เล่าเอง", desc: "พิมพ์พื้นเรื่องจริงสั้น ๆ ก่อนอ่านต่อ" },
+            ].map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setAssumptionChoice(option.id as typeof assumptionChoice)}
+                className="rounded-lg border px-3 py-2 text-left transition-all"
+                style={{
+                  borderColor: assumptionChoice === option.id ? "var(--accent)" : "var(--border)",
+                  background: assumptionChoice === option.id ? "var(--accent-12)" : "var(--surface)",
+                  color: "var(--text)",
+                }}
+              >
+                <div className="text-sm font-bold">{option.label}</div>
+                <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{option.desc}</div>
+              </button>
+            ))}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
+              เล่าสถานการณ์จริงเพิ่มได้ไหม? (ข้ามได้)
+            </label>
+            <textarea
+              value={assumptionContext}
+              onChange={(e) => setAssumptionContext(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2"
+              style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}
+              placeholder="เช่น มีเรื่องนี้จริงและกำลังค้างใจ / ยังไม่มี แค่อยากดูแนวโน้ม / ตั้งใจลองถามเพื่อทดสอบ"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const q = pendingAssumptionQuestion;
+                const answers = buildAssumptionAnswers();
+                setAssumptionOpen(false);
+                handleRun(q, false, answers);
+              }}
+              className="rounded-lg px-3 py-2 text-sm font-bold"
+              style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
+            >
+              ใช้พื้นเรื่องนี้อ่านต่อ
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Lightweight focus picker for broad astrology questions */}
       <Modal open={astroFocusOpen} onClose={() => setAstroFocusOpen(false)} title="หมอดูขอจับทางก่อน" maxWidth="max-w-lg">
         <div className="space-y-4">
@@ -3342,7 +3494,7 @@ export default function ResearchPage() {
               onClick={() => {
                 const q = pendingAstroQuestion;
                 setAstroFocusOpen(false);
-                handleRun(q, false, undefined, { focus: "ข้าม" });
+                handleRun(q, false, pendingAstroClarifications, { focus: "ข้าม" });
               }}
               className="rounded-lg border px-3 py-2 text-sm font-semibold"
               style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
@@ -3356,7 +3508,7 @@ export default function ResearchPage() {
                 const selectedFocus = astroFocus.length > 0 ? astroFocus.join(", ") : "ดูภาพรวมก่อน แล้วค่อยเจาะต่อ";
                 const payload = { focus: selectedFocus, context: astroContext.trim() };
                 setAstroFocusOpen(false);
-                handleRun(q, false, undefined, payload);
+                handleRun(q, false, pendingAstroClarifications, payload);
               }}
               className="rounded-lg px-3 py-2 text-sm font-bold"
               style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
