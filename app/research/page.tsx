@@ -774,7 +774,7 @@ function buildMinutesMarkdown(rounds: ConversationRound[], agents: Agent[]): str
 
     // Phase 3 — synthesis/resolution
     if (round.finalAnswer) {
-      lines.push(round.isQA ? "### คำตอบ" : "### คำตอบจาก OMNIA.AI", round.finalAnswer.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim(), "");
+      lines.push("### คำตอบ", round.finalAnswer.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim(), "");
     }
 
     // Web Sources
@@ -796,10 +796,9 @@ function buildMinutesMarkdown(rounds: ConversationRound[], agents: Agent[]): str
   return lines.join("\n");
 }
 
-function groupSessionHistory(session: ServerSession): { question: string; messages: ResearchMessage[] }[] {
-  const groups: { question: string; messages: ResearchMessage[] }[] = [];
-  let current: { question: string; messages: ResearchMessage[] } | null = null;
-  const hasDetailedMessages = (session.messages ?? []).some((m) => ["finding", "chat", "analysis", "verification"].includes(m.role));
+function groupSessionHistory(session: ServerSession): { question: string; messages: ResearchMessage[]; finalAnswer?: string }[] {
+  const groups: { question: string; messages: ResearchMessage[]; finalAnswer?: string }[] = [];
+  let current: { question: string; messages: ResearchMessage[]; finalAnswer?: string } | null = null;
 
   for (const msg of session.messages ?? []) {
     if (msg.role === "user_question") {
@@ -808,17 +807,24 @@ function groupSessionHistory(session: ServerSession): { question: string; messag
       continue;
     }
 
-    if (msg.role === "thinking" || (session.finalAnswer && msg.role === "synthesis" && hasDetailedMessages)) continue;
+    if (msg.role === "thinking") continue;
 
     if (!current) {
       current = { question: session.question, messages: [] };
       groups.push(current);
+    }
+    if (msg.role === "synthesis") {
+      current.finalAnswer = msg.content;
+      continue;
     }
     current.messages.push(msg);
   }
 
   if (groups.length === 0) {
     groups.push({ question: session.question, messages: [] });
+  }
+  if (session.finalAnswer && groups.length > 0) {
+    groups[groups.length - 1].finalAnswer = groups[groups.length - 1].finalAnswer || session.finalAnswer;
   }
 
   return groups;
@@ -1902,7 +1908,7 @@ export default function ResearchPage() {
           tokensUsed: m.tokensUsed,
           timestamp: m.timestamp || new Date().toISOString(),
         })),
-        finalAnswer: index === historyGroups.length - 1 ? viewingSession.finalAnswer || "" : "",
+        finalAnswer: group.finalAnswer || "",
         agentTokens: {},
         suggestions: [],
       }));
@@ -2784,7 +2790,7 @@ export default function ResearchPage() {
                   )}
                   {viewingSession.finalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
-                      <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{(viewingSession.agentIds?.length ?? 0) <= 1 ? <MessageSquare size={16} /> : <Building2 size={16} />} {(viewingSession.agentIds?.length ?? 0) <= 1 ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
+                      <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{(viewingSession.agentIds?.length ?? 0) <= 1 ? <MessageSquare size={16} /> : <Building2 size={16} />} คำตอบ</div>
                       <ReadingTimeline content={viewingSession.finalAnswer} />
                       <MessageContent content={viewingSession.finalAnswer} />
                       <ReadingFeedback
@@ -2951,7 +2957,7 @@ export default function ResearchPage() {
 
                   {round.finalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
-                      <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{round.isQA ? <MessageSquare size={16} /> : <Building2 size={16} />} {round.isQA ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
+                      <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{round.isQA ? <MessageSquare size={16} /> : <Building2 size={16} />} คำตอบ</div>
                       <ReadingTimeline content={round.finalAnswer} />
                       <MessageContent content={round.finalAnswer} />
                       {round.chartData && <SimpleBarChart data={round.chartData} />}
@@ -3145,7 +3151,7 @@ export default function ResearchPage() {
                   })()}
                   {currentFinalAnswer && (
                     <div className="border-2 rounded-xl p-3 sm:p-5" style={{ borderColor: "var(--accent)", background: "var(--accent-5)" }}>
-                      <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{isCurrentQA ? <MessageSquare size={16} /> : <Building2 size={16} />} {isCurrentQA ? "คำตอบจากหมอดู" : "สรุปจาก OMNIA.AI"}</div>
+                      <div className="font-bold text-sm mb-3 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>{isCurrentQA ? <MessageSquare size={16} /> : <Building2 size={16} />} คำตอบ</div>
                       <ReadingTimeline content={currentFinalAnswer} />
                       <MessageContent content={currentFinalAnswer} />
                       {currentChartData && <SimpleBarChart data={currentChartData} />}

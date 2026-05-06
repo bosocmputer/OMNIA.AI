@@ -1795,6 +1795,7 @@ export async function POST(req: NextRequest) {
             tokensUsed: result.inputTokens + result.outputTokens,
             timestamp: new Date().toISOString(),
           };
+          await appendResearchMessage(sessionId, synthMsg);
           send("message", synthMsg);
 
           // Parse chart data from synthesis (LLM may use ```chart or ```json)

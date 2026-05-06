@@ -66,10 +66,9 @@ function MarkdownBlock({ content }: { content: string }) {
   );
 }
 
-function groupSessionHistory(session: ServerSession): { question: string; messages: ResearchMessage[] }[] {
-  const groups: { question: string; messages: ResearchMessage[] }[] = [];
-  let current: { question: string; messages: ResearchMessage[] } | null = null;
-  const hasDetailedMessages = (session.messages ?? []).some((m) => ["finding", "chat", "analysis", "verification"].includes(m.role));
+function groupSessionHistory(session: ServerSession): { question: string; messages: ResearchMessage[]; finalAnswer?: string }[] {
+  const groups: { question: string; messages: ResearchMessage[]; finalAnswer?: string }[] = [];
+  let current: { question: string; messages: ResearchMessage[]; finalAnswer?: string } | null = null;
 
   for (const msg of session.messages ?? []) {
     if (msg.role === "user_question") {
@@ -77,15 +76,22 @@ function groupSessionHistory(session: ServerSession): { question: string; messag
       groups.push(current);
       continue;
     }
-    if (msg.role === "thinking" || (session.finalAnswer && msg.role === "synthesis" && hasDetailedMessages)) continue;
+    if (msg.role === "thinking") continue;
     if (!current) {
       current = { question: session.question, messages: [] };
       groups.push(current);
+    }
+    if (msg.role === "synthesis") {
+      current.finalAnswer = msg.content;
+      continue;
     }
     current.messages.push(msg);
   }
 
   if (groups.length === 0) groups.push({ question: session.question, messages: [] });
+  if (session.finalAnswer && groups.length > 0) {
+    groups[groups.length - 1].finalAnswer = groups[groups.length - 1].finalAnswer || session.finalAnswer;
+  }
   return groups;
 }
 
@@ -93,11 +99,11 @@ function buildExportText(session: ServerSession) {
   const lines = [`# ${session.question}`, "", `วันที่: ${new Date(session.startedAt).toLocaleString("th-TH")}`, ""];
   groupSessionHistory(session).forEach((group, index) => {
     lines.push(`## คำถามที่ ${index + 1}: ${group.question}`, "");
+    if (group.finalAnswer) lines.push("### คำตอบ", stripHiddenBlocks(group.finalAnswer), "");
     group.messages.forEach((msg) => {
       lines.push(`### ${msg.agentEmoji || ""} ${msg.agentName || roleLabel[msg.role]}`, stripHiddenBlocks(msg.content), "");
     });
   });
-  if (session.finalAnswer) lines.push("## สรุปจาก OMNIA.AI", "", stripHiddenBlocks(session.finalAnswer), "");
   return lines.join("\n");
 }
 
@@ -261,20 +267,19 @@ export default function HistoryPage() {
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-3 md:space-y-4 md:p-4 lg:max-h-[calc(100dvh-15rem)]">
-                {selected.finalAnswer && (
-                  <section className="rounded-xl border p-3 md:rounded-2xl md:p-4" style={{ borderColor: "var(--accent-30)", background: "var(--accent-5)" }}>
-                    <div className="mb-3 text-xs font-black uppercase tracking-wider" style={{ color: "var(--accent)" }}>สรุปจาก OMNIA.AI</div>
-                    <MarkdownBlock content={selected.finalAnswer} />
-                  </section>
-                )}
-
                 {groupSessionHistory(selected).map((group, index) => (
                   <section key={`${selected.id}-${index}`} className="rounded-xl border p-3 md:rounded-2xl md:p-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
                     <div className="mb-3 text-sm font-bold" style={{ color: "var(--text)" }}>{questionLabel(index)}: {group.question}</div>
+                    {group.finalAnswer && (
+                      <div className="mb-3 rounded-xl border p-3" style={{ borderColor: "var(--accent-30)", background: "var(--accent-5)" }}>
+                        <div className="mb-2 text-xs font-black uppercase tracking-wider" style={{ color: "var(--accent)" }}>คำตอบ</div>
+                        <MarkdownBlock content={group.finalAnswer} />
+                      </div>
+                    )}
                     <div className="space-y-3">
                       {group.messages.length === 0 ? (
                         <div className="text-sm" style={{ color: "var(--text-muted)" }}>
-                          เซสชันนี้มีเฉพาะคำตอบสรุปด้านบน ไม่มีข้อความแยกจากหมอดูแต่ละท่าน
+                          เซสชันนี้ไม่มีข้อความแยกจากหมอดูแต่ละท่าน
                         </div>
                       ) : group.messages.map((msg) => (
                         <article key={msg.id} className="rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
