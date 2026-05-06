@@ -345,9 +345,30 @@ function isBroadAstrologyQuestion(text: string) {
   const q = text.toLowerCase().replace(/\s+/g, "");
   if (!q) return false;
   const hasAstroIntent = /ดูดวง|ดวง|โหร|ทำนาย|พยากรณ์|ชะตา|bazi|ไพ่|ราศี/.test(q);
-  const hasBroadFrame = /วันนี้|พรุ่งนี้|ช่วงนี้|สัปดาห์หน้า|อาทิตย์หน้า|เดือนหน้า|ปีหน้า|ภาพรวม|มีเรื่องไหน|ควรระวัง|ควรเตรียมตัว/.test(q);
-  const hasConcreteDomain = /งาน|อาชีพ|ธุรกิจ|เงิน|ลงทุน|หนี้|รายได้|ความรัก|แฟน|คู่|ครอบครัว|สุขภาพ|สอบ|สัมภาษณ์|ขาย|ย้าย|ลาออก|เดินทาง|บ้าน|รถ|คดี|เอกสาร/.test(q);
-  return hasAstroIntent && hasBroadFrame && !hasConcreteDomain;
+  const hasBroadFrame = /วันนี้|พรุ่งนี้|ช่วงนี้|สัปดาห์หน้า|อาทิตย์หน้า|เดือนหน้า|ปีนี้|ปีหน้า|ทั้งปี|ภาพรวม|มีเรื่องไหน|ควรระวัง|ควรเตรียมตัว|วางแผนอย่างไร|เป็นยังไง|ยังไง/.test(q);
+  const hasConcreteDomain = /งาน|อาชีพ|ธุรกิจ|ลูกค้า|โปรเจกต์|demo|เดโม|ประชุม|นัด|เงิน|ลงทุน|หนี้|รายได้|ความรัก|แฟน|คู่|ครอบครัว|สุขภาพ|สอบ|สัมภาษณ์|ขาย|ย้าย|ลาออก|เดินทาง|บ้าน|รถ|คดี|เอกสาร/.test(q);
+  const hasSpecificEvent = /demo|เดโม|ประชุม|นัด|สัมภาษณ์|สอบ|ขาย|ลูกค้า|เสนอราคา|สมัครงาน|เซ็น|โอน|เดินทาง|ผ่าตัด|ฟ้อง|คุยกับ|เลิก|กลับมา|วันนี้.*[0-9]{1,2}|พรุ่งนี้.*[0-9]{1,2}/.test(q);
+  const asksPlanningOverview = /ปีนี้|ปีหน้า|ทั้งปี|ช่วงนี้|วางแผนอย่างไร|ควรวางแผน|เป็นยังไง|ยังไง/.test(q);
+  return (hasAstroIntent || hasBroadFrame) && hasBroadFrame && (!hasConcreteDomain || (asksPlanningOverview && !hasSpecificEvent));
+}
+
+function getAstroFocusOptions(text: string) {
+  const q = text.toLowerCase();
+  const options: string[] = [];
+  if (/งาน|อาชีพ|ธุรกิจ|ลูกค้า|โปรเจกต์|รายได้/.test(q)) {
+    options.push("กำลังจะขยายงานหรือรับโปรเจกต์ใหม่", "งานเดิมยังไปได้ แต่เริ่มกลัวรายได้ตัน", "รอคำตอบจากลูกค้า/ผู้ใหญ่/คนตัดสินใจ");
+  }
+  if (/เงิน|ลงทุน|หนี้|รายได้|รายจ่าย|การเงิน/.test(q)) {
+    options.push("มีเงินก้อนหรือแผนลงทุนที่ยังลังเล", "รายได้พอมีทางโต แต่กลัวเงินสดไม่พอ", "มีรายจ่ายหลังบ้านที่ทำให้ไม่กล้าเสี่ยง");
+  }
+  if (/รัก|แฟน|คู่|คนคุย|ความสัมพันธ์/.test(q)) {
+    options.push("มีคนคุยแต่ยังไม่ชัด", "ยังมีเรื่องคนเก่าหรือความรู้สึกเก่าค้างอยู่", "โสดแต่เริ่มเปิดใจยาก");
+  }
+  if (/สุขภาพ|ป่วย|ร่างกาย/.test(q)) {
+    options.push("กังวลเรื่องพลังงานร่างกายหรือพักผ่อนไม่พอ", "มีอาการเล็ก ๆ ที่ยังไม่แน่ใจว่าควรตรวจไหม");
+  }
+  const fallback = ["มีเรื่องที่กำลังลุ้นหรือรอคำตอบ", "มีทางเลือกที่ยังตัดสินใจไม่ได้", "อยากดูภาพรวมก่อน แล้วค่อยเจาะต่อ"];
+  return [...new Set([...options, ...fallback])].slice(0, 7);
 }
 
 function buildReadingTimeline(content: string) {
@@ -1208,7 +1229,7 @@ export default function ResearchPage() {
       { question: "เวลาเกิด", answer: info.birthTime || "ไม่ทราบ" },
       { question: "จังหวัด/ประเทศเกิด", answer: info.birthPlace || "ไม่ระบุ" },
       { question: "ประเด็นหลักที่ต้องการทราบ", answer: info.focus || (concerns.length > 0 ? concerns.join(", ") : "ภาพรวมชีวิต") },
-      { question: "บริบทล่าสุดที่อยากให้หมอดูจับ", answer: info.context || "ผู้ใช้ไม่ได้เล่าเหตุการณ์เฉพาะเพิ่ม" },
+      { question: "เรื่องที่กำลังลุ้นหรือค้างใจตอนนี้", answer: info.context || "ผู้ใช้ไม่ได้เล่าเหตุการณ์เฉพาะเพิ่ม" },
       { question: "กฎการใช้ข้อมูลเจ้าชะตา", answer: "ใช้เฉพาะข้อมูลเจ้าชะตาชั่วคราวนี้ในการดูดวง ห้ามเดาข้อมูลเกิดอื่นเพิ่มเอง" },
     ];
   };
@@ -1222,7 +1243,7 @@ export default function ResearchPage() {
       { id: "astro_tob", question: "เวลาเกิด ถ้าไม่ทราบให้พิมพ์ ไม่ทราบ", type: "text" },
       { id: "astro_birthplace", question: "จังหวัด/ประเทศเกิด", type: "text" },
       { id: "astro_focus", question: "อยากให้หมอดูจับเรื่องไหนก่อน", type: "choice", options: ASTRO_FOCUS_OPTIONS },
-      { id: "astro_context", question: "บริบทล่าสุดหรือเหตุการณ์ที่กำลังรอคำตอบ", type: "text" },
+      { id: "astro_context", question: "มีเรื่องอะไรที่กำลังลุ้นหรือค้างใจอยู่ตอนนี้ไหม", type: "text" },
     ]);
     setClarificationAnswers({
       astro_name: prefillInfo?.name || "",
@@ -1258,7 +1279,7 @@ export default function ResearchPage() {
     if (context) {
       answers.push({ question: "บริบทหรือเหตุการณ์สำคัญที่ผู้ใช้เล่าเพิ่ม", answer: context });
     } else {
-      answers.push({ question: "บริบทเพิ่มเติม", answer: payload.focus === "ข้าม" ? "ผู้ใช้เลือกข้าม ให้ดูภาพรวมจากข้อมูลเกิดเท่าที่มี" : "ผู้ใช้ไม่ได้เล่าเหตุการณ์เฉพาะเพิ่ม" });
+      answers.push({ question: "เรื่องที่กำลังลุ้นหรือค้างใจตอนนี้", answer: payload.focus === "ข้าม" ? "ผู้ใช้เลือกข้าม ให้ดูภาพรวมจากข้อมูลเกิดเท่าที่มี" : "ผู้ใช้ไม่ได้เล่าเหตุการณ์เฉพาะเพิ่ม" });
     }
     return answers;
   };
@@ -3274,13 +3295,13 @@ export default function ResearchPage() {
       </div>
 
       {/* Lightweight focus picker for broad astrology questions */}
-      <Modal open={astroFocusOpen} onClose={() => setAstroFocusOpen(false)} title="อยากให้หมอดูจับเรื่องไหนก่อน?" maxWidth="max-w-md">
+      <Modal open={astroFocusOpen} onClose={() => setAstroFocusOpen(false)} title="หมอดูขอจับทางก่อน" maxWidth="max-w-lg">
         <div className="space-y-4">
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            คำถามนี้ยังค่อนข้างกว้าง เลือกได้สูงสุด {ASTRO_FOCUS_MAX} เรื่อง หรือข้ามเพื่อดูภาพรวม
+            เรื่องนี้ยังอ่านได้หลายทาง เลือกข้อที่ใกล้ชีวิตคุณที่สุดได้มากกว่า 1 ข้อ ถ้าไม่ตรงให้เล่าเองสั้น ๆ ได้เลย
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {ASTRO_FOCUS_OPTIONS.map((option) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {getAstroFocusOptions(pendingAstroQuestion).map((option) => (
               <button
                 key={option}
                 type="button"
@@ -3288,12 +3309,10 @@ export default function ResearchPage() {
                   setAstroFocus((prev) => {
                     const isSelected = prev.includes(option);
                     if (isSelected) return prev.filter((item) => item !== option);
-                    if (option === "ภาพรวม") return ["ภาพรวม"];
-                    const withoutOverview = prev.filter((item) => item !== "ภาพรวม");
-                    return [...withoutOverview, option].slice(0, ASTRO_FOCUS_MAX);
+                    return [...prev, option].slice(0, ASTRO_FOCUS_MAX);
                   });
                 }}
-                className="rounded-lg border px-3 py-2 text-sm font-semibold transition-all"
+                className="rounded-lg border px-3 py-2 text-left text-sm font-semibold transition-all"
                 style={{
                   borderColor: astroFocus.includes(option) ? "var(--accent)" : "var(--border)",
                   background: astroFocus.includes(option) ? "var(--accent-12)" : "var(--surface)",
@@ -3306,7 +3325,7 @@ export default function ResearchPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
-              มีเหตุการณ์สำคัญเร็ว ๆ นี้ไหม? (ข้ามได้)
+              มีเรื่องอะไรที่กำลังลุ้นหรือค้างใจอยู่ตอนนี้ไหม? (ข้ามได้)
             </label>
             <textarea
               value={astroContext}
@@ -3314,7 +3333,7 @@ export default function ResearchPage() {
               rows={3}
               className="w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2"
               style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}
-              placeholder="เช่น พรุ่งนี้มีประชุม, รอคำตอบเรื่องงาน, เพิ่งมีเรื่องกับคนรัก"
+              placeholder="เช่น กำลังคิดจะขยายงาน, รอลูกค้าตอบ, มีเงินก้อนที่ยังไม่กล้าลง, คนคุยยังไม่ชัด"
             />
           </div>
           <div className="flex justify-end gap-2">
@@ -3328,13 +3347,13 @@ export default function ResearchPage() {
               className="rounded-lg border px-3 py-2 text-sm font-semibold"
               style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
             >
-              ข้าม
+              ดูจากข้อมูลเกิดก่อน
             </button>
             <button
               type="button"
               onClick={() => {
                 const q = pendingAstroQuestion;
-                const selectedFocus = astroFocus.length > 0 ? astroFocus.join(", ") : "ภาพรวม";
+                const selectedFocus = astroFocus.length > 0 ? astroFocus.join(", ") : "ดูภาพรวมก่อน แล้วค่อยเจาะต่อ";
                 const payload = { focus: selectedFocus, context: astroContext.trim() };
                 setAstroFocusOpen(false);
                 handleRun(q, false, undefined, payload);
@@ -3342,7 +3361,7 @@ export default function ResearchPage() {
               className="rounded-lg px-3 py-2 text-sm font-bold"
               style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
             >
-              เริ่มดู
+              อ่านต่อจากทางนี้
             </button>
           </div>
         </div>
