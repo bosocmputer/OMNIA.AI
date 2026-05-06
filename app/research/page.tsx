@@ -1352,18 +1352,17 @@ export default function ResearchPage() {
 
   const buildAssumptionAnswers = (): { question: string; answer: string }[] => {
     const choiceLabel = {
-      real: "มีเรื่องนี้เกิดขึ้นจริง ดูต่อจากสถานการณ์นี้",
-      hypothetical: "ยังไม่มีหรือถามเป็นแนวโน้ม",
-      test: "ถามเพื่อทดสอบระบบ",
-      custom: "ผู้ใช้เล่าสถานการณ์จริงเอง",
+      real: "ใช่ เรื่องนี้เกิดขึ้นจริง",
+      hypothetical: "ยัง เรื่องนี้ยังไม่เกิด",
+      test: "ลองถามเฉย ๆ ไม่ได้มีเรื่องนี้จริง",
+      custom: "ผู้ใช้ขอเล่าเอง",
     }[assumptionChoice];
     const guardRule = assumptionChoice === "real" || assumptionChoice === "custom"
       ? "อ่านต่อจากสถานการณ์ที่ผู้ใช้ยืนยัน แต่ห้ามแต่งรายละเอียดเพิ่มเกินข้อมูลที่ให้"
       : "ห้ามตอบเหมือนเหตุการณ์นี้เกิดขึ้นจริง ให้เปลี่ยนเป็นการอ่านแนวโน้ม/รูปแบบ/ความเสี่ยงในอนาคต และบอกชัดว่าพื้นเรื่องยังไม่ถูกยืนยัน";
     return [
-      { question: "เช็กพื้นเรื่องก่อนอ่าน", answer: pendingAssumptionCheck?.label || "ข้อมูลตั้งต้นที่ต้องยืนยัน" },
-      { question: "ผู้ใช้ยืนยันสถานะของเรื่องนี้", answer: choiceLabel },
-      { question: "สถานการณ์จริงที่ผู้ใช้เล่าเพิ่ม", answer: assumptionContext.trim() || "ไม่ได้เล่าเพิ่ม" },
+      { question: "เรื่องนี้เกิดขึ้นจริงไหม", answer: choiceLabel },
+      { question: "ผู้ใช้เล่าเพิ่ม", answer: assumptionContext.trim() || "ไม่ได้เล่าเพิ่ม" },
       { question: "กฎสำหรับหมอดูในรอบนี้", answer: guardRule },
     ];
   };
@@ -3382,28 +3381,23 @@ export default function ResearchPage() {
       </div>
 
       {/* Assumption guard for questions with an unverified real-world premise */}
-      <Modal open={assumptionOpen} onClose={() => setAssumptionOpen(false)} title="ขอเช็กพื้นเรื่องก่อนนะ" maxWidth="max-w-lg">
+      <Modal open={assumptionOpen} onClose={() => setAssumptionOpen(false)} title="ก่อนดู ขอเช็กนิดเดียว" maxWidth="max-w-lg">
         <div className="space-y-4">
-          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            เรื่องนี้ต้องรู้ก่อนว่าสถานการณ์เกิดขึ้นจริงแค่ไหน ถ้าพื้นเรื่องไม่ตรง คำอ่านจะหลุดทางได้
+          <p className="text-base font-semibold leading-relaxed" style={{ color: "var(--text)" }}>
+            เรื่องนี้เกิดขึ้นจริงไหม?
           </p>
-          {pendingAssumptionCheck && (
-            <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: "var(--accent-25)", background: "var(--accent-8)", color: "var(--text-muted)" }}>
-              หมอดูกำลังเช็ก: <strong style={{ color: "var(--text)" }}>{pendingAssumptionCheck.label}</strong>
-            </div>
-          )}
           <div className="grid grid-cols-1 gap-2">
             {[
-              { id: "real", label: "มีเรื่องนี้เกิดขึ้นจริง", desc: "ให้หมอดูอ่านต่อจากสถานการณ์นี้" },
-              { id: "hypothetical", label: "ยังไม่มี/ถามเป็นแนวโน้ม", desc: "ให้ดูเป็นภาพอนาคตหรือรูปแบบที่ควรระวัง" },
-              { id: "test", label: "ถามเพื่อทดสอบระบบ", desc: "ให้ระบบอธิบายแบบไม่แกล้งรู้ว่าเรื่องนี้เกิดจริง" },
-              { id: "custom", label: "เล่าเอง", desc: "พิมพ์พื้นเรื่องจริงสั้น ๆ ก่อนอ่านต่อ" },
+              { id: "real", label: "ใช่" },
+              { id: "hypothetical", label: "ยัง" },
+              { id: "test", label: "ลองถามเฉย ๆ" },
+              { id: "custom", label: "ขอเล่าเอง" },
             ].map((option) => (
               <button
                 key={option.id}
                 type="button"
                 onClick={() => setAssumptionChoice(option.id as typeof assumptionChoice)}
-                className="rounded-lg border px-3 py-2 text-left transition-all"
+                className="rounded-lg border px-3 py-3 text-left transition-all"
                 style={{
                   borderColor: assumptionChoice === option.id ? "var(--accent)" : "var(--border)",
                   background: assumptionChoice === option.id ? "var(--accent-12)" : "var(--surface)",
@@ -3411,13 +3405,12 @@ export default function ResearchPage() {
                 }}
               >
                 <div className="text-sm font-bold">{option.label}</div>
-                <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{option.desc}</div>
               </button>
             ))}
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
-              เล่าสถานการณ์จริงเพิ่มได้ไหม? (ข้ามได้)
+              เล่าเพิ่มได้ เช่น เกิดอะไรขึ้น / กำลังรออะไร / กังวลเรื่องไหน
             </label>
             <textarea
               value={assumptionContext}
@@ -3425,7 +3418,7 @@ export default function ResearchPage() {
               rows={3}
               className="w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2"
               style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}
-              placeholder="เช่น มีเรื่องนี้จริงและกำลังค้างใจ / ยังไม่มี แค่อยากดูแนวโน้ม / ตั้งใจลองถามเพื่อทดสอบ"
+              placeholder="ข้ามได้"
             />
           </div>
           <div className="flex justify-end gap-2">
@@ -3440,7 +3433,7 @@ export default function ResearchPage() {
               className="rounded-lg px-3 py-2 text-sm font-bold"
               style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
             >
-              ใช้พื้นเรื่องนี้อ่านต่อ
+              เริ่มดู
             </button>
           </div>
         </div>
