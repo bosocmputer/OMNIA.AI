@@ -28,7 +28,7 @@ function encrypt(text: string): string {
   return iv.toString("hex") + ":" + encrypted.toString("hex");
 }
 
-const MODEL = "google/gemini-2.5-flash";
+const MODEL = "google/gemini-2.5-flash-lite";
 const PROVIDER = "openrouter";
 
 const AGENTS = [

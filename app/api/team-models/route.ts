@@ -32,8 +32,8 @@ const PROVIDER_MODELS: Record<AgentProvider, { id: string; name: string; context
   ],
   openrouter: [
     // ── ⭐ แนะนำ (เรียงจากเร็วที่สุด) ──────────────────────────────
-    { id: "google/gemini-2.5-flash-lite", name: "⭐ Gemini 2.5 Flash Lite — เร็วสุด+ถูกสุด", contextWindow: 1048576, desc: "⚡ TTFT 0.46s · 135 tok/s · $0.10/$0.40 ต่อ 1M tokens" },
-    { id: "google/gemini-2.5-flash", name: "⭐ Gemini 2.5 Flash — เร็ว+คุณภาพสูง", contextWindow: 1048576, desc: "⚡ TTFT 0.63s · 72 tok/s · $0.30/$2.50 · มี thinking mode" },
+    { id: "google/gemini-2.5-flash-lite", name: "⭐ Gemini 2.5 Flash Lite — แนะนำลด cost", contextWindow: 1048576, desc: "⚡ เร็ว+ถูก · $0.10/$0.40 ต่อ 1M tokens · benchmark ไทยนิ่งสุดในกลุ่มประหยัด" },
+    { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash — คุณภาพสูงขึ้น", contextWindow: 1048576, desc: "$0.30/$2.50 · แพงกว่า Lite ~6x ใน output เหมาะคำถามสำคัญ" },
     { id: "google/gemini-3-flash-preview", name: "⭐ Gemini 3 Flash — ฉลาดสุด", contextWindow: 1048576, desc: "⚡ TTFT 1.0s · 77 tok/s · $0.50/$3.00 · reasoning top 93%" },
     { id: "google/gemini-3.1-flash-lite-preview", name: "⭐ Gemini 3.1 Flash Lite — ใหม่+ประหยัด", contextWindow: 1048576, desc: "⚡ TTFT 0.74s · 78 tok/s · $0.25/$1.50 · ใกล้เคียง 2.5 Flash" },
     { id: "google/gemini-2.5-pro-preview-06-05", name: "⭐ Gemini 2.5 Pro — แม่นยำสูง", contextWindow: 1048576, desc: "TTFT 1.5s · $1.25/$10.00 · reasoning+coding top tier" },

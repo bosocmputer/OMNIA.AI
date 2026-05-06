@@ -8,7 +8,7 @@ import { OPENCLAW_HOME } from "@/lib/openclaw-paths";
 import path from "path";
 import fs from "fs";
 
-const MODEL = "google/gemini-2.5-flash";
+const MODEL = "google/gemini-2.5-flash-lite";
 const PROVIDER = "openrouter";
 
 function getEncryptKey(): string {

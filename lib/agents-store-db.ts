@@ -248,7 +248,7 @@ async function ensureSystemAgents(): Promise<void> {
           emoji: def.emoji,
           provider: "openrouter",
           apiKeyEncrypted: "",
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-flash-lite",
           soul: def.soul,
           role: def.role,
           active: true,
