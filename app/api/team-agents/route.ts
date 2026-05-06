@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listAgents, createAgent, AgentProvider, migrateSouls } from "@/lib/agents-store";
 import { rateLimit, getClientIp } from "@/lib/rate-limit-redis";
+import { getSuperadminUserId } from "@/lib/guest-trial";
 
 const VALID_PROVIDERS = new Set(["anthropic", "openai", "gemini", "ollama", "openrouter", "custom"]);
 
@@ -26,7 +27,9 @@ function isUnsafeUrl(urlStr: string): boolean {
 export async function GET(req: NextRequest) {
   try {
     await (migrateSouls as () => Promise<void> | void)();
-    const agents = await (listAgents as (userId?: string) => Promise<unknown[]>)(req.headers.get("x-user-id") ?? undefined);
+    const requesterId = req.headers.get("x-user-id") ?? undefined;
+    const ownerId = requesterId ?? await getSuperadminUserId() ?? undefined;
+    const agents = await (listAgents as (userId?: string) => Promise<unknown[]>)(ownerId);
     return NextResponse.json({ agents });
   } catch (e) {
     return NextResponse.json({ error: "เกิดข้อผิดพลาดในระบบ" }, { status: 500 });
@@ -34,6 +37,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!req.headers.get("x-user-id")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!await rateLimit(getClientIp(req.headers), { maxRequests: 20, windowMs: 60_000 })) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }

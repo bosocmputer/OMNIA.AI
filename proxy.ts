@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
 // Public routes — no auth required
-const PUBLIC_ROUTES = new Set(["/login", "/register", "/privacy", "/terms", "/contact"]);
+const PUBLIC_ROUTES = new Set(["/login", "/register", "/privacy", "/terms", "/contact", "/research"]);
 const PUBLIC_PREFIX = ["/api/auth/", "/api/health", "/_next/", "/assets/", "/favicon"];
+const GUEST_API_ROUTES = new Set(["/api/team-agents", "/api/team-research/stream"]);
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -16,6 +17,7 @@ export async function proxy(req: NextRequest) {
   // Allow public routes
   if (PUBLIC_ROUTES.has(pathname)) return nextWithPath();
   if (PUBLIC_PREFIX.some((p) => pathname.startsWith(p))) return nextWithPath();
+  if (GUEST_API_ROUTES.has(pathname)) return nextWithPath();
 
   const token = req.cookies.get(COOKIE_NAME)?.value;
   const payload = token ? await verifyToken(token) : null;

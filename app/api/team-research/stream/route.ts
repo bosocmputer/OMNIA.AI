@@ -20,6 +20,12 @@ import { getDomainKnowledge, isDomainQuestion } from "@/lib/domain-knowledge";
 import { rateLimit, getClientIp } from "@/lib/rate-limit-redis";
 import { buildBirthFacts } from "@/lib/astro-birth-facts";
 import { chargeCredits, getCreditBalance, getReadingPrice, isCreditBillingEnabled } from "@/lib/billing";
+import {
+  checkGuestTrialQuota,
+  ensureGuestTrialUser,
+  getSuperadminUserId,
+  isValidGuestId,
+} from "@/lib/guest-trial";
 import crypto from "crypto";
 
 // Max request body size (100KB — questions + history + file contexts)
@@ -863,6 +869,7 @@ export async function POST(req: NextRequest) {
     clarificationAnswers,
     astroFocus,
     astroContext,
+    guestId: bodyGuestId,
   } = body as {
     question: string;
     agentIds: string[];
@@ -880,18 +887,54 @@ export async function POST(req: NextRequest) {
     clarificationAnswers?: { question: string; answer: string }[];
     astroFocus?: string;
     astroContext?: string;
+    guestId?: string;
   };
 
   if (!question || !agentIds?.length) {
     return new Response(JSON.stringify({ error: "Missing question or agentIds" }), { status: 400 });
   }
 
-  const userId = req.headers.get("x-user-id")!;
-  const userRole = req.headers.get("x-user-role") || "user";
-  const allAgents = await listAgents(userId);
+  const requesterUserId = req.headers.get("x-user-id");
+  const guestId = req.headers.get("x-guest-id") || bodyGuestId || "";
+  const isGuest = !requesterUserId;
+  if (isGuest && !isValidGuestId(guestId)) {
+    return new Response(JSON.stringify({ error: "Missing guest id", code: "GUEST_ID_REQUIRED" }), { status: 401 });
+  }
+
+  const userId = requesterUserId ?? await ensureGuestTrialUser();
+  const userRole = req.headers.get("x-user-role") || (isGuest ? "guest" : "user");
+  const agentOwnerUserId = requesterUserId ?? await getSuperadminUserId() ?? userId;
+  const allAgents = await listAgents(agentOwnerUserId);
   const selectedAgents = allAgents.filter((a) => agentIds.includes(a.id) && a.active);
   if (!selectedAgents.length) {
     return new Response(JSON.stringify({ error: "No active agents found" }), { status: 400 });
+  }
+  if (isGuest) {
+    if (mode === "close" || existingSessionId) {
+      return new Response(JSON.stringify({
+        error: "โหมดต่อเนื่องและสรุปรวมสงวนไว้สำหรับสมาชิก สมัครฟรีเพื่อเก็บประวัติและถามต่อ",
+        code: "GUEST_SIGNUP_REQUIRED",
+      }), { status: 402 });
+    }
+    if (selectedAgents.length > 2) {
+      return new Response(JSON.stringify({
+        error: "ทดลองฟรีเลือกหมอดูได้สูงสุด 2 ท่าน สมัครเพื่อเปิดสภาหมอดูเต็มรูปแบบ",
+        code: "GUEST_AGENT_LIMIT",
+      }), { status: 402 });
+    }
+    if (fileContexts?.length) {
+      return new Response(JSON.stringify({
+        error: "การแนบไฟล์สงวนไว้สำหรับสมาชิก สมัครฟรีเพื่อใช้เอกสารประกอบคำถาม",
+        code: "GUEST_SIGNUP_REQUIRED",
+      }), { status: 402 });
+    }
+    const isFreeClarificationProbe = !clarificationAnswers && isBroadAstrologyQuestion(question);
+    if (!isFreeClarificationProbe) {
+      const quota = await checkGuestTrialQuota(req.headers, guestId);
+      if (!quota.ok) {
+        return new Response(JSON.stringify({ error: quota.message, code: quota.code }), { status: 402 });
+      }
+    }
   }
   const missingApiKeyAgents = [];
   for (const agent of selectedAgents) {
@@ -905,7 +948,7 @@ export async function POST(req: NextRequest) {
   }
 
   const billingEnabled = isCreditBillingEnabled();
-  if (billingEnabled && userRole !== "admin" && mode !== "close") {
+  if (!isGuest && billingEnabled && userRole !== "admin" && mode !== "close") {
     const price = getReadingPrice(selectedAgents.length, existingSessionId);
     const charge = await chargeCredits(userId, price.credits, existingSessionId || crypto.randomUUID(), {
       question: question.slice(0, 200),
@@ -921,7 +964,7 @@ export async function POST(req: NextRequest) {
         balance: charge.balance,
       }), { status: 402 });
     }
-  } else if (billingEnabled && userRole !== "admin" && mode === "close") {
+  } else if (!isGuest && billingEnabled && userRole !== "admin" && mode === "close") {
     const balance = await getCreditBalance(userId);
     if (balance < 0) {
       return new Response(JSON.stringify({ error: "เครดิตไม่พอ", code: "INSUFFICIENT_CREDITS", balance }), { status: 402 });
@@ -1013,7 +1056,7 @@ export async function POST(req: NextRequest) {
   // Company & knowledge context
   const [companyContext, memoryContext] = await Promise.all([
     includeCompanyInfo ? getCompanyInfoContext() : Promise.resolve(""),
-    getMemoryContext(userId),
+    isGuest ? Promise.resolve("") : getMemoryContext(userId),
   ]);
 
   // Client disconnect detection — abort LLM calls when client disconnects
@@ -1797,7 +1840,7 @@ export async function POST(req: NextRequest) {
           } catch { /* ignore */ }
 
           // Extract key facts for cross-session memory
-          try {
+          if (!isGuest) try {
             const memResult = await callLLM(chairman.provider, chairman.model, chairApiKey, chairman.baseUrl, [
               {
                 role: "system",

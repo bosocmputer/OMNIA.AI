@@ -16,6 +16,8 @@ import {
   BookOpen,
   Star,
   LogOut,
+  LogIn,
+  UserPlus,
   UserCog,
   UserCircle,
   MessageSquareText,
@@ -66,6 +68,24 @@ const NAV_ITEMS: NavGroup[] = [
   },
 ];
 
+const GUEST_NAV_ITEMS: NavGroup[] = [
+  {
+    group: "",
+    items: [
+      { href: "/research", icon: MessageSquare, labelKey: "nav.research" },
+      { href: "/guide", icon: BookOpen, labelKey: "nav.guide" },
+      { href: "/login", icon: LogIn, labelKey: "guest.login" },
+      { href: "/register", icon: UserPlus, labelKey: "guest.register" },
+    ],
+  },
+];
+
+function getNavLabel(labelKey: string, t: (key: string) => string) {
+  if (labelKey === "guest.login") return "เข้าสู่ระบบ";
+  if (labelKey === "guest.register") return "สมัครฟรี";
+  return t(labelKey);
+}
+
 function NavIcon({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
   return (
     <Icon
@@ -88,11 +108,14 @@ export function Sidebar() {
   const [billingEnabled, setBillingEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
-    fetch("/api/auth/me").then((r) => r.json()).then((d) => setUserRole(d.role ?? null)).catch(() => {});
+    fetch("/api/auth/me")
+      .then(async (r) => (r.ok ? r.json() : null))
+      .then((d) => setUserRole(d?.role ?? "guest"))
+      .catch(() => setUserRole("guest"));
   }, []);
 
   useEffect(() => {
-    if (userRole === null) return;
+    if (userRole === null || userRole === "guest") return;
     let cancelled = false;
     const loadWallet = async () => {
       try {
@@ -143,7 +166,9 @@ export function Sidebar() {
       ? pathname === href
       : pathname === href || pathname.startsWith(href + "/");
 
-  const mobileCurrent = NAV_ITEMS.flatMap((g) => g.items).find((item) => isActive(item.href));
+  const isGuest = userRole === "guest";
+  const navItems = isGuest ? GUEST_NAV_ITEMS : NAV_ITEMS;
+  const mobileCurrent = navItems.flatMap((g) => g.items).find((item) => isActive(item.href));
 
   useEffect(() => { setMobileMenuOpen(false); }, [pathname]);
 
@@ -193,6 +218,42 @@ export function Sidebar() {
   };
 
   const renderCreditStatus = (compact = false, onNavigate?: () => void) => {
+    if (isGuest) {
+      if (compact || collapsed) {
+        return (
+          <Link
+            href="/register"
+            onClick={onNavigate}
+            title="สมัครฟรีเพื่อเก็บประวัติและถามต่อ"
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl border transition-colors hover:bg-[var(--surface)]"
+            style={{ borderColor: "var(--accent-25)", color: "var(--accent)" }}
+          >
+            <UserPlus size={18} />
+          </Link>
+        );
+      }
+      return (
+        <Link
+          href="/register"
+          onClick={onNavigate}
+          className="mt-3 flex items-center gap-3 rounded-2xl border px-3 py-2.5 transition-colors hover:bg-[var(--surface)]"
+          style={{ borderColor: "var(--accent-25)", background: "var(--accent-8)" }}
+        >
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>
+            <UserPlus size={17} />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+              ทดลองฟรี
+            </span>
+            <span className="block truncate text-xs font-semibold" style={{ color: "var(--text)" }}>
+              สมัครเพื่อเก็บประวัติ
+            </span>
+          </span>
+        </Link>
+      );
+    }
+
     const isAdmin = userRole === "admin";
     const isDemo = billingEnabled === false;
     const href = isDemo ? "/research" : isAdmin ? "/admin/topups" : "/upgrade";
@@ -239,7 +300,7 @@ export function Sidebar() {
 
   const renderNavItems = (onNavigate?: () => void) => (
     <div className="space-y-5">
-      {NAV_ITEMS.map((group, gi) => (
+      {navItems.map((group, gi) => (
         <div key={gi}>
           {group.group && !collapsed && (
             <div className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
@@ -249,12 +310,13 @@ export function Sidebar() {
           <div className="space-y-0.5">
             {group.items.map((item) => {
               const active = isActive(item.href);
+              const label = getNavLabel(item.labelKey, t);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={onNavigate}
-                  title={collapsed ? t(item.labelKey) : undefined}
+                  title={collapsed ? label : undefined}
                   aria-current={active ? "page" : undefined}
                   className={`relative flex items-center rounded-xl text-sm transition-all duration-200 ${
                     active
@@ -272,7 +334,7 @@ export function Sidebar() {
                 >
                   {active && !collapsed && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full" style={{ background: "var(--accent)" }} />}
                   <NavIcon icon={item.icon} active={active} />
-                  {!collapsed && t(item.labelKey)}
+                  {!collapsed && label}
                 </Link>
               );
             })}
@@ -315,7 +377,7 @@ export function Sidebar() {
               <div className="min-w-0">
                 <div className="text-sm font-bold tracking-wide truncate" style={{ color: "var(--text)" }}>OMNIA.AI</div>
                 <div className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>
-                  {mobileCurrent ? t(mobileCurrent.labelKey) : "ดูดวง AI"}
+                  {mobileCurrent ? getNavLabel(mobileCurrent.labelKey, t) : "ดูดวง AI"}
                 </div>
               </div>
             </Link>
@@ -351,14 +413,25 @@ export function Sidebar() {
                 {renderNavItems(() => setMobileMenuOpen(false))}
               </nav>
               <div className="sidebar-footer">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)]"
-                >
-                  <LogOut size={14} />
-                  ออกจากระบบ
-                </button>
+                {isGuest ? (
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)]"
+                  >
+                    <LogIn size={14} />
+                    เข้าสู่ระบบ
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)]"
+                  >
+                    <LogOut size={14} />
+                    ออกจากระบบ
+                  </button>
+                )}
               </div>
             </aside>
           </div>
@@ -418,14 +491,24 @@ export function Sidebar() {
         {/* Footer */}
         {!collapsed && (
           <div className="sidebar-footer">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)]"
-            >
-              <LogOut size={14} />
-              ออกจากระบบ
-            </button>
+            {isGuest ? (
+              <Link
+                href="/login"
+                className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)]"
+              >
+                <LogIn size={14} />
+                เข้าสู่ระบบ
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface)] text-[var(--text-muted)]"
+              >
+                <LogOut size={14} />
+                ออกจากระบบ
+              </button>
+            )}
           </div>
         )}
       </aside>

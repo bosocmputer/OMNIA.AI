@@ -150,6 +150,9 @@ function formatBytes(bytes: number) {
 }
 
 const STORAGE_KEY_PREFIX = "research_conversation_v2";
+const GUEST_ID_KEY = "omnia_guest_id_v1";
+const GUEST_USAGE_KEY = "omnia_guest_trial_used_v1";
+const GUEST_TRIAL_LIMIT = 2;
 
 const ROLE_LABEL: Record<string, string> = {
   user_question: "คำถามจากผู้ใช้",
@@ -741,6 +744,9 @@ function groupSessionHistory(session: ServerSession): { question: string; messag
 
 export default function ResearchPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [guestId, setGuestId] = useState("");
+  const [guestUsed, setGuestUsed] = useState(0);
   const [birthProfile, setBirthProfile] = useState<BirthProfile | null>(null);
   const [birthProfiles, setBirthProfiles] = useState<BirthProfile[]>([]);
   const [selectedBirthProfileId, setSelectedBirthProfileId] = useState("");
@@ -804,6 +810,8 @@ export default function ResearchPage() {
   const [historyTab, setHistoryTab] = useState<"current" | "history">("current");
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [lastCreditUsage, setLastCreditUsage] = useState<CreditUsageState | null>(null);
+  const isGuestMode = authResolved && !currentUserId;
+  const guestRemaining = Math.max(0, GUEST_TRIAL_LIMIT - guestUsed);
 
   const [autoScroll, setAutoScroll] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -830,10 +838,25 @@ export default function ResearchPage() {
   useEffect(() => { meetingSessionIdRef.current = meetingSessionId; }, [meetingSessionId]);
   useEffect(() => { currentWebSourcesRef.current = currentWebSources; }, [currentWebSources]);
 
+  useEffect(() => {
+    try {
+      let id = localStorage.getItem(GUEST_ID_KEY);
+      if (!id) {
+        id = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).replace(/[^a-zA-Z0-9_-]/g, "");
+        localStorage.setItem(GUEST_ID_KEY, id);
+      }
+      setGuestId(id);
+      setGuestUsed(Number(localStorage.getItem(GUEST_USAGE_KEY) || "0") || 0);
+    } catch {
+      const fallback = `${Date.now()}${Math.random()}`.replace(/\D/g, "");
+      setGuestId(fallback);
+    }
+  }, []);
+
   // Load from localStorage when userId is ready
   useEffect(() => {
-    if (!currentUserId) return;
-    const storageKey = `${STORAGE_KEY_PREFIX}_${currentUserId}`;
+    if (!authResolved) return;
+    const storageKey = currentUserId ? `${STORAGE_KEY_PREFIX}_${currentUserId}` : `${STORAGE_KEY_PREFIX}_guest`;
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
@@ -842,22 +865,22 @@ export default function ResearchPage() {
         if (Array.isArray(parsed.selectedIds) && parsed.selectedIds.length > 0) {
           setSelectedIds(new Set(parsed.selectedIds));
         }
-        if (parsed.meetingSessionId) {
+        if (currentUserId && parsed.meetingSessionId) {
           setMeetingSessionId(parsed.meetingSessionId);
           meetingSessionIdRef.current = parsed.meetingSessionId;
         }
       }
     } catch { /* ignore */ }
-  }, [currentUserId]);
+  }, [currentUserId, authResolved]);
 
   // Save to localStorage when rounds change (only when userId is known)
   useEffect(() => {
-    if (!currentUserId) return;
-    const storageKey = `${STORAGE_KEY_PREFIX}_${currentUserId}`;
+    if (!authResolved) return;
+    const storageKey = currentUserId ? `${STORAGE_KEY_PREFIX}_${currentUserId}` : `${STORAGE_KEY_PREFIX}_guest`;
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ rounds, meetingSessionId, selectedIds: Array.from(selectedIds) }));
+      localStorage.setItem(storageKey, JSON.stringify({ rounds, meetingSessionId: currentUserId ? meetingSessionId : null, selectedIds: Array.from(selectedIds) }));
     } catch { /* ignore */ }
-  }, [rounds, meetingSessionId, selectedIds, currentUserId]);
+  }, [rounds, meetingSessionId, selectedIds, currentUserId, authResolved]);
 
   const fetchAgents = useCallback(async () => {
     const res = await fetch("/api/team-agents");
@@ -880,17 +903,39 @@ export default function ResearchPage() {
 
   useEffect(() => {
     fetchAgents();
-    fetchServerHistory();
-    fetch("/api/auth/me").then(r => r.json()).then(d => { if (d.id) setCurrentUserId(d.id); }).catch(() => {});
-    fetch("/api/birth-profile").then(r => r.json()).then(d => {
-      const profiles = d.profiles ?? (d.profile ? [d.profile] : []);
-      setBirthProfiles(profiles);
-      const requestedProfileId = new URLSearchParams(window.location.search).get("profileId");
-      const active = profiles.find((p: BirthProfile) => p.id === requestedProfileId) ?? profiles.find((p: BirthProfile) => p.isDefault) ?? profiles[0] ?? null;
-      setBirthProfile(active);
-      setSelectedBirthProfileId(active?.id ?? "");
-    }).catch(() => {});
+    fetch("/api/auth/me")
+      .then(async (r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.id) {
+          setCurrentUserId(d.id);
+          fetchServerHistory();
+          fetch("/api/birth-profile").then(r => r.json()).then(profileData => {
+            const profiles = profileData.profiles ?? (profileData.profile ? [profileData.profile] : []);
+            setBirthProfiles(profiles);
+            const requestedProfileId = new URLSearchParams(window.location.search).get("profileId");
+            const active = profiles.find((p: BirthProfile) => p.id === requestedProfileId) ?? profiles.find((p: BirthProfile) => p.isDefault) ?? profiles[0] ?? null;
+            setBirthProfile(active);
+            setSelectedBirthProfileId(active?.id ?? "");
+          }).catch(() => {});
+        } else {
+          setCurrentUserId(null);
+          setBirthProfiles([]);
+          setBirthProfile(null);
+          setSelectedBirthProfileId("");
+        }
+      })
+      .catch(() => setCurrentUserId(null))
+      .finally(() => setAuthResolved(true));
   }, [fetchAgents, fetchServerHistory]);
+
+  useEffect(() => {
+    if (!isGuestMode || agents.length === 0 || selectedIds.size > 0) return;
+    const preferred = agents
+      .filter((a) => a.name.includes("โหราศาสตร์ไทย") || a.name.includes("BaZi"))
+      .slice(0, 2);
+    const defaults = (preferred.length > 0 ? preferred : agents.slice(0, 2)).map((a) => a.id);
+    if (defaults.length > 0) setSelectedIds(new Set(defaults));
+  }, [isGuestMode, agents, selectedIds.size]);
 
   // Handle ?q=, ?teamId=, ?sessionId= from dashboard/teams page
   useEffect(() => {
@@ -991,12 +1036,22 @@ export default function ResearchPage() {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
-      else next.add(id);
+      else {
+        if (isGuestMode && next.size >= 2) {
+          showToast("info", "ทดลองฟรีเลือกหมอดูได้สูงสุด 2 ท่าน สมัครเพื่อเปิดหลายมุมมอง");
+          return next;
+        }
+        next.add(id);
+      }
       return next;
     });
   };
 
   const uploadFile = async (file: File) => {
+    if (isGuestMode) {
+      showToast("info", "สมัครฟรีเพื่อแนบไฟล์ประกอบคำถาม");
+      return;
+    }
     setUploadError("");
     const ext = "." + (file.name.split(".").pop()?.toLowerCase() ?? "");
     if (!SUPPORTED_EXTENSIONS.includes(ext)) {
@@ -1142,6 +1197,10 @@ export default function ResearchPage() {
   const walletIsLow = wallet ? wallet.billingEnabled !== false && !wallet.isAdmin && wallet.balance < wallet.readingPrice.credits : false;
 
   const refreshWallet = useCallback(async (): Promise<WalletState | null> => {
+    if (isGuestMode) {
+      setWallet(null);
+      return null;
+    }
     try {
       const params = new URLSearchParams({
         agentCount: String(Math.max(1, selectedIds.size)),
@@ -1157,7 +1216,7 @@ export default function ResearchPage() {
       // Wallet is an upsell surface; reading still relies on server-side enforcement.
       return null;
     }
-  }, [selectedIds.size]);
+  }, [selectedIds.size, isGuestMode]);
 
   useEffect(() => { refreshWallet(); }, [refreshWallet, meetingSessionId]);
 
@@ -1168,6 +1227,26 @@ export default function ResearchPage() {
     if (!closeMode && selectedIds.size === 0) {
       showToast("warning", "กรุณาเลือกหมอดูอย่างน้อย 1 ท่านก่อนถาม เพื่อควบคุม token และให้คำตอบตรงเรื่อง");
       return;
+    }
+    if (isGuestMode) {
+      if (closeMode || meetingSessionIdRef.current) {
+        showToast("info", "สมัครฟรีเพื่อถามต่อและเก็บประวัติคำทำนาย");
+        window.location.href = "/register";
+        return;
+      }
+      if (guestRemaining <= 0) {
+        showToast("info", "ทดลองถามฟรีครบแล้ว สมัครฟรีเพื่อถามต่อ");
+        window.location.href = "/register";
+        return;
+      }
+      if (selectedIds.size > 2) {
+        showToast("warning", "ทดลองฟรีเลือกหมอดูได้สูงสุด 2 ท่าน");
+        return;
+      }
+      if (attachedFiles.length > 0) {
+        showToast("warning", "การแนบไฟล์สงวนไว้สำหรับสมาชิก สมัครฟรีเพื่อใช้เอกสารประกอบคำถาม");
+        return;
+      }
     }
     // Warn if any selected agent has no API key
     if (!closeMode) {
@@ -1230,15 +1309,16 @@ export default function ResearchPage() {
         question: q,
         agentIds: Array.from(selectedIds),
         mode: closeMode ? "close" : isQA ? "qa" : "full",
-        sessionId: meetingSessionIdRef.current || undefined,
+        sessionId: isGuestMode ? undefined : meetingSessionIdRef.current || undefined,
         conversationHistory: buildHistory(),
-        fileContexts: useFileContext ? buildFileContexts() : [],
+        fileContexts: isGuestMode ? [] : useFileContext ? buildFileContexts() : [],
         historyMode,
         disableMcp: true,
         includeCompanyInfo: false,
         clarificationAnswers: effectiveClarificationAnswers || undefined,
         astroFocus: focusPayload?.focus,
         astroContext: focusPayload?.context?.trim() || undefined,
+        guestId: isGuestMode ? guestId : undefined,
       };
 
       if (closeMode) {
@@ -1256,13 +1336,18 @@ export default function ResearchPage() {
 
       const res = await fetch("/api/team-research/stream", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(isGuestMode ? { "x-guest-id": guestId } : {}) },
         body: JSON.stringify(body),
         signal: abortRef.current.signal,
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        if (errorData.code?.startsWith?.("GUEST_")) {
+          showToast("info", errorData.error || "ทดลองถามฟรีครบแล้ว สมัครฟรีเพื่อถามต่อ");
+          window.location.href = "/register";
+          return;
+        }
         if (res.status === 402 || errorData.code === "INSUFFICIENT_CREDITS") {
           showToast("warning", `${errorData.error || "เครดิตไม่พอ"} — เติมเครดิตก่อนถามต่อ`);
           setRunning(false);
@@ -1275,7 +1360,7 @@ export default function ResearchPage() {
         throw new Error(errorData.error || `HTTP ${res.status}`);
       }
       const nextWallet = await refreshWallet();
-      if (balanceBeforeRun != null && nextWallet && nextWallet.balance < balanceBeforeRun) {
+      if (!isGuestMode && balanceBeforeRun != null && nextWallet && nextWallet.balance < balanceBeforeRun) {
         setLastCreditUsage({
           credits: balanceBeforeRun - nextWallet.balance,
           balance: nextWallet.balance,
@@ -1304,7 +1389,7 @@ export default function ResearchPage() {
             const payload = JSON.parse(line.slice(6));
 
             if (currentEvent === "session") {
-              if (!meetingSessionIdRef.current) {
+              if (!isGuestMode && !meetingSessionIdRef.current) {
                 meetingSessionIdRef.current = payload.sessionId;
                 setMeetingSessionId(payload.sessionId);
               }
@@ -1433,6 +1518,13 @@ export default function ResearchPage() {
 
       // Only add a round if there are messages (close mode may have only synthesis)
       if (currentMessagesRef.current.length > 0 || currentFinalAnswerRef.current) {
+        if (isGuestMode && !closeMode) {
+          setGuestUsed((prev) => {
+            const next = Math.min(GUEST_TRIAL_LIMIT, prev + 1);
+            try { localStorage.setItem(GUEST_USAGE_KEY, String(next)); } catch { /* ignore */ }
+            return next;
+          });
+        }
         const visibleMessages = currentFinalAnswerRef.current
           ? currentMessagesRef.current.filter((m) => m.role !== "synthesis")
           : currentMessagesRef.current;
@@ -1470,7 +1562,7 @@ export default function ResearchPage() {
       currentWebSourcesRef.current = [];
       setChairmanId(null);
       setIsCurrentClosing(false);
-      fetchServerHistory();
+      if (!isGuestMode) fetchServerHistory();
       setTimeout(() => textareaRef.current?.focus(), 100);
     }
   };
@@ -1532,6 +1624,7 @@ export default function ResearchPage() {
     setCurrentFinalAnswer("");
     setCurrentSuggestions([]);
     if (currentUserId) localStorage.removeItem(`${STORAGE_KEY_PREFIX}_${currentUserId}`);
+    else if (authResolved) localStorage.removeItem(`${STORAGE_KEY_PREFIX}_guest`);
   };
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -1597,11 +1690,26 @@ export default function ResearchPage() {
           <div className="text-xs font-bold flex items-center gap-1.5" style={{ color: "var(--accent)" }}>
             <UserCircle size={13} /> เจ้าชะตา
           </div>
-          <a href="/profile" className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "var(--accent)", color: "var(--accent)" }} onClick={onNavigate}>
-            <Plus size={11} /> เพิ่ม
-          </a>
+          {isGuestMode ? (
+            <a href="/register" className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "var(--accent)", color: "var(--accent)" }} onClick={onNavigate}>
+              สมัครเพื่อบันทึก
+            </a>
+          ) : (
+            <a href="/profile" className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "var(--accent)", color: "var(--accent)" }} onClick={onNavigate}>
+              <Plus size={11} /> เพิ่ม
+            </a>
+          )}
         </div>
-        {birthProfiles.length > 0 ? (
+        {isGuestMode ? (
+          <div className="space-y-2">
+            <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              ทดลองถามได้ทันที ถ้าเป็นดูดวง ระบบจะถามวันเกิด/เวลาเกิดในแชทแบบชั่วคราว
+            </p>
+            <div className="rounded-lg border px-2.5 py-2 text-[11px]" style={{ borderColor: "var(--accent-30)", color: "var(--accent)", background: "var(--accent-8)" }}>
+              เหลือ {guestRemaining}/{GUEST_TRIAL_LIMIT} คำถามฟรี
+            </div>
+          </div>
+        ) : birthProfiles.length > 0 ? (
           <div className="space-y-2">
             <select
               value={selectedBirthProfileId}
@@ -1720,18 +1828,26 @@ export default function ResearchPage() {
           {HISTORY_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
         </select>
 
-        <div className="text-xs mb-1.5 font-bold" style={{ color: "var(--text-muted)" }}>สิ่งประกอบคำถาม</div>
-        <div className="flex flex-col gap-1.5">
-          <label className="flex items-center justify-between px-2 py-1.5 rounded-lg border cursor-pointer select-none" style={{ borderColor: useFileContext ? "var(--accent)" : "var(--border)", background: "var(--bg)" }}>
-            <span className="text-xs flex items-center gap-1" style={{ color: useFileContext ? "var(--text)" : "var(--text-muted)" }}><Paperclip size={11} /> ใช้ไฟล์ที่แนบประกอบคำทำนาย</span>
-            <div onClick={() => setUseFileContext(v => !v)} className="relative w-8 h-4 rounded-full transition-colors flex-shrink-0" style={{ background: useFileContext ? "var(--accent)" : "var(--border)" }}>
-              <span className="absolute top-0.5 transition-all duration-200 w-3 h-3 rounded-full bg-white shadow" style={{ left: useFileContext ? "17px" : "2px" }} />
+        {!isGuestMode ? (
+          <>
+            <div className="text-xs mb-1.5 font-bold" style={{ color: "var(--text-muted)" }}>สิ่งประกอบคำถาม</div>
+            <div className="flex flex-col gap-1.5">
+              <label className="flex items-center justify-between px-2 py-1.5 rounded-lg border cursor-pointer select-none" style={{ borderColor: useFileContext ? "var(--accent)" : "var(--border)", background: "var(--bg)" }}>
+                <span className="text-xs flex items-center gap-1" style={{ color: useFileContext ? "var(--text)" : "var(--text-muted)" }}><Paperclip size={11} /> ใช้ไฟล์ที่แนบประกอบคำทำนาย</span>
+                <div onClick={() => setUseFileContext(v => !v)} className="relative w-8 h-4 rounded-full transition-colors flex-shrink-0" style={{ background: useFileContext ? "var(--accent)" : "var(--border)" }}>
+                  <span className="absolute top-0.5 transition-all duration-200 w-3 h-3 rounded-full bg-white shadow" style={{ left: useFileContext ? "17px" : "2px" }} />
+                </div>
+              </label>
             </div>
-          </label>
-        </div>
+          </>
+        ) : (
+          <div className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            โหมดทดลองใช้ประวัติชั่วคราวและไม่รองรับไฟล์แนบ สมัครฟรีเพื่อเก็บข้อมูลเกิดและคำทำนายไว้ต่อ
+          </div>
+        )}
       </div>
       )}
-      {showAdvanced && (
+      {showAdvanced && !isGuestMode && (
       <div
         className="border rounded-xl p-3"
         style={{ borderColor: isDragOver ? "var(--accent)" : "var(--border)", background: "var(--surface)" }}
@@ -1954,13 +2070,15 @@ export default function ResearchPage() {
             >
               <Settings size={14} /> หมอดู ({selectedIds.size})
             </button>
-            <a
-              href="/history"
-              className="md:hidden px-3 py-2 rounded-lg text-xs border flex items-center gap-1.5"
-              style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}
-            >
-              <History size={14} /> ประวัติ
-            </a>
+            {!isGuestMode && (
+              <a
+                href="/history"
+                className="md:hidden px-3 py-2 rounded-lg text-xs border flex items-center gap-1.5"
+                style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--surface)" }}
+              >
+                <History size={14} /> ประวัติ
+              </a>
+            )}
             {(rounds.length > 0 || viewingSession) && (
               <button onClick={exportMinutes} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }} title="บันทึกคำทำนายเป็น Markdown">
                 <Download size={14} /> บันทึกคำทำนาย
@@ -1969,14 +2087,27 @@ export default function ResearchPage() {
           </div>
         </div>
 
+        {isGuestMode && (
+          <div className="rounded-xl border px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-2 text-xs" style={{ borderColor: "var(--accent-30)", background: "var(--accent-8)", color: "var(--text-muted)" }}>
+            <div className="flex-1">
+              <strong style={{ color: "var(--accent)" }}>ทดลองถามฟรี</strong> เหลือ {guestRemaining}/{GUEST_TRIAL_LIMIT} คำถาม · ไม่ต้องสมัคร แต่ประวัติและข้อมูลเกิดยังไม่ถูกบันทึกถาวร
+            </div>
+            <a href="/register" className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 font-bold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
+              สมัครฟรีเพื่อถามต่อ
+            </a>
+          </div>
+        )}
+
         {/* ── Mobile quick-info strip ── */}
         <div className="flex md:hidden items-center gap-2 px-3 py-2 rounded-xl border text-[11px] flex-wrap" style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--text-muted)" }}>
           <button onClick={() => { setHistoryTab("current"); setMobileSidebarOpen(true); }} className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: selectedIds.size > 0 ? "var(--accent)" : "var(--border)", color: selectedIds.size > 0 ? "var(--accent)" : "var(--text-muted)" }}>
             <Users size={12} /> {selectedIds.size} หมอดู
           </button>
-          <a href="/history" className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
-            <History size={12} /> ประวัติ {totalSessionCount}
-          </a>
+          {!isGuestMode && (
+            <a href="/history" className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+              <History size={12} /> ประวัติ {totalSessionCount}
+            </a>
+          )}
           {useFileContext && attachedFiles.length > 0 && <span className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "var(--accent-10)", color: "var(--accent)" }}><Paperclip size={10} /> {attachedFiles.length} ไฟล์</span>}
           {(!useFileContext || attachedFiles.length === 0) && selectedIds.size > 0 && <span className="opacity-60">พร้อมถามคำถามแรก</span>}
           {selectedIds.size === 0 && <span className="opacity-60">เลือกหมอดูอย่างน้อย 1 ท่าน</span>}
@@ -2853,7 +2984,16 @@ export default function ResearchPage() {
                     </div>
                     {selectedIds.size > 0 && (
                       <div className="hidden sm:flex items-center gap-2">
-                        {wallet && (
+                        {isGuestMode ? (
+                          <>
+                            <span className="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: "var(--accent-30)", color: "var(--accent)", background: "var(--accent-8)" }}>
+                              ทดลองฟรี {guestRemaining}/{GUEST_TRIAL_LIMIT}
+                            </span>
+                            <span className="inline-flex rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+                              สมัครเพื่อเก็บประวัติ
+                            </span>
+                          </>
+                        ) : wallet && (
                           <>
                             <span
                               className="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold"
@@ -2915,7 +3055,9 @@ export default function ResearchPage() {
                         {meetingSessionId && effectiveMode !== "qa" && <span className="inline-flex items-center gap-1 mr-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />ดูดวงอยู่ {elapsedTime > 0 && <span className="font-mono">{Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, "0")}</span>} · </span>}
                         {rounds.length > 0 && <span style={{ color: "var(--accent)" }}>{rounds.length} คำถาม · </span>}
                         หมอดู {selectedIds.size}/{agents.length} ท่าน
-                        {wallet && (
+                        {isGuestMode ? (
+                          <span> · ทดลองฟรีเหลือ {guestRemaining}/{GUEST_TRIAL_LIMIT}</span>
+                        ) : wallet && (
                           <span>
                             {wallet.billingEnabled === false ? " · Demo ถามฟรี" : wallet.isAdmin ? " · Admin ไม่หักเครดิต" : ` · ใช้ ${wallet.readingPrice.credits} เครดิต`}
                           </span>
@@ -2949,15 +3091,22 @@ export default function ResearchPage() {
                           </button>
                         </>
                       ) : (
+                        <>
+                        {isGuestMode && guestRemaining <= 0 && (
+                          <a href="/register" className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-xs font-bold border" style={{ borderColor: "var(--accent)", color: "var(--accent)" }}>
+                            สมัครต่อ
+                          </a>
+                        )}
                         <button
                           onClick={() => handleRun()}
-                          disabled={!question.trim() || selectedIds.size === 0}
+                          disabled={!question.trim() || selectedIds.size === 0 || (isGuestMode && guestRemaining <= 0)}
                           className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-xs font-bold disabled:opacity-30 transition-all"
                           style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
-                          title={selectedIds.size === 0 ? "เลือกหมอดูอย่างน้อย 1 ท่านก่อนส่ง" : "ส่งคำถาม (⌘+Enter)"}
+                          title={isGuestMode && guestRemaining <= 0 ? "ทดลองครบแล้ว สมัครฟรีเพื่อถามต่อ" : selectedIds.size === 0 ? "เลือกหมอดูอย่างน้อย 1 ท่านก่อนส่ง" : "ส่งคำถาม (⌘+Enter)"}
                         >
                           <Send size={14} /> ส่ง
                         </button>
+                        </>
                       )}
                     </div>
                   </div>
