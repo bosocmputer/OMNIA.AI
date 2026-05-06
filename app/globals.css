@@ -112,6 +112,13 @@ select:focus {
 }
 
 /* ── Base styles ── */
+html {
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -121,6 +128,36 @@ body {
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior-y: auto;
+}
+
+/* Mobile Safari/Chrome can be picky with nested scroll containers.
+   Keep document scrolling available by default and make intentional panes touch-scrollable. */
+.mobile-scroll-root {
+  min-height: 100dvh;
+  overflow: visible;
+}
+
+.overflow-y-auto,
+.overflow-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+
+@media (max-width: 767px) {
+  body {
+    position: static;
+    overflow-y: auto !important;
+  }
+
+  .mobile-scroll-root {
+    min-height: calc(100dvh - 3.5rem);
+    overflow: visible;
+  }
 }
 
 /* ── Global ambient background ── */

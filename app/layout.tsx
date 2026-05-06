@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Providers>
           <div className="min-h-dvh md:flex">
             {!isPublicStandalonePage && <Sidebar />}
-            <main id="main-content" tabIndex={-1} className={`flex-1 overflow-auto ${isPublicStandalonePage ? "" : "pt-14 md:pt-0"}`}>
+            <main id="main-content" tabIndex={-1} className={`mobile-scroll-root flex-1 min-w-0 ${isPublicStandalonePage ? "" : "pt-14 md:pt-0"}`}>
               {children}
             </main>
             {!isPublicStandalonePage && <ToastContainer />}
