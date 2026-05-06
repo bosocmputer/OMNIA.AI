@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BookOpen, CheckCircle2, MessageSquare, Sparkles, UserCircle, Users } from "lucide-react";
 
@@ -56,6 +56,47 @@ const FAQS = [
 
 export default function GuidePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => setIsGuest(!r.ok))
+      .catch(() => setIsGuest(true));
+  }, []);
+
+  const steps = useMemo(() => {
+    if (!isGuest) return STEPS;
+    return [
+      {
+        ...STEPS[1],
+        title: "ทดลองถามก่อน",
+        desc: "เริ่มถามได้ทันทีโดยไม่ต้องสมัคร ระบบจะถามข้อมูลเกิดเมื่อจำเป็น",
+        details: ["เปิดห้องดูดวง", "ถามได้ 2 คำถามฟรี", "เลือกเรื่องให้ชัด เช่น งาน เงิน ความรัก หรือวันที่ต้องตัดสินใจ"],
+        href: "/research",
+      },
+      {
+        ...STEPS[2],
+        title: "ให้หลายศาสตร์ช่วยมอง",
+        desc: "โหมดทดลองเลือกหมอดูได้สูงสุด 2 ท่าน เพื่อเห็นมุมต่างกันก่อนสมัคร",
+        details: ["ระบบเลือกหมอดูตั้งต้นให้", "เปลี่ยนหมอดูได้ในแผงด้านซ้าย", "ถ้าต้องการเปิดหลายท่าน สมัครฟรีเพื่อใช้เต็มรูปแบบ"],
+        href: "/research",
+      },
+      {
+        ...STEPS[3],
+        title: "อ่านคำตอบและ feedback",
+        desc: "อ่านสรุป OMNIA แล้วกด feedback ว่าตรง กว้างไป หรือไม่ตรง",
+        details: ["ดูคำตอบตรง ๆ ก่อน", "เช็กคำทักอดีตว่าตรงไหม", "พิมพ์เหตุผล feedback เพื่อช่วยปรับระบบ"],
+        href: "/research",
+      },
+      {
+        ...STEPS[0],
+        title: "สมัครเพื่อบันทึกต่อ",
+        desc: "ถ้าถูกใจ ค่อยสมัครเพื่อเก็บเจ้าชะตา ประวัติ และถามต่อจากบริบทเดิม",
+        details: ["บันทึกวันเกิดและเวลาเกิดถาวร", "เก็บประวัติคำทำนาย", "ถามต่อหลายรอบและแนบไฟล์ได้"],
+        href: "/register",
+      },
+    ];
+  }, [isGuest]);
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-5xl mx-auto">
@@ -67,14 +108,16 @@ export default function GuidePage() {
           ใช้งาน OMNIA.AI ให้ได้คำทำนายที่ตรงขึ้น
         </h1>
         <p className="text-sm md:text-base mt-3 max-w-2xl leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          เริ่มจากเลือกเจ้าชะตา ถามเรื่องที่อยากรู้ แล้วให้หมอดูหลายศาสตร์อ่านร่วมกันก่อน OMNIA สรุปเป็นภาษาที่ใช้ตัดสินใจได้จริง
+          {isGuest
+            ? "เริ่มจากทดลองถามฟรีก่อน ถ้าคำตอบตรงใจค่อยสมัครเพื่อบันทึกเจ้าชะตา ประวัติ และถามต่อจากบริบทเดิม"
+            : "เริ่มจากเลือกเจ้าชะตา ถามเรื่องที่อยากรู้ แล้วให้หมอดูหลายศาสตร์อ่านร่วมกันก่อน OMNIA สรุปเป็นภาษาที่ใช้ตัดสินใจได้จริง"}
         </p>
         <div className="flex flex-col sm:flex-row gap-2 mt-5">
           <Link href="/research" className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
-            เปิดห้องดูดวง <ArrowRight size={16} />
+            {isGuest ? "ทดลองถามฟรี" : "เปิดห้องดูดวง"} <ArrowRight size={16} />
           </Link>
-          <Link href="/profile" className="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium" style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--card)" }}>
-            เพิ่มเจ้าชะตา
+          <Link href={isGuest ? "/register" : "/profile"} className="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium" style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--card)" }}>
+            {isGuest ? "สมัครเพื่อบันทึก" : "เพิ่มเจ้าชะตา"}
           </Link>
         </div>
       </section>
@@ -90,7 +133,7 @@ export default function GuidePage() {
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {STEPS.map((step, index) => (
+        {steps.map((step, index) => (
           <Link key={step.title} href={step.href} className="group rounded-2xl border p-4 transition-all hover:border-[var(--accent)] hover:-translate-y-0.5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
             <div className="flex items-start justify-between gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>

@@ -22,6 +22,7 @@ interface DashboardData {
   runningSessions: number;
   recentSessions: { id: string; question: string; status: string; startedAt: string; totalTokens: number }[];
   topAgents: { name: string; emoji: string; sessions: number }[];
+  availableAgents: { name: string; emoji: string; role: string }[];
   hasBirthProfile: boolean;
   profileName?: string;
 }
@@ -81,6 +82,11 @@ export default function DashboardPage() {
             totalTokens: s.totalTokens,
           })),
           topAgents,
+          availableAgents: agents.slice(0, 5).map((a: { name: string; emoji: string; role?: string }) => ({
+            name: a.name,
+            emoji: a.emoji,
+            role: a.role || "หมอดู",
+          })),
           hasBirthProfile: !!profileData.profile,
           profileName: profileData.profile?.name,
         });
@@ -95,6 +101,28 @@ export default function DashboardPage() {
 
   const readiness = useMemo(() => {
     if (!data) return [];
+    if (isGuest) {
+      return [
+        {
+          label: "ทดลองได้ทันที",
+          ready: true,
+          detail: "ถามฟรี 2 คำถามโดยไม่ต้องสมัคร",
+          href: "/research",
+        },
+        {
+          label: "เลือกหมอดูอัตโนมัติ",
+          ready: data.activeAgents > 0,
+          detail: `${Math.min(2, data.activeAgents)}/${data.activeAgents} ท่านสำหรับโหมดทดลอง`,
+          href: "/research",
+        },
+        {
+          label: "สมัครเมื่อต้องการถามต่อ",
+          ready: false,
+          detail: "บันทึกประวัติ ข้อมูลเกิด และเปิดฟีเจอร์เต็ม",
+          href: "/register",
+        },
+      ];
+    }
     return [
       {
         label: "ข้อมูลเกิด",
@@ -115,7 +143,7 @@ export default function DashboardPage() {
         href: "/research",
       },
     ];
-  }, [data]);
+  }, [data, isGuest]);
 
   const timeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
@@ -300,11 +328,24 @@ export default function DashboardPage() {
         <Card padding="md">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "var(--text)" }}>
-              <MessageSquare size={16} style={{ color: "var(--text-muted)" }} /> คำทำนายล่าสุด
+              <MessageSquare size={16} style={{ color: "var(--text-muted)" }} /> {isGuest ? "เริ่มทดลองอย่างไร" : "คำทำนายล่าสุด"}
             </h3>
             <Link href="/research" className="text-xs font-medium" style={{ color: "var(--accent)" }}>เปิดห้องดูดวง</Link>
           </div>
-          {loading ? (
+          {isGuest ? (
+            <div className="space-y-2">
+              {[
+                "พิมพ์คำถามที่อยากรู้ เช่น วันนี้ควรระวังอะไร",
+                "ระบบจะถามข้อมูลเกิดหรือโฟกัสเพิ่มเมื่อจำเป็น",
+                "ถ้าถูกใจ สมัครฟรีเพื่อเก็บประวัติและถามต่อ",
+              ].map((text, i) => (
+                <div key={text} className="flex items-start gap-3 px-3 py-2.5 rounded-xl" style={{ background: "var(--surface)" }}>
+                  <span className="min-w-6 h-6 rounded-lg inline-flex items-center justify-center text-[11px] font-bold" style={{ background: "var(--accent-10)", color: "var(--accent)" }}>{i + 1}</span>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>{text}</p>
+                </div>
+              ))}
+            </div>
+          ) : loading ? (
             <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
           ) : data && data.recentSessions.length > 0 ? (
             <div className="space-y-2">
@@ -331,12 +372,25 @@ export default function DashboardPage() {
         <Card padding="md">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "var(--text)" }}>
-              <Activity size={16} style={{ color: "var(--text-muted)" }} /> โหราจารย์ที่ปรากฏบ่อย
+              <Activity size={16} style={{ color: "var(--text-muted)" }} /> {isGuest ? "หมอดูที่พร้อมให้ลอง" : "โหราจารย์ที่ปรากฏบ่อย"}
             </h3>
-            <Link href="/agents" className="text-xs font-medium" style={{ color: "var(--accent)" }}>ดูสภา</Link>
+            <Link href={isGuest ? "/research" : "/agents"} className="text-xs font-medium" style={{ color: "var(--accent)" }}>{isGuest ? "เริ่มถาม" : "ดูสภา"}</Link>
           </div>
           {loading ? (
             <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
+          ) : isGuest && data && data.availableAgents.length > 0 ? (
+            <div className="space-y-2">
+              {data.availableAgents.map((agent, i) => (
+                <Link key={`${agent.name}-${i}`} href="/research" className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-[var(--surface)]">
+                  <span className="text-xl">{agent.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>{agent.name}</p>
+                    <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>{agent.role}</p>
+                  </div>
+                  <ArrowRight size={15} style={{ color: "var(--accent)" }} />
+                </Link>
+              ))}
+            </div>
           ) : data && data.topAgents.length > 0 ? (
             <div className="space-y-2">
               {data.topAgents.map((agent, i) => (

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, MessageSquare } from "lucide-react";
 
 export default function RegisterPage() {
   const [username, setUsername] = useState("");
@@ -241,6 +241,15 @@ export default function RegisterPage() {
             เข้าสู่ระบบ
           </Link>
         </p>
+
+        <Link
+          href="/research"
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)]"
+          style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--card)" }}
+        >
+          <MessageSquare size={14} />
+          กลับไปทดลองถามฟรี
+        </Link>
 
         <p className="mt-3 text-[11px]" style={{ color: "var(--text-muted)", opacity: 0.5 }}>
           © {new Date().getFullYear()} OMNIA.AI

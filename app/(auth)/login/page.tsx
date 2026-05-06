@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, MessageSquare } from "lucide-react";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -178,6 +178,15 @@ function LoginForm() {
             สมัครสมาชิกฟรี
           </a>
         </p>
+
+        <Link
+          href="/research"
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors hover:border-[var(--accent)]"
+          style={{ borderColor: "var(--border)", color: "var(--text)", background: "var(--card)" }}
+        >
+          <MessageSquare size={14} />
+          ทดลองถามฟรีก่อนสมัคร
+        </Link>
 
         {/* Footer */}
         <p className="mt-4 text-[11px]" style={{ color: "var(--text-muted)", opacity: 0.5 }}>

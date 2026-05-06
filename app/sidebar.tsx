@@ -72,6 +72,7 @@ const GUEST_NAV_ITEMS: NavGroup[] = [
   {
     group: "",
     items: [
+      { href: "/", icon: Home, labelKey: "nav.dashboard" },
       { href: "/research", icon: MessageSquare, labelKey: "nav.research" },
       { href: "/guide", icon: BookOpen, labelKey: "nav.guide" },
       { href: "/login", icon: LogIn, labelKey: "guest.login" },
