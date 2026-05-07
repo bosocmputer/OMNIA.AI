@@ -197,6 +197,22 @@ function thaiMonthRoadmapLabels(count: number): string[] {
   });
 }
 
+function sanitizeAstrologyFinalAnswer(content: string): string {
+  return content
+    .replace(/จากการอ่านดวงจาก\s*2\s*ศาสตร์\s*พบว่า/g, "")
+    .replace(/จากการอ่านจาก\s*2\s*ศาสตร์\s*พบว่า/g, "")
+    .replace(/จาก\s*2\s*ศาสตร์\s*พบว่า/g, "")
+    .replace(/รวบรวมจาก\s*2\s*ศาสตร์/g, "")
+    .replace(/คำทำนายจากหมอดูแต่ละศาสตร์/g, "คำอ่าน")
+    .replace(/โปรเจกต์ใหม่ ๆ/g, "งานหรือดีลใหม่")
+    .replace(/โปรเจกต์ใหม่/g, "งานหรือดีลใหม่")
+    .replace(/โอกาสใหม่ ๆ/g, "ทางเลือกใหม่")
+    .replace(/โอกาสใหม่/g, "ทางเลือกใหม่")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 async function callLLMWithRetry(
   provider: string, model: string, apiKey: string, baseUrl: string | undefined,
   messages: LLMMessage[], signal?: AbortSignal, retries = 1, maxTokens = 1200
@@ -1822,6 +1838,7 @@ export async function POST(req: NextRequest) {
 - ห้ามแยกคำตอบตามชื่อหมอดูหรือชื่อ agent ให้สรุปเป็นเสียงเดียวของ OMNIA.AI
 - ห้ามถามกลับในคำตอบผลลัพธ์ ยกเว้นข้อมูลตั้งต้นไม่พอจนตอบฝั่งไม่ได้จริง ๆ
 - ห้ามขึ้นต้นด้วยคำทักทายหรือบอกว่า "รวบรวมจาก 2 ศาสตร์"; ให้เริ่มที่หัวข้อ **คำตอบตรง ๆ** ทันที
+- ห้ามเขียนว่า "จากการอ่านดวงจาก 2 ศาสตร์", "ทั้งสองศาสตร์พบว่า", หรืออธิบายแหล่งที่มา ให้พูดเป็นคำอ่านเดียวของหมอดู
 - ห้ามปลอบใจ ห้ามคำแนะนำทั่วไป ห้ามเปอร์เซ็นต์เว้นแต่ผู้ใช้ขอเอง ไม่เกิน 260 คำ
 ` : longRoadmapQuestion ? `\n\n🧾 รูปแบบคำตอบสุดท้ายที่ต้องใช้: ดวงระยะยาว/roadmap
 - กฎนี้สำคัญกว่าหัวข้อยาวใน user prompt ถ้ามีคำสั่งขัดกันให้ยึดรูปแบบนี้
@@ -1832,6 +1849,7 @@ export async function POST(req: NextRequest) {
 - หัวข้อ **เช็กให้ตรงก่อน** ต้องสั้น 1-2 บรรทัด และถ้าเป็นภาพรวมที่ไม่มีเหตุการณ์จริง ให้บอกว่าเป็น "จุดที่ควรเช็ก" ไม่ใช่ข้อเท็จจริง
 - ห้ามใช้คำว่า ลาภลอย, ดวงดี, โชคใหญ่, โอกาสใหม่ ๆ, โปรเจกต์ใหม่ ๆ แบบลอย ๆ ถ้าจะพูดต้องระบุบริบท เช่น งานขาย/ลูกค้า/รายได้เสริม/ค่าใช้จ่ายบ้าน/เงินลงทุน/สัญญา/หัวหน้า
 - ห้ามขึ้นต้นด้วยคำทักทายหรือบอกว่า "รวบรวมจาก 2 ศาสตร์"; ให้เริ่มที่หัวข้อ **ข้อมูลที่ใช้ดู** ทันที
+- ห้ามเขียนว่า "จากการอ่านดวงจาก 2 ศาสตร์", "ทั้งสองศาสตร์พบว่า", หรืออธิบายว่า agent ใดเห็นอะไร ให้ทำเหมือนหมอดูคนเดียวอ่านให้ผู้ใช้
 - ห้ามใช้คำว่า น้ำหนักรวม, ผสม, สัญญาณ, แรงหนุน, แรงต้าน, Day Master, กาลกิณี, ภูมิ, midpoint ในคำตอบสุดท้าย เว้นแต่ผู้ใช้ถามศัพท์นั้นเอง
 - ห้ามใส่เปอร์เซ็นต์ ห้ามหัวข้อ หลักที่ใช้สรุปดวงนี้ / ทำไมถึงอ่านแบบนี้ / มุมที่แต่ละศาสตร์เห็นต่างกัน / ข้อควรรู้ก่อนเชื่อคำทำนายนี้
 - ตอบยาวได้พอให้ครบ roadmap แต่ต้องไม่เกินประมาณ 900 คำ
@@ -1849,12 +1867,16 @@ export async function POST(req: NextRequest) {
 - ห้ามขึ้นต้นด้วยคำทักทายหรือบอกว่า "รวบรวมจาก 2 ศาสตร์"; ให้เริ่มที่หัวข้อ **คำตอบตรง ๆ** ทันที
 - ถ้าข้อมูลยังน้อย ให้ถามต่อ 1 ข้อท้ายคำตอบ ไม่เกิน 420 คำ
 `;
+          const finalVoiceGuard = `\n\nกฎเสียงตอบสุดท้ายที่ห้ามฝ่าฝืน:
+- ห้ามเขียนที่มาของการสรุป เช่น "จากการอ่านดวงจาก 2 ศาสตร์", "ทั้งสองศาสตร์", "หมอดูแต่ละศาสตร์" ในคำตอบสุดท้าย ให้เหลือเฉพาะคำอ่านที่ผู้ใช้ต้องการ
+- ห้ามใช้คำกว้างแบบ "โอกาสใหม่", "โปรเจกต์ใหม่", "เปลี่ยนแปลง", "เรียนรู้สิ่งใหม่" ถ้าไม่เติมบริบทเฉพาะของคำถามในประโยคเดียวกัน
+`;
           const summaryUserPrompt = `${agentCoverageUserContext}${directAnswerOpeningContext}${mode === "close" && allRounds && allRounds.length > 1 ? `คำถามต่อเนื่องทั้งหมด ${allRounds.length} รอบ:\n\n` : `คำถามของผู้ใช้: ${question}\n\n`}คำทำนายจากหมอดูแต่ละศาสตร์:\n\n${allContext}\n\n---\nให้สรุปคำตอบสุดท้ายเป็นภาษาไทยแบบคนทั่วไป เหมือนหมอดูพูดกับผู้ใช้โดยตรง ไม่ใช่รายงานจากระบบ\n${adaptiveSummaryFormatContext}\n\nกติกาท้ายสุด:\n- ใช้รูปแบบด้านบนเท่านั้น ห้ามเพิ่มหัวข้ออื่นนอกเหนือจากที่กำหนด\n- ห้ามใช้หัวข้อเชิงระบบ เช่น หลักที่ใช้สรุปดวงนี้, ทำไมถึงอ่านแบบนี้, จุดที่ทักได้ชัดที่สุด, มุมที่แต่ละศาสตร์เห็นต่างกัน, ข้อควรรู้ก่อนเชื่อคำทำนายนี้\n- ห้ามใช้ศัพท์ระบบ เช่น น้ำหนักรวม, ผสม, สัญญาณ, แรงหนุน, แรงต้าน เว้นแต่ผู้ใช้ถามศัพท์นั้นเอง\n- ห้ามขึ้นต้นด้วยคำทักทาย ห้ามพูดว่า "ผม OMNIA.AI" หรือ "รวบรวมจาก 2 ศาสตร์"; ผู้ใช้รู้แล้วว่าเป็นคำตอบจากระบบ\n- ห้ามใส่หัวข้อย่อยที่เป็นตัวหนาเพิ่มภายใน bullet เช่นชื่อ agent/หมอดู/คำถาม ถ้าไม่ใช่หัวข้อที่รูปแบบกำหนด\n- ห้ามคัดลอกคำตอบราย agent มาตรง ๆ ให้แปลงเป็นคำตอบเดียวที่อ่านลื่น\n- ถ้าเป็นดวงระยะยาว รายเดือนต้องใช้เดือนที่ระบบระบุให้เท่านั้น ห้ามย้อนปีหรือแต่งเดือนเอง\n- ถ้าประโยคไหนใช้ได้กับทุกคน ให้ตัดทิ้งหรือเติมบริบทจากชื่อ วันเกิด เวลาเกิด โฟกัส หรือกรอบเวลาของคำถาม\n${isAstrologySession ? "" : `\n- ถ้ามีข้อมูลตัวเลขที่เหมาะกับกราฟ ให้เพิ่ม chart JSON ท้ายคำตอบ ถ้าไม่มีให้ไม่ต้องใส่กราฟ`}`;
 
           const result = await callLLM(chairman.provider, chairman.model, chairApiKey, chairman.baseUrl, [
             {
               role: "system",
-              content: `${companyContext}${memoryContext}คุณคือ OMNIA.AI ผู้สรุปคำทำนายรวมจากหมอดูหลายศาสตร์ หน้าที่ของคุณคืออ่านคำทำนายของแต่ละศาสตร์ แล้วสรุปให้ผู้ใช้เข้าใจแบบกระชับ อบอุ่น ตรงประเด็น และนำไปใช้ได้จริง ห้ามใช้ภาษาเป็นทางการหรือศัพท์ยากเกินจำเป็น ห้ามเรียกตัวเองว่าประธาน ห้ามใช้คำว่า วาระ/มติ/ประชุม${mode === "close" && allRounds && allRounds.length > 1 ? ` (มีคำถามต่อเนื่อง ${allRounds.length} รอบ ให้สรุปรวมทั้งหมด)` : ""}${failureNote}${factCheckNote}${domainKnowledge}${clarificationContext}${premiseGuardContext}${astroFocusContext}${timeFrameContext}${adaptiveSummaryFormatContext}${questionStyleContext}${outcomeVerdictContext}${salesDemoContext}${dailyBrevityContext}${dateContext}${agentCoverageContext}${getAstroPrecisionRules("summary")}${antiHallucinationRules}${astrologyAntiHallucinationRules}${astrologyElementGuardRules}`,
+              content: `${companyContext}${memoryContext}คุณคือ OMNIA.AI ในบทหมอดูหลักที่พูดกับผู้ใช้โดยตรง หน้าที่ของคุณคือกลั่นคำอ่านจากข้อมูลที่ได้รับให้เป็นเสียงเดียว อ่านง่าย ตรงประเด็น และนำไปใช้ได้จริง ห้ามบอกขั้นตอนการสรุปหรือบอกว่ามาจากกี่ศาสตร์ ห้ามใช้ภาษาเป็นทางการหรือศัพท์ยากเกินจำเป็น ห้ามเรียกตัวเองว่าประธาน ห้ามใช้คำว่า วาระ/มติ/ประชุม${mode === "close" && allRounds && allRounds.length > 1 ? ` (มีคำถามต่อเนื่อง ${allRounds.length} รอบ ให้สรุปรวมทั้งหมด)` : ""}${failureNote}${factCheckNote}${domainKnowledge}${clarificationContext}${premiseGuardContext}${astroFocusContext}${timeFrameContext}${adaptiveSummaryFormatContext}${finalVoiceGuard}${questionStyleContext}${outcomeVerdictContext}${salesDemoContext}${dailyBrevityContext}${dateContext}${agentCoverageContext}${getAstroPrecisionRules("summary")}${antiHallucinationRules}${astrologyAntiHallucinationRules}${astrologyElementGuardRules}`,
             },
             {
               role: "user",
@@ -1868,7 +1890,7 @@ export async function POST(req: NextRequest) {
             agentName: "OMNIA.AI สรุปรวม",
             agentEmoji: "✦",
             role: "synthesis",
-            content: result.content.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim(),
+            content: sanitizeAstrologyFinalAnswer(result.content.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim()),
             tokensUsed: result.inputTokens + result.outputTokens,
             timestamp: new Date().toISOString(),
           };
@@ -1887,7 +1909,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Strip chart/json code blocks from final content
-          const cleanContent = result.content.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim();
+          const cleanContent = sanitizeAstrologyFinalAnswer(result.content.replace(/```(?:chart|json)\n[\s\S]*?\n```/g, "").trim());
 
           send("final_answer", { content: cleanContent });
           await completeResearchSession(sessionId, cleanContent, "completed");
